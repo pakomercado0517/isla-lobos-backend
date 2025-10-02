@@ -1,0 +1,225 @@
+import { body, param, query } from "express-validator";
+
+/**
+ * Validadores para SalidaController
+ *
+ * Incluye validaciones para:
+ * - Creación de salidas
+ * - Actualización de salidas
+ * - Filtros de consulta
+ * - Parámetros de ruta
+ */
+
+// Validaciones para obtener todas las salidas
+export const getAllSalidasValidation = [
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("La página debe ser un número entero mayor a 0"),
+
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("El límite debe ser un número entre 1 y 100"),
+
+  query("fecha")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+
+  query("estado")
+    .optional()
+    .isIn(["programada", "en_progreso", "completada", "cancelada"])
+    .withMessage(
+      "El estado debe ser uno de: programada, en_progreso, completada, cancelada"
+    ),
+
+  query("prestador_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID del prestador debe ser un UUID válido"),
+
+  query("embarcacion_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID de la embarcación debe ser un UUID válido"),
+
+  query("bloque_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID del bloque debe ser un UUID válido"),
+
+  query("fecha_inicio")
+    .optional()
+    .isISO8601()
+    .withMessage(
+      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
+    ),
+
+  query("fecha_fin")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+];
+
+// Validaciones para obtener salida por ID
+export const getSalidaByIdValidation = [
+  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+];
+
+// Validaciones para crear salida
+export const createSalidaValidation = [
+  body("prestador_id")
+    .isUUID()
+    .withMessage("El ID del prestador debe ser un UUID válido"),
+
+  body("embarcacion_id")
+    .isUUID()
+    .withMessage("El ID de la embarcación debe ser un UUID válido"),
+
+  body("bloque_id")
+    .isUUID()
+    .withMessage("El ID del bloque debe ser un UUID válido"),
+
+  body("fecha_salida")
+    .isISO8601()
+    .withMessage("La fecha de salida debe estar en formato ISO 8601")
+    .custom((value) => {
+      const fechaSalida = new Date(value);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      if (fechaSalida < hoy) {
+        throw new Error("La fecha de salida no puede ser en el pasado");
+      }
+      return true;
+    }),
+
+  body("pasajeros_registrados")
+    .isInt({ min: 1, max: 150 })
+    .withMessage("El número de pasajeros debe ser un número entre 1 y 150"),
+
+  body("observaciones")
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage("Las observaciones no pueden exceder 500 caracteres")
+    .trim(),
+];
+
+// Validaciones para actualizar salida
+export const updateSalidaValidation = [
+  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+
+  body("embarcacion_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID de la embarcación debe ser un UUID válido"),
+
+  body("bloque_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID del bloque debe ser un UUID válido"),
+
+  body("fecha_salida")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha de salida debe estar en formato ISO 8601")
+    .custom((value) => {
+      if (value) {
+        const fechaSalida = new Date(value);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        if (fechaSalida < hoy) {
+          throw new Error("La fecha de salida no puede ser en el pasado");
+        }
+      }
+      return true;
+    }),
+
+  body("pasajeros_registrados")
+    .optional()
+    .isInt({ min: 1, max: 150 })
+    .withMessage("El número de pasajeros debe ser un número entre 1 y 150"),
+
+  body("observaciones")
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage("Las observaciones no pueden exceder 500 caracteres")
+    .trim(),
+
+  body("estado")
+    .optional()
+    .isIn(["programada", "en_progreso", "completada", "cancelada"])
+    .withMessage(
+      "El estado debe ser uno de: programada, en_progreso, completada, cancelada"
+    ),
+];
+
+// Validaciones para cancelar salida
+export const cancelarSalidaValidation = [
+  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+
+  body("motivo_cancelacion")
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage("El motivo de cancelación no puede exceder 500 caracteres")
+    .trim(),
+];
+
+// Validaciones para obtener mis salidas
+export const getMisSalidasValidation = [
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("La página debe ser un número entero mayor a 0"),
+
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("El límite debe ser un número entre 1 y 100"),
+
+  query("fecha")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+
+  query("estado")
+    .optional()
+    .isIn(["programada", "en_progreso", "completada", "cancelada"])
+    .withMessage(
+      "El estado debe ser uno de: programada, en_progreso, completada, cancelada"
+    ),
+
+  query("fecha_inicio")
+    .optional()
+    .isISO8601()
+    .withMessage(
+      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
+    ),
+
+  query("fecha_fin")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+];
+
+// Validaciones para estadísticas de salidas
+export const getSalidaStatsValidation = [
+  query("prestador_id")
+    .optional()
+    .isUUID()
+    .withMessage("El ID del prestador debe ser un UUID válido"),
+
+  query("fecha_inicio")
+    .optional()
+    .isISO8601()
+    .withMessage(
+      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
+    ),
+
+  query("fecha_fin")
+    .optional()
+    .isISO8601()
+    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+];

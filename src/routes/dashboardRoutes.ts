@@ -1,0 +1,48 @@
+import { Router } from "express";
+import DashboardController from "../controllers/dashboardController";
+import { authenticateToken, requireCONANP } from "../middleware/auth";
+import {
+  handleValidationErrors,
+  sanitizeInput,
+} from "../middleware/validation";
+import {
+  getOcupacionValidation,
+  getResumenClimaValidation,
+} from "../validators/dashboardValidators";
+
+const router = Router();
+
+// Middleware global para sanitizar entrada
+router.use(sanitizeInput);
+
+// Rutas protegidas (requieren autenticación)
+router.use(authenticateToken);
+
+// Todas las rutas del dashboard requieren rol CONANP
+router.use(requireCONANP);
+
+// Rutas del dashboard
+router.get("/estadisticas", DashboardController.getEstadisticas);
+
+router.get(
+  "/ocupacion",
+  getOcupacionValidation,
+  handleValidationErrors,
+  DashboardController.getOcupacion
+);
+
+router.get("/embarcaciones", DashboardController.getEstadoEmbarcaciones);
+
+router.get("/permisos", DashboardController.getEstadoPermisos);
+
+router.get(
+  "/clima",
+  getResumenClimaValidation,
+  handleValidationErrors,
+  DashboardController.getResumenClima
+);
+
+router.get("/alertas", DashboardController.getAlertasSistema);
+
+export default router;
+

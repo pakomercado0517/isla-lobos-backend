@@ -1,0 +1,62 @@
+{
+  "name": "isla-lobos-backend",
+  "version": "1.0.0",
+  "description": "Backend para el sistema de gestión de bloques y salidas de embarcaciones",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:seed": "sequelize-cli db:seed:all",
+    "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "db:create": "sequelize-cli db:create",
+    "db:drop": "sequelize-cli db:drop",
+    "db:clean": "node scripts/clean-database.js",
+    "seed:demo": "node scripts/run-seeders.js",
+    "seed:clean": "node scripts/clean-seeders.js"
+  },
+  "keywords": [
+    "express",
+    "typescript",
+    "postgresql",
+    "sequelize",
+    "embarcaciones"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/uuid": "^11.0.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "postgresql": "^0.0.1",
+    "sequelize": "^6.37.7",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/express-validator": "^3.0.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.5.2",
+    "@types/pg": "^8.15.5",
+    "@types/sequelize": "^6.12.0",
+    "nodemon": "^3.1.10",
+    "sequelize-cli": "^6.6.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

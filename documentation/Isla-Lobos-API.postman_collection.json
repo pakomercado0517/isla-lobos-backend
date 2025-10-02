@@ -1,0 +1,1537 @@
+{
+  "info": {
+    "name": "Isla Lobos API",
+    "description": "Colección completa de APIs para el sistema de gestión de Isla Lobos",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "prestador_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "salida_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Autenticación",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@conanp.gob.mx\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('auth_token', response.data.token);",
+                  "        console.log('Token guardado:', response.data.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Prestador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan.perez@ejemplo.com\",\n  \"password\": \"Prestador123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('auth_token', response.data.token);",
+                  "        console.log('Token guardado:', response.data.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registro",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nuevo Usuario\",\n  \"email\": \"nuevo@ejemplo.com\",\n  \"telefono\": \"2291234567\",\n  \"password\": \"Password123!\",\n  \"codigo_invitacion\": \"PRESTADOR001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Verificar Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Cambiar Contraseña",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Admin123!\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Perfil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Solicitar Recuperación de Contraseña",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@conanp.gob.mx\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Resetear Contraseña",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"REEMPLAZAR_CON_TOKEN_REAL\",\n  \"newPassword\": \"NuevaPassword123!\",\n  \"confirmPassword\": \"NuevaPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Usuarios",
+      "item": [
+        {
+          "name": "Obtener Todos los Usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Usuarios por Rol",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios?rol=prestador&activo=true",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios"],
+              "query": [
+                {
+                  "key": "rol",
+                  "value": "prestador"
+                },
+                {
+                  "key": "activo",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Usuario por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nuevo Prestador\",\n  \"email\": \"nuevo.prestador@ejemplo.com\",\n  \"telefono\": \"2291234567\",\n  \"password\": \"Password123!\",\n  \"rol\": \"prestador\",\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Usuario",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nombre Actualizado\",\n  \"telefono\": \"2299876543\",\n  \"activo\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Desactivar Usuario",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Activar Usuario",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{user_id}}/activate",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "{{user_id}}", "activate"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Perfil Personal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Mi Nombre Actualizado\",\n  \"telefono\": \"2291234567\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/profile/update",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "profile", "update"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estadísticas de Usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios/stats",
+              "host": ["{{base_url}}"],
+              "path": ["usuarios", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📅 Bloques",
+      "item": [
+        {
+          "name": "Obtener Todos los Bloques",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["bloques"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Bloques por Fecha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques?fecha=2025-09-26",
+              "host": ["{{base_url}}"],
+              "path": ["bloques"],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "2025-09-26"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Bloques por Estado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques?estado=activo",
+              "host": ["{{base_url}}"],
+              "path": ["bloques"],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "activo"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Bloque por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques/{{bloque_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["bloques", "{{bloque_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Bloque",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Bloque de Prueba\",\n  \"hora_inicio\": \"15:00\",\n  \"hora_fin\": \"17:00\",\n  \"capacidad_total\": 50,\n  \"fecha\": \"2025-12-30\",\n  \"estado\": \"activo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/bloques",
+              "host": ["{{base_url}}"],
+              "path": ["bloques"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Bloque",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Bloque Actualizado\",\n  \"hora_inicio\": \"16:00\",\n  \"hora_fin\": \"18:00\",\n  \"capacidad_total\": 60,\n  \"estado\": \"lleno\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/bloques/{{bloque_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["bloques", "{{bloque_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Bloque",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques/{{bloque_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["bloques", "{{bloque_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estadísticas de Bloques",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["bloques", "estadisticas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚢 Embarcaciones",
+      "item": [
+        {
+          "name": "Obtener Todas las Embarcaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Embarcaciones por Estado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones?estado=disponible",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones"],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "disponible"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Embarcaciones por Tipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones?tipo=mayor",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones"],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "mayor"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Embarcaciones por Prestador",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones?prestador_id=6352b123-ad6d-4c89-a6d5-de53220f1233",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones"],
+              "query": [
+                {
+                  "key": "prestador_id",
+                  "value": "6352b123-ad6d-4c89-a6d5-de53220f1233"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Embarcación por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/{{embarcacion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "{{embarcacion_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Embarcación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nueva Embarcacion Test\",\n  \"matricula\": \"TEST-002\",\n  \"capacidad\": 30,\n  \"tipo\": \"menor\",\n  \"estado\": \"disponible\",\n  \"prestador_id\": \"6352b123-ad6d-4c89-a6d5-de53220f1233\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/embarcaciones",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Embarcación",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Embarcacion Actualizada\",\n  \"capacidad\": 35,\n  \"tipo\": \"mayor\",\n  \"estado\": \"en_uso\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/{{embarcacion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "{{embarcacion_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Embarcación",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/{{embarcacion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "{{embarcacion_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Mis Embarcaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/mis-embarcaciones?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "mis-embarcaciones"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estadísticas de Embarcaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "estadisticas"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estadísticas por Prestador",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/embarcaciones/estadisticas?prestador_id=6352b123-ad6d-4c89-a6d5-de53220f1233",
+              "host": ["{{base_url}}"],
+              "path": ["embarcaciones", "estadisticas"],
+              "query": [
+                {
+                  "key": "prestador_id",
+                  "value": "6352b123-ad6d-4c89-a6d5-de53220f1233"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Dashboard",
+      "item": [
+        {
+          "name": "Estadísticas Generales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "estadisticas"]
+            },
+            "description": "Obtener estadísticas generales del sistema"
+          }
+        },
+        {
+          "name": "Ocupación por Día",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/ocupacion?dias=7",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "ocupacion"],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "7",
+                  "description": "Número de días a consultar (1-30)"
+                }
+              ]
+            },
+            "description": "Obtener ocupación por día y bloque"
+          }
+        },
+        {
+          "name": "Estado de Embarcaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/embarcaciones",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "embarcaciones"]
+            },
+            "description": "Obtener estado de embarcaciones por prestador"
+          }
+        },
+        {
+          "name": "Estado de Permisos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/permisos",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "permisos"]
+            },
+            "description": "Obtener estado de permisos de prestadores"
+          }
+        },
+        {
+          "name": "Resumen Meteorológico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/clima?dias=7",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "clima"],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "7",
+                  "description": "Número de días a consultar (1-30)"
+                }
+              ]
+            },
+            "description": "Obtener resumen meteorológico"
+          }
+        },
+        {
+          "name": "Alertas del Sistema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dashboard/alertas",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "alertas"]
+            },
+            "description": "Obtener alertas del sistema"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎫 Invitaciones",
+      "item": [
+        {
+          "name": "Obtener Todas las Invitaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/invitaciones?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número de página"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Elementos por página"
+                },
+                {
+                  "key": "usada",
+                  "value": "false",
+                  "description": "Filtrar por estado de uso (opcional)"
+                }
+              ]
+            },
+            "description": "Obtener todas las invitaciones con filtros"
+          }
+        },
+        {
+          "name": "Obtener Invitación por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/invitaciones/:id",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", ":id"]
+            },
+            "description": "Obtener invitación específica por ID"
+          }
+        },
+        {
+          "name": "Crear Invitación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"INV2025\",\n  \"fecha_expiracion\": \"2025-12-31T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitaciones",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones"]
+            },
+            "description": "Crear nueva invitación"
+          }
+        },
+        {
+          "name": "Actualizar Invitación",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha_expiracion\": \"2025-12-31T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitaciones/:id",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", ":id"]
+            },
+            "description": "Actualizar invitación existente"
+          }
+        },
+        {
+          "name": "Eliminar Invitación",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/invitaciones/:id",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", ":id"]
+            },
+            "description": "Eliminar invitación"
+          }
+        },
+        {
+          "name": "Validar Código",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"INV2025\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitaciones/validar",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", "validar"]
+            },
+            "description": "Validar código de invitación"
+          }
+        },
+        {
+          "name": "Usar Invitación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": \"uuid-del-usuario\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/invitaciones/:id/usar",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", ":id", "usar"]
+            },
+            "description": "Marcar invitación como usada"
+          }
+        },
+        {
+          "name": "Estadísticas de Invitaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/invitaciones/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["invitaciones", "estadisticas"]
+            },
+            "description": "Obtener estadísticas de invitaciones"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌤️ Clima",
+      "item": [
+        {
+          "name": "Obtener Todas las Condiciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["clima"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Condición Actual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/actual",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "actual"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Predicción",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/prediccion?dias=5",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "prediccion"],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Alertas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/alertas",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "alertas"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estadísticas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["clima", "estadisticas"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Condición por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clima", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "bd8fc4e2-b824-499a-98d5-be143c6821ad"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Condición",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha_hora\": \"2025-09-26T18:00:00Z\",\n  \"oleaje\": 1.5,\n  \"viento_velocidad\": 18.0,\n  \"viento_direccion\": \"SE\",\n  \"visibilidad\": \"buena\",\n  \"estado_puerto\": \"abierto\",\n  \"prediccion_5_dias\": \"Condiciones favorables para salidas\",\n  \"fuente\": \"CONAGUA\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/clima",
+              "host": ["{{base_url}}"],
+              "path": ["clima"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Condición",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oleaje\": 2.0,\n  \"viento_velocidad\": 22.0,\n  \"visibilidad\": \"regular\",\n  \"estado_puerto\": \"restricciones\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/clima/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clima", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "bd8fc4e2-b824-499a-98d5-be143c6821ad"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Condición",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clima/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clima", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "bd8fc4e2-b824-499a-98d5-be143c6821ad"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💎 Sistema de Brazaletes",
+      "item": [
+        {
+          "name": "📦 Gestión de Inventario",
+          "item": [
+            {
+              "name": "Obtener Inventario",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/inventario",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "inventario"]
+                }
+              }
+            },
+            {
+              "name": "Crear Lote",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"numero_lote\": \"LOT-2024-001\",\n  \"cantidad_total\": 1000,\n  \"tipo\": \"isla\",\n  \"fecha_compra\": \"2024-01-15\",\n  \"fecha_vencimiento\": \"2025-12-31\",\n  \"costo_unitario\": 5.00,\n  \"precio_venta\": 15.00,\n  \"proveedor\": \"Brazaletes del Caribe S.A.\",\n  \"observaciones\": \"Lote de prueba para temporada alta\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/lotes",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "lotes"]
+                }
+              }
+            },
+            {
+              "name": "Listar Lotes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/lotes?tipo=isla&estado=activo&page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "lotes"],
+                  "query": [
+                    {
+                      "key": "tipo",
+                      "value": "isla"
+                    },
+                    {
+                      "key": "estado",
+                      "value": "activo"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "💰 Venta a Prestadores",
+          "item": [
+            {
+              "name": "Vender Brazaletes",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Verificar respuesta exitosa",
+                      "pm.test('Status code is 201', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "// Verificar estructura de respuesta",
+                      "pm.test('Response has rango_brazaletes', function () {",
+                      "    const responseJson = pm.response.json();",
+                      "    pm.expect(responseJson.data).to.have.property('rango_brazaletes');",
+                      "    pm.expect(responseJson.data.rango_brazaletes).to.have.property('numero_inicial');",
+                      "    pm.expect(responseJson.data.rango_brazaletes).to.have.property('numero_final');",
+                      "    pm.expect(responseJson.data.rango_brazaletes).to.have.property('cantidad_total');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prestador_id\": \"{{prestador_id}}\",\n  \"cantidad\": 50,\n  \"tipo\": \"universal\",\n  \"metodo_pago\": \"transferencia\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/venta",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "venta"]
+                }
+              }
+            },
+            {
+              "name": "Brazaletes por Prestador",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/prestador/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "prestador", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{prestador_id}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Mis Brazaletes (Prestador)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/mis-brazaletes",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "mis-brazaletes"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🚢 Uso en Salidas",
+          "item": [
+            {
+              "name": "Registrar Uso",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salida_id\": \"{{salida_id}}\",\n  \"brazaletes\": [\n    {\n      \"codigo\": \"BRZ-2024-000001\",\n      \"turista_nacionalidad\": \"internacional\",\n      \"turista_edad\": 35\n    },\n    {\n      \"codigo\": \"BRZ-2024-000002\",\n      \"turista_nacionalidad\": \"nacional\",\n      \"turista_edad\": 28\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/uso",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "uso"]
+                }
+              }
+            },
+            {
+              "name": "Brazaletes por Salida",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/uso/salida/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "uso", "salida", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{salida_id}}"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "📊 Estadísticas y Reportes",
+          "item": [
+            {
+              "name": "Estadísticas Generales",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/estadisticas?fecha_inicio=2024-01-01&fecha_fin=2024-01-31",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "estadisticas"],
+                  "query": [
+                    {
+                      "key": "fecha_inicio",
+                      "value": "2024-01-01"
+                    },
+                    {
+                      "key": "fecha_fin",
+                      "value": "2024-01-31"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Alertas del Sistema",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/alertas",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "alertas"]
+                }
+              }
+            },
+            {
+              "name": "Reporte de Ventas",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/reportes/ventas?fecha_inicio=2024-01-01&fecha_fin=2024-01-31&prestador_id={{prestador_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "reportes", "ventas"],
+                  "query": [
+                    {
+                      "key": "fecha_inicio",
+                      "value": "2024-01-01"
+                    },
+                    {
+                      "key": "fecha_fin",
+                      "value": "2024-01-31"
+                    },
+                    {
+                      "key": "prestador_id",
+                      "value": "{{prestador_id}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Reporte de Utilización",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/reportes/utilizacion?fecha_inicio=2024-01-01&fecha_fin=2024-01-31&tipo=isla",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "reportes", "utilizacion"],
+                  "query": [
+                    {
+                      "key": "fecha_inicio",
+                      "value": "2024-01-01"
+                    },
+                    {
+                      "key": "fecha_fin",
+                      "value": "2024-01-31"
+                    },
+                    {
+                      "key": "tipo",
+                      "value": "isla"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🔧 Utilidades",
+          "item": [
+            {
+              "name": "Dashboard Brazaletes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/dashboard",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "dashboard"]
+                }
+              }
+            },
+            {
+              "name": "Búsqueda de Brazaletes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/search?codigo=BRZ-2024-000001&tipo=isla&estado=utilizado",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "search"],
+                  "query": [
+                    {
+                      "key": "codigo",
+                      "value": "BRZ-2024-000001"
+                    },
+                    {
+                      "key": "tipo",
+                      "value": "isla"
+                    },
+                    {
+                      "key": "estado",
+                      "value": "utilizado"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Health Check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/brazaletes/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["brazaletes", "health"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
