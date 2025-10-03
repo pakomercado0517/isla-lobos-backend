@@ -13,11 +13,17 @@ export const handleValidationErrors = (
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
+    // Log detallado para debugging
+    console.log("🚨 Errores de validación encontrados:");
+    console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
+    console.log("❌ Errores:", errors.array());
+
     // Formatear errores para una respuesta más clara
     const formattedErrors = errors.array().map((error: ValidationError) => ({
       field: error.type === "field" ? error.path : "unknown",
       message: error.msg,
       value: error.type === "field" ? error.value : undefined,
+      type: error.type,
     }));
 
     const response: ApiResponse = {
@@ -27,9 +33,13 @@ export const handleValidationErrors = (
       data: {
         errors: formattedErrors,
         count: formattedErrors.length,
+        summary: formattedErrors
+          .map((e) => `${e.field}: ${e.message}`)
+          .join(", "),
       },
     };
 
+    console.log("📤 Respuesta de error:", JSON.stringify(response, null, 2));
     res.status(400).json(response);
     return;
   }

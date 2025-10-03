@@ -365,10 +365,10 @@ export class BrazaleteController {
         metodo_pago,
       });
 
-      // Asignar brazaletes al prestador
+      // Vender brazaletes al prestador (mantienen estado disponible)
       const codigosBrazaletes = [];
       for (const brazalete of brazaletesDisponibles) {
-        await brazalete.asignarAPrestador(prestador_id);
+        await brazalete.venderAPrestador(prestador_id);
         codigosBrazaletes.push(brazalete.codigo);
       }
 
@@ -529,11 +529,128 @@ export class BrazaleteController {
   // ============================================================================
 
   /**
+   * POST /api/brazaletes/asignar
+   * Asignar brazaletes a una salida
+   */
+  static async asignarBrazaletes(
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      console.log("🔍 Iniciando asignación de brazaletes...");
+      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
+      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
+
+      const { salida_id, cantidad, fecha_asignacion } = req.body;
+
+      // Verificar que la salida exista y pertenezca al prestador
+      const salida = await Salida.findOne({
+        where: { id: salida_id },
+        include: [
+          {
+            model: User,
+            as: "prestador",
+            attributes: ["id", "nombre", "email"],
+          },
+        ],
+      });
+
+      if (!salida) {
+        res.status(404).json({
+          success: false,
+          message: "Salida no encontrada",
+          error: "SALIDA_NOT_FOUND",
+        });
+        return;
+      }
+
+      // Verificar que el prestador autenticado sea el propietario de la salida
+      if (salida.prestador_id !== req.user!.id) {
+        res.status(403).json({
+          success: false,
+          message: "No tienes permisos para asignar brazaletes a esta salida",
+          error: "FORBIDDEN",
+        });
+        return;
+      }
+
+      // Obtener brazaletes disponibles del prestador (estado disponible)
+      const brazaletesDisponibles = await Brazalete.findAll({
+        where: {
+          prestador_id: req.user!.id,
+          estado: "disponible",
+        },
+        limit: cantidad,
+        order: [["fecha_creacion", "ASC"]], // FIFO - First In, First Out
+      });
+
+      if (brazaletesDisponibles.length < cantidad) {
+        res.status(400).json({
+          success: false,
+          message: `No hay suficientes brazaletes disponibles. Disponibles: ${brazaletesDisponibles.length}, Solicitados: ${cantidad}`,
+          error: "INSUFFICIENT_BRACELETS",
+          data: {
+            disponibles: brazaletesDisponibles.length,
+            solicitados: cantidad,
+          },
+        });
+        return;
+      }
+
+      // Asignar los brazaletes a la salida
+      const fechaAsignacion = new Date(fecha_asignacion);
+      const brazaletesAsignados = [];
+
+      for (const brazalete of brazaletesDisponibles) {
+        // Asignar brazalete a la salida (cambia estado a "asignado")
+        await brazalete.asignarAPrestador(req.user!.id);
+        // Actualizar la fecha de asignación específica
+        await brazalete.update({ fecha_asignacion: fechaAsignacion });
+        await brazalete.reload(); // Recargar para obtener los datos actualizados
+
+        brazaletesAsignados.push({
+          id: brazalete.id,
+          codigo: brazalete.codigo,
+          tipo: brazalete.tipo,
+          estado: brazalete.estado,
+          fecha_asignacion: brazalete.fecha_asignacion,
+        });
+      }
+
+      console.log(
+        `✅ ${brazaletesAsignados.length} brazaletes asignados exitosamente`
+      );
+
+      res.status(201).json({
+        success: true,
+        message: `${brazaletesAsignados.length} brazaletes asignados exitosamente a la salida`,
+        data: {
+          salida_id: salida_id,
+          cantidad_asignada: brazaletesAsignados.length,
+          fecha_asignacion: fechaAsignacion.toISOString(),
+          brazaletes: brazaletesAsignados,
+        },
+      });
+    } catch (error) {
+      console.error("Error al asignar brazaletes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
+
+  /**
    * POST /api/brazaletes/uso
    * Registrar uso de brazalete en una salida
    */
   static async registrarUso(req: AuthRequest, res: Response): Promise<void> {
     try {
+      console.log("🔍 Iniciando registro de uso de brazaletes...");
+      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
+      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
+
       const { salida_id, brazaletes } = req.body;
 
       // Verificar que la salida exista y pertenezca al prestador
@@ -596,7 +713,10 @@ export class BrazaleteController {
           await brazalete.usarEnSalida(
             salida_id,
             brazaleteData.turista_nacionalidad,
-            brazaleteData.turista_edad
+            brazaleteData.turista_edad,
+            brazaleteData.fecha_uso
+              ? new Date(brazaleteData.fecha_uso)
+              : undefined
           );
 
           // Actualizar contador del lote

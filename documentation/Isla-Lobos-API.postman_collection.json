@@ -35,6 +35,21 @@
       "key": "salida_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "bloque_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "embarcacion_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -431,61 +446,78 @@
       "name": "📅 Bloques",
       "item": [
         {
-          "name": "Obtener Todos los Bloques",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/bloques?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["bloques"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
+          "name": "Obtener Bloques para Fecha Específica",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.bloques && response.data.bloques.length > 0) {",
+                  "        // Guardar el ID del primer bloque (Matutino)",
+                  "        pm.collectionVariables.set('bloque_id', response.data.bloques[0].id);",
+                  "        console.log('Bloque ID guardado:', response.data.bloques[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "Obtener Bloques por Fecha",
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/bloques?fecha=2025-09-26",
+              "raw": "{{base_url}}/bloques?fecha=2025-10-15",
               "host": ["{{base_url}}"],
               "path": ["bloques"],
               "query": [
                 {
                   "key": "fecha",
-                  "value": "2025-09-26"
+                  "value": "2025-10-15",
+                  "description": "Fecha requerida (YYYY-MM-DD). Máximo 7 días en el futuro"
                 }
               ]
-            }
+            },
+            "description": "Obtiene bloques para una fecha específica. Si no existen, los crea automáticamente desde las plantillas predefinidas."
           }
         },
         {
-          "name": "Obtener Bloques por Estado",
+          "name": "Obtener Bloques para Mañana",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/bloques?estado=activo",
+              "raw": "{{base_url}}/bloques?fecha=2025-10-16",
               "host": ["{{base_url}}"],
               "path": ["bloques"],
               "query": [
                 {
-                  "key": "estado",
-                  "value": "activo"
+                  "key": "fecha",
+                  "value": "2025-10-16"
                 }
               ]
-            }
+            },
+            "description": "Ejemplo para obtener bloques del día siguiente"
+          }
+        },
+        {
+          "name": "Obtener Bloques para 7 Días (Máximo)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bloques?fecha=2025-10-22",
+              "host": ["{{base_url}}"],
+              "path": ["bloques"],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "2025-10-22"
+                }
+              ]
+            },
+            "description": "Ejemplo para obtener bloques del máximo permitido (7 días en el futuro)"
           }
         },
         {
@@ -563,6 +595,218 @@
               "raw": "{{base_url}}/bloques/estadisticas",
               "host": ["{{base_url}}"],
               "path": ["bloques", "estadisticas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚢 Salidas",
+      "item": [
+        {
+          "name": "Obtener Todas las Salidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["salidas"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Salidas por Fecha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas?fecha=2025-10-15",
+              "host": ["{{base_url}}"],
+              "path": ["salidas"],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "2025-10-15"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Salidas por Destino",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas?destino=Isla de Lobos",
+              "host": ["{{base_url}}"],
+              "path": ["salidas"],
+              "query": [
+                {
+                  "key": "destino",
+                  "value": "Isla de Lobos"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Salida por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas/{{salida_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["salidas", "{{salida_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Salida a Isla de Lobos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.salida && response.data.salida.id) {",
+                  "        pm.collectionVariables.set('salida_id', response.data.salida.id);",
+                  "        console.log('Salida ID guardado:', response.data.salida.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destino\": \"Isla de Lobos\",\n  \"bloque_id\": \"{{bloque_id}}\",\n  \"embarcacion_id\": \"{{embarcacion_id}}\",\n  \"fecha\": \"2025-10-15\",\n  \"numero_pasajeros\": 25,\n  \"observaciones\": \"Grupo familiar con niños\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/salidas",
+              "host": ["{{base_url}}"],
+              "path": ["salidas"]
+            },
+            "description": "Crear salida a Isla de Lobos (requiere bloque_id)"
+          }
+        },
+        {
+          "name": "Crear Salida a Arrecife",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destino\": \"Arrecife Tuxpan\",\n  \"hora\": \"09:30\",\n  \"embarcacion_id\": \"uuid-de-la-embarcacion\",\n  \"fecha\": \"2025-10-15\",\n  \"numero_pasajeros\": 15,\n  \"observaciones\": \"Tour de buceo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/salidas",
+              "host": ["{{base_url}}"],
+              "path": ["salidas"]
+            },
+            "description": "Crear salida a arrecife (requiere hora)"
+          }
+        },
+        {
+          "name": "Actualizar Salida",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"embarcacion_id\": \"uuid-nueva-embarcacion\",\n  \"numero_pasajeros\": 30,\n  \"observaciones\": \"Salida actualizada\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/salidas/{{salida_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["salidas", "{{salida_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Cancelar Salida",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo_cancelacion\": \"Mal clima\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/salidas/{{salida_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["salidas", "{{salida_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Mis Salidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas/mis-salidas?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["salidas", "mis-salidas"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Obtener salidas del prestador autenticado"
+          }
+        },
+        {
+          "name": "Obtener Estadísticas de Salidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/salidas/estadisticas",
+              "host": ["{{base_url}}"],
+              "path": ["salidas", "estadisticas"]
             }
           }
         }

@@ -102,6 +102,19 @@ router.get(
 // ============================================================================
 
 /**
+ * POST /api/brazaletes/asignar
+ * Asignar brazaletes a una salida
+ * Acceso: CONANP y Prestadores
+ */
+router.post(
+  "/asignar",
+  authMiddleware,
+  BrazaleteValidator.asignarBrazaletes,
+  validationMiddleware,
+  BrazaleteController.asignarBrazaletes
+);
+
+/**
  * POST /api/brazaletes/uso
  * Registrar uso de brazalete en una salida
  * Acceso: CONANP y Prestadores

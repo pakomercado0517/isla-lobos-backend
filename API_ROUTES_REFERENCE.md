@@ -579,7 +579,7 @@ GET /api/usuarios/stats
 
 > **Nota:** Todas las rutas requieren autenticación. Las rutas marcadas con 🔒 requieren rol CONANP.
 
-### 1. Listar Bloques Disponibles
+### 1. Obtener Bloques para Fecha Específica
 
 ```http
 GET /api/bloques?fecha=2025-10-15
@@ -587,11 +587,52 @@ GET /api/bloques?fecha=2025-10-15
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Descripción:** Siempre devuelve los 3 bloques predefinidos permanentes con capacidad calculada en tiempo real. Si se proporciona una fecha, calcula la ocupación para esa fecha específica.
+**Descripción:** Obtiene los bloques disponibles para una fecha específica. Si no existen bloques para esa fecha, los crea automáticamente basándose en las plantillas predefinidas. Calcula la capacidad en tiempo real.
 
 **Parámetros de Query:**
 
-- `fecha` (opcional): Fecha para calcular capacidad ocupada (formato: YYYY-MM-DD)
+- `fecha` (requerido): Fecha para obtener bloques (formato: YYYY-MM-DD)
+  - **Límite**: Máximo 7 días en el futuro
+  - **Validación**: No puede ser una fecha pasada
+
+**Funcionalidad Automática:**
+
+- ✅ **Creación Automática**: Si no existen bloques para la fecha, los crea automáticamente
+- ✅ **Cálculo de Capacidad**: Calcula `capacidad_registrada` y `capacidad_disponible` en tiempo real
+- ✅ **Estados Dinámicos**: Determina si el bloque está `activo` o `lleno` según la ocupación
+- ✅ **Validación de Fechas**: Limita la consulta a máximo 7 días en el futuro
+- ✅ **Embarcaciones Ocupadas por Bloque**: Incluye información de embarcaciones del prestador autenticado que ya tienen salidas programadas en cada bloque específico
+
+**Información de Embarcaciones por Bloque:**
+
+Cada bloque ahora incluye un array `embarcaciones_ocupadas` que contiene:
+
+- **Información básica**: `id`, `nombre`, `tipo`, `capacidad`, `estado`
+- **Detalle de salida**: `salida` (object) - información completa de la salida programada
+  - `id`, `estado`, `numero_pasajeros`, `destino`, `observaciones`
+
+**Uso en Frontend:**
+
+```javascript
+// Obtener embarcaciones ocupadas en un bloque específico
+const bloqueSeleccionado = response.data.bloques.find(
+  (bloque) => bloque.id === bloqueId
+);
+const embarcacionesOcupadas = bloqueSeleccionado.embarcaciones_ocupadas;
+
+// Filtrar embarcaciones disponibles (las que NO están en embarcaciones_ocupadas)
+const todasLasEmbarcaciones = await obtenerEmbarcacionesDelPrestador();
+const idsOcupadas = embarcacionesOcupadas.map((emb) => emb.id);
+const embarcacionesDisponibles = todasLasEmbarcaciones.filter(
+  (emb) => !idsOcupadas.includes(emb.id)
+);
+
+// Mostrar solo embarcaciones disponibles para este bloque
+const opcionesEmbarcaciones = embarcacionesDisponibles.map((emb) => ({
+  value: emb.id,
+  label: `${emb.nombre} (${emb.capacidad} pasajeros)`,
+}));
+```
 
 **Respuesta Exitosa (200):**
 
@@ -610,7 +651,23 @@ GET /api/bloques?fecha=2025-10-15
         "capacidad_registrada": 45,
         "capacidad_disponible": 20,
         "estado": "activo",
-        "fecha": "2025-10-15"
+        "fecha": "2025-10-15",
+        "embarcaciones_ocupadas": [
+          {
+            "id": "uuid-embarcacion-2",
+            "nombre": "Lancha Azul",
+            "tipo": "menor",
+            "capacidad": 25,
+            "estado": "disponible",
+            "salida": {
+              "id": "uuid-salida",
+              "estado": "programada",
+              "numero_pasajeros": 20,
+              "destino": "Isla de Lobos",
+              "observaciones": "Salida matutina programada"
+            }
+          }
+        ]
       },
       {
         "id": "22222222-2222-2222-2222-222222222222",
@@ -621,7 +678,8 @@ GET /api/bloques?fecha=2025-10-15
         "capacidad_registrada": 65,
         "capacidad_disponible": 0,
         "estado": "lleno",
-        "fecha": "2025-10-15"
+        "fecha": "2025-10-15",
+        "embarcaciones_ocupadas": []
       },
       {
         "id": "33333333-3333-3333-3333-333333333333",
@@ -632,7 +690,8 @@ GET /api/bloques?fecha=2025-10-15
         "capacidad_registrada": 0,
         "capacidad_disponible": 65,
         "estado": "activo",
-        "fecha": "2025-10-15"
+        "fecha": "2025-10-15",
+        "embarcaciones_ocupadas": []
       }
     ]
   }
@@ -646,6 +705,44 @@ GET /api/bloques?fecha=2025-10-15
 - `suspendido_por_clima`: Cerrado por condiciones meteorológicas
 - `cerrado_capitaria`: Cerrado por capitanía de puerto
 - `plantilla`: Bloque predefinido (solo visible sin fecha)
+
+**Errores Comunes:**
+
+```json
+// Error: Fecha requerida
+{
+  "status": "error",
+  "message": "El parámetro fecha es requerido",
+  "error": "FECHA_REQUERIDA"
+}
+
+// Error: Fecha en el pasado
+{
+  "status": "error",
+  "message": "No se pueden consultar bloques para fechas pasadas",
+  "error": "FECHA_PASADA"
+}
+
+// Error: Fecha muy futura
+{
+  "status": "error",
+  "message": "No se pueden consultar bloques para más de 7 días en el futuro",
+  "error": "FECHA_MUY_FUTURA"
+}
+```
+
+**Ejemplos de Uso:**
+
+```http
+# Obtener bloques para mañana
+GET /api/bloques?fecha=2025-10-16
+
+# Obtener bloques para 7 días (máximo permitido)
+GET /api/bloques?fecha=2025-10-22
+
+# Obtener bloques para hoy
+GET /api/bloques?fecha=2025-10-15
+```
 
 ### 2. Obtener Bloque por ID
 
@@ -1206,6 +1303,58 @@ El sistema ahora soporta múltiples destinos con diferentes flujos de trabajo:
   - Arrecife de en Medio
   - Arrecife Tanhuijo
 
+### 🔄 Flujo de Estados y Liberación Automática de Embarcaciones
+
+#### **Estados de Salida:**
+
+```typescript
+enum EstadoSalida {
+  PROGRAMADA = "programada", // Recién creada
+  EN_PROGRESO = "en_progreso", // Salida iniciada
+  COMPLETADA = "completada", // Salida finalizada
+  CANCELADA = "cancelada", // Cancelada por prestador
+  CANCELADA_POR_CLIMA = "cancelada_por_clima", // Cancelada por clima
+  CANCELADA_CAPITARIA = "cancelada_capitaria", // Cancelada por capitanía
+}
+```
+
+#### **Estados de Embarcación:**
+
+```typescript
+enum EstadoEmbarcacion {
+  DISPONIBLE = "disponible", // Lista para usar
+  EN_USO = "en_uso", // Siendo utilizada
+  MANTENIMIENTO = "mantenimiento", // En mantenimiento
+}
+```
+
+#### **Flujo Automático de Estados:**
+
+```
+1. Crear Salida:
+   embarcacion: disponible → en_uso ✅
+
+2. Marcar Salida como Completada:
+   salida: programada/en_progreso → completada
+   embarcacion: en_uso → disponible ✅ (AUTOMÁTICO)
+
+3. Cancelar Salida:
+   salida: programada/en_progreso → cancelada
+   embarcacion: en_uso → disponible ✅ (AUTOMÁTICO)
+
+4. Múltiples Salidas:
+   - Solo se libera embarcación cuando NO hay otras salidas activas
+   - Estados que NO bloquean liberación: cancelada, completada, cancelada_por_clima, cancelada_capitaria
+   - Estados que SÍ bloquean liberación: programada, en_progreso
+```
+
+#### **Validaciones Automáticas:**
+
+- ✅ **Al crear salida**: Verifica que embarcación esté `disponible`
+- ✅ **Al completar salida**: Libera embarcación si no hay otras salidas activas
+- ✅ **Al cancelar salida**: Libera embarcación si no hay otras salidas activas
+- ✅ **Al cambiar embarcación**: Verifica que la nueva embarcación esté `disponible`
+
 ### 1. Listar Salidas
 
 ```http
@@ -1491,15 +1640,49 @@ PUT /api/salidas/:id
 ```
 
 **Headers:** `Authorization: Bearer <token>`
+
+**Descripción:** Actualiza una salida existente. Incluye lógica automática para liberar embarcaciones cuando se marca como completada.
+
 **Body:**
 
 ```json
 {
+  "destino": "Isla de Lobos",
+  "embarcacion_id": "uuid-embarcacion",
+  "bloque_id": "uuid-bloque",
+  "hora": "09:30",
+  "fecha": "2025-10-15",
   "numero_pasajeros": 30,
   "observaciones": "Actualización de pasajeros",
-  "estado": "en_curso"
+  "estado": "completada"
 }
 ```
+
+**Campos Opcionales:**
+
+- `destino`: Cambiar destino de la salida
+- `embarcacion_id`: Cambiar embarcación (debe estar disponible)
+- `bloque_id`: Cambiar bloque (solo para Isla de Lobos)
+- `hora`: Cambiar hora (solo para arrecifes)
+- `fecha`: Cambiar fecha de la salida
+- `numero_pasajeros`: Actualizar número de pasajeros
+- `observaciones`: Actualizar observaciones
+- `estado`: Cambiar estado de la salida
+
+**Estados Válidos:**
+
+- `programada`: Salida programada
+- `en_progreso`: Salida en curso
+- `completada`: Salida completada (libera embarcación automáticamente)
+- `cancelada`: Salida cancelada
+- `cancelada_por_clima`: Cancelada por condiciones climáticas
+- `cancelada_capitaria`: Cancelada por orden de capitanía
+
+**Funcionalidad Automática:**
+
+- ✅ **Liberación de Embarcación**: Al marcar como `completada`, la embarcación se libera automáticamente si no hay otras salidas activas
+- ✅ **Validación de Capacidad**: Verifica capacidad disponible al cambiar número de pasajeros
+- ✅ **Validación de Disponibilidad**: Verifica que la embarcación esté disponible al cambiarla
 
 **Respuesta Exitosa (200):**
 
@@ -1510,16 +1693,18 @@ PUT /api/salidas/:id
   "data": {
     "salida": {
       "id": "uuid",
-      "fecha": "2025-09-26",
+      "fecha": "2025-10-15",
+      "destino": "Isla de Lobos",
+      "bloque_id": "uuid-bloque",
+      "hora": null,
       "numero_pasajeros": 30,
       "observaciones": "Actualización de pasajeros",
-      "estado": "en_curso",
+      "estado": "completada",
       "motivo_cancelacion": null,
       "prestador_id": "uuid",
-      "embarcacion_id": "uuid",
-      "bloque_id": "uuid",
-      "createdAt": "2025-09-26T10:00:00.000Z",
-      "updatedAt": "2025-09-26T11:00:00.000Z",
+      "embarcacion_id": "uuid-embarcacion",
+      "createdAt": "2025-10-15T10:00:00.000Z",
+      "updatedAt": "2025-10-15T11:00:00.000Z",
       "prestador": {
         "id": "uuid",
         "nombre": "Juan Pérez",
@@ -1527,21 +1712,88 @@ PUT /api/salidas/:id
         "telefono": "2291234567"
       },
       "embarcacion": {
-        "id": "uuid",
+        "id": "uuid-embarcacion",
         "nombre": "Lancha María",
         "matricula": "VER-001-ABC",
         "capacidad": 30,
-        "tipo": "menor"
+        "tipo": "menor",
+        "estado": "disponible"
       },
       "bloque": {
-        "id": "uuid",
+        "id": "uuid-bloque",
         "nombre": "Bloque Matutino",
         "hora_inicio": "08:00:00",
         "hora_fin": "10:00:00",
-        "fecha": "2025-09-26"
+        "capacidad_total": 65
       }
     }
   }
+}
+```
+
+**Respuesta para Salida a Arrecife:**
+
+```json
+{
+  "status": "success",
+  "message": "Salida actualizada exitosamente",
+  "data": {
+    "salida": {
+      "id": "uuid",
+      "fecha": "2025-10-15",
+      "destino": "Arrecife Tuxpan",
+      "bloque_id": null,
+      "hora": "09:30:00",
+      "numero_pasajeros": 15,
+      "observaciones": "Tour al arrecife",
+      "estado": "completada",
+      "motivo_cancelacion": null,
+      "prestador_id": "uuid",
+      "embarcacion_id": "uuid-embarcacion",
+      "createdAt": "2025-10-15T10:00:00.000Z",
+      "updatedAt": "2025-10-15T11:00:00.000Z",
+      "prestador": {
+        "id": "uuid",
+        "nombre": "Juan Pérez",
+        "email": "juan@ejemplo.com",
+        "telefono": "2291234567"
+      },
+      "embarcacion": {
+        "id": "uuid-embarcacion",
+        "nombre": "Lancha María",
+        "matricula": "VER-001-ABC",
+        "capacidad": 30,
+        "tipo": "menor",
+        "estado": "disponible"
+      },
+      "bloque": null
+    }
+  }
+}
+```
+
+**Errores Comunes:**
+
+```json
+// Error: No se puede modificar salida completada
+{
+  "status": "error",
+  "message": "No se puede modificar una salida completada o cancelada",
+  "error": "SALIDA_FINALIZED"
+}
+
+// Error: Embarcación no disponible
+{
+  "status": "error",
+  "message": "La embarcación no está disponible",
+  "error": "EMBARCACION_NOT_AVAILABLE"
+}
+
+// Error: Capacidad insuficiente
+{
+  "status": "error",
+  "message": "No hay suficiente capacidad. Disponible: 15, Solicitado: 30",
+  "error": "INSUFFICIENT_CAPACITY"
 }
 ```
 
@@ -1577,7 +1829,121 @@ DELETE /api/salidas/:id
 }
 ```
 
-### 6. Mis Salidas
+### 6. Gestión de Estados de Salida
+
+#### **6.1. Iniciar Salida (programada → en_progreso)**
+
+```http
+PUT /api/salidas/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+
+```json
+{
+  "estado": "en_progreso",
+  "observaciones": "Salida iniciada a las 08:30"
+}
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "status": "success",
+  "message": "Salida actualizada exitosamente",
+  "data": {
+    "salida": {
+      "id": "uuid",
+      "estado": "en_progreso",
+      "observaciones": "Salida iniciada a las 08:30",
+      "embarcacion": {
+        "id": "uuid",
+        "nombre": "Lancha María",
+        "estado": "en_uso"
+      }
+    }
+  }
+}
+```
+
+#### **6.2. Completar Salida (en_progreso → completada)**
+
+```http
+PUT /api/salidas/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+
+```json
+{
+  "estado": "completada",
+  "observaciones": "Salida finalizada exitosamente"
+}
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "status": "success",
+  "message": "Salida actualizada exitosamente",
+  "data": {
+    "salida": {
+      "id": "uuid",
+      "estado": "completada",
+      "observaciones": "Salida finalizada exitosamente",
+      "embarcacion": {
+        "id": "uuid",
+        "nombre": "Lancha María",
+        "estado": "disponible"
+      }
+    }
+  }
+}
+```
+
+**Nota:** La embarcación se libera automáticamente si no hay otras salidas activas.
+
+#### **6.3. Cancelar por Clima**
+
+```http
+PUT /api/salidas/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+
+```json
+{
+  "estado": "cancelada_por_clima",
+  "observaciones": "Cancelada por condiciones meteorológicas adversas"
+}
+```
+
+#### **6.4. Cancelar por Capitanía**
+
+```http
+PUT /api/salidas/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+
+```json
+{
+  "estado": "cancelada_capitaria",
+  "observaciones": "Cancelada por orden de Capitanía de Puerto"
+}
+```
+
+### 7. Mis Salidas
 
 ```http
 GET /api/salidas/mis-salidas?page=1&limit=10
@@ -3738,8 +4104,48 @@ Los códigos de brazaletes siguen el formato: `BRZ-YYYY-NNNNNN`
 
 ---
 
-**Última actualización:** 1 de Octubre, 2025  
-**Versión:** 4.0.0 - Sistema de destinos múltiples con bloques predefinidos
+**Última actualización:** 3 de Octubre, 2025  
+**Versión:** 4.2.0 - Sistema de destinos múltiples con información de embarcaciones disponibles
+
+### 🆕 Novedades en v4.2.0
+
+#### **Información de Embarcaciones Ocupadas por Bloque**
+
+- ✅ **Filtrado por Bloque**: Cada bloque incluye las embarcaciones del prestador que ya están ocupadas en ese bloque específico
+- ✅ **Información Contextual**: Muestra detalles completos de las salidas programadas por el prestador
+- ✅ **Prevención de Conflictos**: El frontend puede filtrar embarcaciones disponibles por bloque
+- ✅ **Transparencia Total**: El prestador ve exactamente qué embarcaciones tiene ocupadas en cada bloque
+- ✅ **Optimización de Consultas**: Una sola consulta obtiene toda la información necesaria
+
+#### **Mejoras en UX de Formularios**
+
+- ✅ **Filtrado Inteligente**: El frontend puede excluir embarcaciones ocupadas en el bloque seleccionado
+- ✅ **Información Detallada**: Muestra el estado y detalles de salidas existentes
+- ✅ **Experiencia Fluida**: Evita errores de validación al crear salidas
+- ✅ **Contexto Específico**: Información relevante solo para el bloque seleccionado
+
+### 🆕 Novedades en v4.1.0
+
+#### **Liberación Automática de Embarcaciones**
+
+- ✅ **Liberación Automática**: Las embarcaciones se liberan automáticamente al completar salidas
+- ✅ **Validación Inteligente**: Solo libera si no hay otras salidas activas
+- ✅ **Estados Sincronizados**: Embarcaciones y salidas mantienen estados consistentes
+- ✅ **Prevención de Conflictos**: Evita que una embarcación esté en múltiples salidas
+
+#### **Gestión Mejorada de Estados**
+
+- ✅ **Flujo Completo**: `programada` → `en_progreso` → `completada`
+- ✅ **Estados de Cancelación**: `cancelada`, `cancelada_por_clima`, `cancelada_capitaria`
+- ✅ **Validaciones Automáticas**: Verifica disponibilidad antes de crear/actualizar salidas
+- ✅ **Liberación Condicional**: Libera embarcación solo cuando es seguro
+
+#### **Bloques Dinámicos por Fecha**
+
+- ✅ **Creación Automática**: Los bloques se crean automáticamente para fechas específicas
+- ✅ **Límite de 7 Días**: Previene saturación de la base de datos
+- ✅ **Validación de Fechas**: No permite fechas pasadas o muy futuras
+- ✅ **Cálculo en Tiempo Real**: Capacidad y estados se calculan dinámicamente
 
 ### 🆕 Novedades en v4.0.0
 

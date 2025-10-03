@@ -192,6 +192,48 @@ export class BrazaleteValidator {
   // VALIDADORES PARA USO DE BRAZALETES
   // ============================================================================
 
+  static asignarBrazaletes: ValidationChain[] = [
+    body("salida_id")
+      .notEmpty()
+      .withMessage("El ID de la salida es obligatorio")
+      .isUUID()
+      .withMessage("El ID de la salida debe ser un UUID válido"),
+
+    body("cantidad")
+      .notEmpty()
+      .withMessage("La cantidad es obligatoria")
+      .isInt({ min: 1, max: 100 })
+      .withMessage("La cantidad debe ser un número entero entre 1 y 100"),
+
+    body("fecha_asignacion")
+      .notEmpty()
+      .withMessage("La fecha de asignación es obligatoria")
+      .isISO8601()
+      .withMessage(
+        "La fecha de asignación debe ser una fecha válida en formato ISO 8601"
+      )
+      .custom((value) => {
+        const fechaAsignacion = new Date(value);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        if (fechaAsignacion < hoy) {
+          throw new Error("La fecha de asignación no puede ser anterior a hoy");
+        }
+
+        // Verificar que no sea más de 7 días en el futuro
+        const maxFecha = new Date();
+        maxFecha.setDate(maxFecha.getDate() + 7);
+        if (fechaAsignacion > maxFecha) {
+          throw new Error(
+            "La fecha de asignación no puede ser más de 7 días en el futuro"
+          );
+        }
+
+        return true;
+      }),
+  ];
+
   static registrarUso: ValidationChain[] = [
     body("salida_id")
       .notEmpty()
@@ -224,6 +266,33 @@ export class BrazaleteValidator {
       .withMessage(
         "La edad del turista debe ser un número entero entre 0 y 120"
       ),
+
+    body("brazaletes.*.fecha_uso")
+      .optional()
+      .isISO8601()
+      .withMessage(
+        "La fecha de uso debe ser una fecha válida en formato ISO 8601"
+      )
+      .custom((value) => {
+        if (value) {
+          const fechaUso = new Date(value);
+          const hoy = new Date();
+          hoy.setHours(23, 59, 59, 999); // Fin del día actual
+
+          if (fechaUso > hoy) {
+            throw new Error("La fecha de uso no puede ser futura");
+          }
+
+          // Verificar que no sea muy antigua (más de 1 año)
+          const unAnoAtras = new Date();
+          unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
+
+          if (fechaUso < unAnoAtras) {
+            throw new Error("La fecha de uso no puede ser anterior a un año");
+          }
+        }
+        return true;
+      }),
   ];
 
   static obtenerBrazaletesSalida: ValidationChain[] = [

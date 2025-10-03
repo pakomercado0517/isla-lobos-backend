@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import Bloque from "../models/Bloque";
 import Salida from "../models/Salida";
+import Embarcacion from "../models/Embarcacion";
 import { Op } from "sequelize";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
+import { EstadoBloque, EstadoSalida } from "../types";
 
 /**
  * BloqueController - Gestión de bloques horarios
@@ -16,60 +18,75 @@ import { getCurrentMexicoTime } from "../utils/dateUtils";
 class BloqueController {
   /**
    * Obtener bloques disponibles con capacidad
-   * Siempre devuelve los 3 bloques predefinidos
-   * GET /api/bloques
+   * Crea bloques dinámicamente para la fecha si no existen
+   * GET /api/bloques?fecha=YYYY-MM-DD
    */
   static async getAllBloques(req: Request, res: Response): Promise<void> {
     try {
       const { fecha } = req.query;
 
-      // Obtener bloques plantilla predefinidos
-      const bloques_plantilla = await Bloque.findAll({
-        where: {
-          estado: "plantilla",
-        },
-        order: [["hora_inicio", "ASC"]],
-      });
+      // Validar que la fecha sea requerida
+      if (!fecha) {
+        res.status(400).json({
+          status: "error",
+          message: "La fecha es requerida para obtener bloques",
+          error: "FECHA_REQUERIDA",
+        });
+        return;
+      }
 
-      // Si se proporciona fecha, calcular capacidad ocupada
-      const bloquesConCapacidad = await Promise.all(
-        bloques_plantilla.map(async (bloque) => {
-          let capacidad_registrada = 0;
-          let estado_actual = "activo";
+      // Crear fecha sin problemas de zona horaria
+      const fechaSolicitada = new Date((fecha as string) + "T00:00:00");
 
-          if (fecha) {
-            // Contar pasajeros para este bloque en esta fecha
-            capacidad_registrada =
-              (await Salida.sum("numero_pasajeros", {
-                where: {
-                  bloque_id: bloque.id,
-                  fecha: new Date(fecha as string),
-                  estado: {
-                    [Op.notIn]: [
-                      "cancelada",
-                      "cancelada_por_clima",
-                      "cancelada_capitaria",
-                    ],
-                  },
-                },
-              })) || 0;
+      // Validar que la fecha no sea en el pasado
+      const hoy = getCurrentMexicoTime();
+      hoy.setHours(0, 0, 0, 0);
 
-            // Determinar estado basado en capacidad
-            if (capacidad_registrada >= bloque.capacidad_total) {
-              estado_actual = "lleno";
-            }
-          }
+      if (fechaSolicitada < hoy) {
+        res.status(400).json({
+          status: "error",
+          message: "No se pueden consultar bloques para fechas pasadas",
+          error: "FECHA_PASADA",
+        });
+        return;
+      }
+
+      // Validar que la fecha no sea más de 7 días en el futuro
+      const diferenciaDias = Math.ceil(
+        (fechaSolicitada.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diferenciaDias > 7) {
+        res.status(400).json({
+          status: "error",
+          message:
+            "No se pueden consultar bloques para más de 7 días en el futuro",
+          error: "FECHA_MUY_FUTURA",
+        });
+        return;
+      }
+
+      // Crear bloques para la fecha si no existen
+      await BloqueController.crearBloquesParaFecha(fechaSolicitada);
+
+      // Obtener bloques con capacidad calculada y embarcaciones ocupadas
+      const prestadorId = (req as any).user?.id;
+      const bloquesConCapacidad =
+        await BloqueController.obtenerBloquesConCapacidad(fechaSolicitada);
+
+      // Obtener embarcaciones ocupadas por bloque para el prestador autenticado
+      const bloquesConEmbarcaciones = await Promise.all(
+        bloquesConCapacidad.map(async (bloque) => {
+          const embarcacionesOcupadas =
+            await BloqueController.obtenerEmbarcacionesOcupadasEnBloque(
+              prestadorId,
+              bloque.id,
+              fechaSolicitada
+            );
 
           return {
-            id: bloque.id,
-            nombre: bloque.nombre,
-            hora_inicio: bloque.hora_inicio,
-            hora_fin: bloque.hora_fin,
-            capacidad_total: bloque.capacidad_total,
-            capacidad_registrada,
-            capacidad_disponible: bloque.capacidad_total - capacidad_registrada,
-            estado: estado_actual,
-            fecha: fecha || null,
+            ...bloque,
+            embarcaciones_ocupadas: embarcacionesOcupadas,
           };
         })
       );
@@ -78,7 +95,7 @@ class BloqueController {
         status: "success",
         message: "Bloques obtenidos exitosamente",
         data: {
-          bloques: bloquesConCapacidad,
+          bloques: bloquesConEmbarcaciones,
         },
       });
     } catch (error) {
@@ -137,7 +154,7 @@ class BloqueController {
         hora_fin,
         capacidad_total,
         fecha,
-        estado = "activo",
+        estado = EstadoBloque.ACTIVO,
       } = req.body;
 
       // Validar que la fecha no sea en el pasado
@@ -361,16 +378,16 @@ class BloqueController {
       // Obtener estadísticas generales
       const totalBloques = await Bloque.count({ where });
       const bloquesActivos = await Bloque.count({
-        where: { ...where, estado: "activo" },
+        where: { ...where, estado: EstadoBloque.ACTIVO },
       });
       const bloquesLlenos = await Bloque.count({
-        where: { ...where, estado: "lleno" },
+        where: { ...where, estado: EstadoBloque.LLENO },
       });
       const bloquesSuspendidos = await Bloque.count({
-        where: { ...where, estado: "suspendido_por_clima" },
+        where: { ...where, estado: EstadoBloque.SUSPENDIDO_POR_CLIMA },
       });
       const bloquesCerrados = await Bloque.count({
-        where: { ...where, estado: "cerrado_capitaria" },
+        where: { ...where, estado: EstadoBloque.CERRADO_CAPITANIA },
       });
 
       // Calcular capacidad total y ocupada
@@ -427,6 +444,227 @@ class BloqueController {
         message: "Error interno del servidor",
         error: "INTERNAL_SERVER_ERROR",
       });
+    }
+  }
+
+  /**
+   * Método auxiliar: Normalizar fecha para evitar problemas de zona horaria
+   * @param fecha - Fecha a normalizar
+   * @returns Fecha normalizada sin problemas de zona horaria
+   */
+  private static normalizarFecha(fecha: Date): Date {
+    // Crear fecha en UTC para evitar problemas de zona horaria
+    const year = fecha.getUTCFullYear();
+    const month = fecha.getUTCMonth();
+    const day = fecha.getUTCDate();
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  private static obtenerRangoFecha(fecha: Date): { inicio: Date; fin: Date } {
+    const year = fecha.getUTCFullYear();
+    const month = fecha.getUTCMonth();
+    const day = fecha.getUTCDate();
+
+    const inicio = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const fin = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+    return { inicio, fin };
+  }
+
+  /**
+   * Método auxiliar: Crear bloques para una fecha específica desde las plantillas
+   * @param fecha - Fecha para la cual crear los bloques
+   */
+  private static async crearBloquesParaFecha(fecha: Date): Promise<void> {
+    try {
+      // Normalizar la fecha para evitar problemas de zona horaria
+      const fechaNormalizada = BloqueController.normalizarFecha(fecha);
+
+      // Verificar si ya existen bloques para esta fecha
+      const bloquesExistentes = await Bloque.count({
+        where: { fecha: fechaNormalizada },
+      });
+
+      // Si no existen bloques para esta fecha, crear desde plantillas
+      if (bloquesExistentes === 0) {
+        const plantillas = await Bloque.findAll({
+          where: { estado: EstadoBloque.PLANTILLA },
+          order: [["hora_inicio", "ASC"]],
+        });
+
+        if (plantillas.length === 0) {
+          throw new Error(
+            "No se encontraron plantillas de bloques. Contacte al administrador."
+          );
+        }
+
+        // Crear bloques para la fecha específica desde las plantillas
+        // Crear nuevos bloques con IDs únicos para cada fecha
+        for (const plantilla of plantillas) {
+          await Bloque.create({
+            nombre: plantilla.nombre,
+            hora_inicio: plantilla.hora_inicio,
+            hora_fin: plantilla.hora_fin,
+            capacidad_total: plantilla.capacidad_total,
+            capacidad_registrada: 0,
+            estado: EstadoBloque.ACTIVO,
+            fecha: fechaNormalizada,
+          });
+        }
+
+        console.log(
+          `Bloques creados para la fecha: ${fecha.toISOString().split("T")[0]}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al crear bloques para fecha:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Método auxiliar: Obtener bloques con capacidad calculada para una fecha
+   * @param fecha - Fecha para la cual obtener los bloques
+   * @returns Array de bloques con capacidad calculada
+   */
+  private static async obtenerBloquesConCapacidad(fecha: Date): Promise<any[]> {
+    try {
+      // Normalizar la fecha para evitar problemas de zona horaria
+      const fechaNormalizada = BloqueController.normalizarFecha(fecha);
+
+      // Obtener bloques existentes para la fecha
+      const bloquesExistentes = await Bloque.findAll({
+        where: { fecha: fechaNormalizada },
+        order: [["hora_inicio", "ASC"]],
+      });
+
+      // Calcular capacidad ocupada para cada bloque
+      const bloquesConCapacidad = await Promise.all(
+        bloquesExistentes.map(async (bloque) => {
+          // Calcular capacidad registrada sumando pasajeros de salidas activas
+          const rangoFecha = BloqueController.obtenerRangoFecha(fecha);
+          const capacidad_registrada =
+            (await Salida.sum("numero_pasajeros", {
+              where: {
+                bloque_id: bloque.id,
+                fecha: {
+                  [Op.between]: [rangoFecha.inicio, rangoFecha.fin],
+                },
+                estado: {
+                  [Op.notIn]: [
+                    EstadoSalida.CANCELADA,
+                    EstadoSalida.CANCELADA_POR_CLIMA,
+                    EstadoSalida.CANCELADA_CAPITARIA,
+                  ],
+                },
+              },
+            })) || 0;
+
+          // Determinar estado basado en capacidad
+          let estado_actual = EstadoBloque.ACTIVO;
+          if (capacidad_registrada >= bloque.capacidad_total) {
+            estado_actual = EstadoBloque.LLENO;
+          }
+
+          return {
+            id: bloque.id,
+            nombre: bloque.nombre,
+            hora_inicio: bloque.hora_inicio,
+            hora_fin: bloque.hora_fin,
+            capacidad_total: bloque.capacidad_total,
+            capacidad_registrada,
+            capacidad_disponible: bloque.capacidad_total - capacidad_registrada,
+            estado: estado_actual,
+            fecha: fecha.toISOString().split("T")[0], // Formato YYYY-MM-DD
+            created_at: bloque.created_at,
+            updated_at: bloque.updated_at,
+          };
+        })
+      );
+
+      return bloquesConCapacidad;
+    } catch (error) {
+      console.error("Error al obtener bloques con capacidad:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene las embarcaciones ocupadas por un prestador en un bloque específico
+   * @param prestadorId - ID del prestador
+   * @param bloqueId - ID del bloque
+   * @param fecha - Fecha para verificar ocupación
+   * @returns Array de embarcaciones ocupadas en el bloque
+   */
+  private static async obtenerEmbarcacionesOcupadasEnBloque(
+    prestadorId: string,
+    bloqueId: string,
+    fecha: Date
+  ): Promise<any[]> {
+    try {
+      if (!prestadorId) {
+        return [];
+      }
+
+      const rangoFecha = BloqueController.obtenerRangoFecha(fecha);
+
+      // Buscar salidas del prestador en este bloque específico
+      const salidasEnBloque = await Salida.findAll({
+        where: {
+          bloque_id: bloqueId,
+          fecha: {
+            [Op.between]: [rangoFecha.inicio, rangoFecha.fin],
+          },
+          estado: {
+            [Op.notIn]: [
+              EstadoSalida.CANCELADA,
+              EstadoSalida.CANCELADA_POR_CLIMA,
+              EstadoSalida.CANCELADA_CAPITARIA,
+            ],
+          },
+        },
+        include: [
+          {
+            model: Embarcacion,
+            as: "embarcacion",
+            where: {
+              prestador_id: prestadorId,
+            },
+            attributes: ["id", "nombre", "tipo", "capacidad", "estado"],
+          },
+        ],
+        attributes: [
+          "id",
+          "estado",
+          "numero_pasajeros",
+          "destino",
+          "observaciones",
+        ],
+      });
+
+      // Formatear la respuesta
+      const embarcacionesOcupadas = salidasEnBloque.map((salida: any) => ({
+        id: salida.embarcacion.id,
+        nombre: salida.embarcacion.nombre,
+        tipo: salida.embarcacion.tipo,
+        capacidad: salida.embarcacion.capacidad,
+        estado: salida.embarcacion.estado,
+        salida: {
+          id: salida.id,
+          estado: salida.estado,
+          numero_pasajeros: salida.numero_pasajeros,
+          destino: salida.destino,
+          observaciones: salida.observaciones,
+        },
+      }));
+
+      return embarcacionesOcupadas;
+    } catch (error) {
+      console.error(
+        "Error al obtener embarcaciones ocupadas en bloque:",
+        error
+      );
+      throw error;
     }
   }
 }

@@ -4,7 +4,7 @@ import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
 import { Op } from "sequelize";
-import { EstadoSalida, EstadoEmbarcacion } from "../types";
+import { EstadoSalida, EstadoEmbarcacion, EstadoBloque } from "../types";
 
 /**
  * SalidaController - Gestión de salidas
@@ -262,11 +262,36 @@ class SalidaController {
         return;
       }
 
-      if (embarcacion.estado !== EstadoEmbarcacion.DISPONIBLE) {
+      // Verificar si hay conflicto específico para esta fecha Y bloque
+      // Crear fecha en UTC para evitar problemas de timezone
+      const fechaBusqueda = new Date(fecha + "T00:00:00.000Z");
+      const inicioDia = new Date(fechaBusqueda);
+      const finDia = new Date(fechaBusqueda);
+      finDia.setUTCHours(23, 59, 59, 999);
+
+      const conflictoExistente = await Salida.findOne({
+        where: {
+          embarcacion_id: embarcacion_id,
+          bloque_id: bloque_id, // Agregar validación de bloque específico
+          fecha: {
+            [Op.between]: [inicioDia, finDia],
+          },
+          estado: {
+            [Op.notIn]: [
+              EstadoSalida.CANCELADA,
+              EstadoSalida.CANCELADA_POR_CLIMA,
+              EstadoSalida.CANCELADA_CAPITARIA,
+            ],
+          },
+        },
+      });
+
+      if (conflictoExistente) {
         res.status(400).json({
           status: "error",
-          message: "La embarcación no está disponible",
-          error: "EMBARCACION_NOT_AVAILABLE",
+          message:
+            "La embarcación ya tiene una salida programada para este bloque y fecha",
+          error: "EMBARCACION_CONFLICT_BLOCK_DATE",
         });
         return;
       }
@@ -353,7 +378,7 @@ class SalidaController {
       }
 
       // Crear la salida
-      const nuevaSalida = await Salida.create({
+      const datosSalida = {
         prestador_id,
         embarcacion_id,
         destino,
@@ -363,12 +388,11 @@ class SalidaController {
         numero_pasajeros,
         observaciones,
         estado: EstadoSalida.PROGRAMADA,
-      });
+      };
 
-      // Actualizar el estado de la embarcación si es necesario
-      if (embarcacion.estado === EstadoEmbarcacion.DISPONIBLE) {
-        await embarcacion.update({ estado: EstadoEmbarcacion.EN_USO });
-      }
+      const nuevaSalida = await Salida.create(datosSalida);
+
+      // Nota: La embarcación permanece "disponible" hasta que la salida se inicie (en_progreso)
 
       // Obtener la salida completa con información relacionada
       const salidaCompleta = await Salida.findByPk(nuevaSalida.id, {
@@ -421,10 +445,12 @@ class SalidaController {
     try {
       const { id } = req.params;
       const {
+        destino,
         embarcacion_id,
         bloque_id,
-        fecha_salida,
-        pasajeros_registrados,
+        hora,
+        fecha,
+        numero_pasajeros,
         observaciones,
         estado,
       } = req.body;
@@ -476,7 +502,7 @@ class SalidaController {
           return;
         }
 
-        if (nuevoBloque.estado !== "activo") {
+        if (nuevoBloque.estado !== EstadoBloque.ACTIVO) {
           res.status(400).json({
             status: "error",
             message: "El bloque no está disponible",
@@ -509,10 +535,7 @@ class SalidaController {
       }
 
       // Si se está cambiando el número de pasajeros, verificar capacidad
-      if (
-        pasajeros_registrados &&
-        pasajeros_registrados !== salida.numero_pasajeros
-      ) {
+      if (numero_pasajeros && numero_pasajeros !== salida.numero_pasajeros) {
         const bloqueActual = bloque_id
           ? await Bloque.findByPk(bloque_id)
           : await Bloque.findByPk(salida.bloque_id);
@@ -534,19 +557,19 @@ class SalidaController {
           bloqueActual.capacidad_total -
           (bloqueActual.capacidad_registrada - salida.numero_pasajeros);
 
-        if (pasajeros_registrados > capacidadDisponible) {
+        if (numero_pasajeros > capacidadDisponible) {
           res.status(400).json({
             status: "error",
-            message: `No hay suficiente capacidad. Disponible: ${capacidadDisponible}, Solicitado: ${pasajeros_registrados}`,
+            message: `No hay suficiente capacidad. Disponible: ${capacidadDisponible}, Solicitado: ${numero_pasajeros}`,
             error: "INSUFFICIENT_CAPACITY",
           });
           return;
         }
 
-        if (pasajeros_registrados > embarcacionActual.capacidad) {
+        if (numero_pasajeros > embarcacionActual.capacidad) {
           res.status(400).json({
             status: "error",
-            message: `La embarcación no puede transportar ${pasajeros_registrados} pasajeros. Capacidad máxima: ${embarcacionActual.capacidad}`,
+            message: `La embarcación no puede transportar ${numero_pasajeros} pasajeros. Capacidad máxima: ${embarcacionActual.capacidad}`,
             error: "EMBARCACION_OVERLOAD",
           });
           return;
@@ -555,29 +578,50 @@ class SalidaController {
 
       // Actualizar la salida
       const datosActualizacion: any = {};
+      if (destino) datosActualizacion.destino = destino;
       if (embarcacion_id) datosActualizacion.embarcacion_id = embarcacion_id;
       if (bloque_id) datosActualizacion.bloque_id = bloque_id;
-      if (fecha_salida) datosActualizacion.fecha = new Date(fecha_salida);
-      if (pasajeros_registrados)
-        datosActualizacion.numero_pasajeros = pasajeros_registrados;
+      if (hora) datosActualizacion.hora = hora;
+      if (fecha) datosActualizacion.fecha = new Date(fecha);
+      if (numero_pasajeros)
+        datosActualizacion.numero_pasajeros = numero_pasajeros;
       if (observaciones !== undefined)
         datosActualizacion.observaciones = observaciones;
       if (estado) datosActualizacion.estado = estado;
 
       await salida.update(datosActualizacion);
 
-      // Actualizar capacidades si es necesario
-      if (
-        pasajeros_registrados &&
-        pasajeros_registrados !== salida.numero_pasajeros
-      ) {
-        const diferencia = pasajeros_registrados - salida.numero_pasajeros;
-        const bloqueActual = await Bloque.findByPk(salida.bloque_id);
-        if (bloqueActual) {
-          await bloqueActual.update({
-            capacidad_registrada:
-              bloqueActual.capacidad_registrada + diferencia,
-          });
+      // Nota: La capacidad del bloque se calcula dinámicamente en obtenerBloquesConCapacidad()
+
+      // Si se está marcando como en_curso, ocupar embarcación
+      if (estado === EstadoSalida.EN_CURSO) {
+        const embarcacion = await Embarcacion.findByPk(salida.embarcacion_id);
+        if (
+          embarcacion &&
+          embarcacion.estado === EstadoEmbarcacion.DISPONIBLE
+        ) {
+          await embarcacion.update({ estado: EstadoEmbarcacion.EN_USO });
+        }
+      }
+
+      // Si se está marcando como completada, liberar embarcación
+      if (estado === EstadoSalida.COMPLETADA) {
+        // Verificar si hay otras salidas activas para la misma embarcación
+        const otrasSalidasActivas = await Salida.count({
+          where: {
+            embarcacion_id: salida.embarcacion_id,
+            estado: {
+              [Op.in]: [EstadoSalida.PROGRAMADA, EstadoSalida.EN_CURSO],
+            },
+          },
+        });
+
+        // Solo liberar la embarcación si no hay otras salidas activas
+        if (otrasSalidasActivas === 0) {
+          const embarcacion = await Embarcacion.findByPk(salida.embarcacion_id);
+          if (embarcacion) {
+            await embarcacion.update({ estado: EstadoEmbarcacion.DISPONIBLE });
+          }
         }
       }
 
@@ -680,14 +724,7 @@ class SalidaController {
         motivo_cancelacion,
       });
 
-      // Liberar capacidad del bloque
-      const bloque = await Bloque.findByPk(salida.bloque_id);
-      if (bloque) {
-        await bloque.update({
-          capacidad_registrada:
-            bloque.capacidad_registrada - salida.numero_pasajeros,
-        });
-      }
+      // Nota: La capacidad del bloque se calcula dinámicamente en obtenerBloquesConCapacidad()
 
       // Liberar la embarcación si no tiene otras salidas activas
       const otrasSalidasActivas = await Salida.count({
@@ -726,7 +763,7 @@ class SalidaController {
    */
   static async getMisSalidas(req: Request, res: Response): Promise<void> {
     try {
-      const { id: prestadorId } = req.user!;
+      const prestadorId = (req as any).user?.id;
       const {
         page = 1,
         limit = 10,

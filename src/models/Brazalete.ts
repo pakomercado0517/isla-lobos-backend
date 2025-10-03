@@ -77,7 +77,19 @@ class Brazalete
     return this.estado === "asignado" && this.prestador_id !== null;
   }
 
-  // Método para asignar brazalete a un prestador
+  // Método para vender brazalete a un prestador (mantiene estado disponible)
+  public async venderAPrestador(prestadorId: string): Promise<void> {
+    if (!this.puedeSerAsignado()) {
+      throw new Error("El brazalete no puede ser vendido en su estado actual");
+    }
+
+    // Al vender, mantener estado "disponible" para que pueda ser asignado a salidas
+    this.prestador_id = prestadorId;
+    this.fecha_asignacion = new Date();
+    await this.save();
+  }
+
+  // Método para asignar brazalete a un prestador (cambia estado a asignado)
   public async asignarAPrestador(prestadorId: string): Promise<void> {
     if (!this.puedeSerAsignado()) {
       throw new Error("El brazalete no puede ser asignado en su estado actual");
@@ -93,7 +105,8 @@ class Brazalete
   public async usarEnSalida(
     salidaId: string,
     turistaNacionalidad?: string,
-    turistaEdad?: number
+    turistaEdad?: number,
+    fechaUso?: Date
   ): Promise<void> {
     if (!this.puedeSerUtilizado()) {
       throw new Error(
@@ -101,12 +114,20 @@ class Brazalete
       );
     }
 
+    // Validar que la fecha de uso sea posterior a la fecha de asignación
+    if (fechaUso && this.fecha_asignacion && fechaUso < this.fecha_asignacion) {
+      throw new Error(
+        "La fecha de uso debe ser posterior a la fecha de asignación"
+      );
+    }
+
     this.estado = "utilizado";
     this.salida_id = salidaId;
-    this.fecha_uso = new Date();
+    this.fecha_uso = fechaUso || new Date(); // Usar fecha proporcionada o fecha actual
     this.turista_nacionalidad = turistaNacionalidad;
     this.turista_edad = turistaEdad;
     await this.save();
+    await this.reload(); // Recargar el objeto desde la base de datos
   }
 
   // Método para marcar como perdido

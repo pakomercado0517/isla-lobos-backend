@@ -10,24 +10,21 @@ Todas las rutas requieren autenticación JWT. Algunas rutas requieren rol **CONA
 
 ## 📊 **Endpoints Disponibles**
 
-### **1. Obtener Todos los Bloques**
+### **1. Obtener Bloques para una Fecha Específica**
 
 ```http
-GET /api/bloques
+GET /api/bloques?fecha=YYYY-MM-DD
 ```
 
-**Descripción**: Obtiene una lista paginada de bloques con filtros opcionales.
+**Descripción**: Obtiene los bloques disponibles para una fecha específica. Si no existen bloques para esa fecha, los crea automáticamente desde las plantillas predefinidas.
 
 **Autenticación**: Requerida (todos los usuarios)
 
 **Parámetros de Query**:
 
-- `page` (opcional): Número de página (default: 1)
-- `limit` (opcional): Elementos por página (default: 10, max: 100)
-- `fecha` (opcional): Fecha específica (formato: YYYY-MM-DD)
-- `estado` (opcional): Estado del bloque
-- `fecha_inicio` (opcional): Fecha de inicio del rango
-- `fecha_fin` (opcional): Fecha de fin del rango
+- `fecha` (requerido): Fecha específica (formato: YYYY-MM-DD)
+  - No puede ser una fecha pasada
+  - Máximo 7 días en el futuro
 
 **Estados disponibles**:
 
@@ -45,32 +42,76 @@ GET /api/bloques
   "data": {
     "bloques": [
       {
-        "id": "uuid",
+        "id": "uuid-unico-por-fecha",
         "nombre": "Bloque Matutino",
         "hora_inicio": "08:00:00",
         "hora_fin": "10:00:00",
         "capacidad_total": 65,
         "capacidad_registrada": 45,
+        "capacidad_disponible": 20,
         "estado": "activo",
-        "fecha": "2025-09-26",
-        "createdAt": "2025-09-26T16:31:51.205Z",
-        "updatedAt": "2025-09-26T16:31:51.205Z"
+        "fecha": "2025-10-15",
+        "created_at": "2025-10-15T10:30:00.000Z",
+        "updated_at": "2025-10-15T10:30:00.000Z"
+      },
+      {
+        "id": "uuid-unico-por-fecha-2",
+        "nombre": "Bloque Mediodía",
+        "hora_inicio": "11:00:00",
+        "hora_fin": "13:00:00",
+        "capacidad_total": 65,
+        "capacidad_registrada": 65,
+        "capacidad_disponible": 0,
+        "estado": "lleno",
+        "fecha": "2025-10-15",
+        "created_at": "2025-10-15T10:30:00.000Z",
+        "updated_at": "2025-10-15T10:30:00.000Z"
+      },
+      {
+        "id": "uuid-unico-por-fecha-3",
+        "nombre": "Bloque Vespertino",
+        "hora_inicio": "14:00:00",
+        "hora_fin": "16:00:00",
+        "capacidad_total": 65,
+        "capacidad_registrada": 0,
+        "capacidad_disponible": 65,
+        "estado": "activo",
+        "fecha": "2025-10-15",
+        "created_at": "2025-10-15T10:30:00.000Z",
+        "updated_at": "2025-10-15T10:30:00.000Z"
       }
-    ],
-    "estadisticas": {
-      "total": 21,
-      "activos": 14,
-      "llenos": 1,
-      "suspendidos": 3,
-      "cerrados": 3
-    },
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "total": 21,
-      "totalPages": 3
-    }
+    ]
   }
+}
+```
+
+**Respuesta de Error (400) - Fecha requerida**:
+
+```json
+{
+  "status": "error",
+  "message": "La fecha es requerida para obtener bloques",
+  "error": "FECHA_REQUERIDA"
+}
+```
+
+**Respuesta de Error (400) - Fecha pasada**:
+
+```json
+{
+  "status": "error",
+  "message": "No se pueden consultar bloques para fechas pasadas",
+  "error": "FECHA_PASADA"
+}
+```
+
+**Respuesta de Error (400) - Fecha muy futura**:
+
+```json
+{
+  "status": "error",
+  "message": "No se pueden consultar bloques para más de 7 días en el futuro",
+  "error": "FECHA_MUY_FUTURA"
 }
 ```
 
@@ -402,25 +443,25 @@ GET /api/bloques/estadisticas
 
 ## 🧪 **Ejemplos de Uso**
 
-### **Obtener bloques del día actual**
+### **Obtener bloques para una fecha específica**
 
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
-  "http://localhost:3001/api/bloques?fecha=2025-09-26"
+  "http://localhost:3001/api/bloques?fecha=2025-10-15"
 ```
 
-### **Obtener bloques activos**
+### **Obtener bloques para mañana**
 
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
-  "http://localhost:3001/api/bloques?estado=activo"
+  "http://localhost:3001/api/bloques?fecha=2025-10-16"
 ```
 
-### **Obtener bloques de un rango de fechas**
+### **Obtener bloques para dentro de 7 días (máximo permitido)**
 
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
-  "http://localhost:3001/api/bloques?fecha_inicio=2025-09-26&fecha_fin=2025-09-30"
+  "http://localhost:3001/api/bloques?fecha=2025-10-22"
 ```
 
 ### **Crear un nuevo bloque**
@@ -452,11 +493,13 @@ curl -H "Authorization: Bearer TOKEN" \
 
 1. **Fechas**: Todas las fechas se manejan en timezone `America/Mexico_City`
 2. **Horarios**: Los horarios se almacenan en formato HH:MM:SS
-3. **Capacidad**: La capacidad registrada se actualiza automáticamente cuando se registran salidas
+3. **Capacidad**: La capacidad registrada se calcula dinámicamente contando las salidas registradas
 4. **Estados**: Los estados se validan contra el enum `EstadoBloque`
 5. **Permisos**: Solo usuarios CONANP pueden crear, actualizar o eliminar bloques
-6. **Validaciones**: Se valida que no se puedan crear bloques en fechas pasadas
-7. **Conflictos**: No se permiten bloques duplicados con el mismo nombre y fecha
+6. **Validaciones**: Se valida que no se puedan consultar bloques en fechas pasadas
+7. **Límite temporal**: Máximo 7 días en el futuro para evitar saturar la base de datos
+8. **Creación automática**: Si no existen bloques para una fecha, se crean automáticamente desde las plantillas
+9. **IDs únicos**: Cada fecha tiene sus propios bloques con IDs únicos
 
 ---
 
