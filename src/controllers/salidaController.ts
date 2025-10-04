@@ -101,6 +101,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
             attributes: [
               "id",
               "nombre",
@@ -177,6 +178,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
             attributes: [
               "id",
               "nombre",
@@ -269,21 +271,31 @@ class SalidaController {
       const finDia = new Date(fechaBusqueda);
       finDia.setUTCHours(23, 59, 59, 999);
 
-      const conflictoExistente = await Salida.findOne({
-        where: {
-          embarcacion_id: embarcacion_id,
-          bloque_id: bloque_id, // Agregar validación de bloque específico
-          fecha: {
-            [Op.between]: [inicioDia, finDia],
-          },
-          estado: {
-            [Op.notIn]: [
-              EstadoSalida.CANCELADA,
-              EstadoSalida.CANCELADA_POR_CLIMA,
-              EstadoSalida.CANCELADA_CAPITARIA,
-            ],
-          },
+      // Construir condiciones de búsqueda de conflicto
+      const whereConflicto: any = {
+        embarcacion_id: embarcacion_id,
+        fecha: {
+          [Op.between]: [inicioDia, finDia],
         },
+        estado: {
+          [Op.notIn]: [
+            EstadoSalida.CANCELADA,
+            EstadoSalida.CANCELADA_POR_CLIMA,
+            EstadoSalida.CANCELADA_CAPITARIA,
+          ],
+        },
+      };
+
+      // Para Isla de Lobos, también verificar bloque_id
+      // Para otros destinos, verificar que no tengan bloque_id (null)
+      if (destino === "Isla de Lobos") {
+        whereConflicto.bloque_id = bloque_id;
+      } else {
+        whereConflicto.bloque_id = null;
+      }
+
+      const conflictoExistente = await Salida.findOne({
+        where: whereConflicto,
       });
 
       if (conflictoExistente) {
@@ -460,6 +472,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
           },
           {
             model: Embarcacion,
@@ -641,6 +654,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
             attributes: [
               "id",
               "nombre",
@@ -681,6 +695,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
           },
           {
             model: Embarcacion,
@@ -822,6 +837,7 @@ class SalidaController {
           {
             model: Bloque,
             as: "bloque",
+            required: false, // Permitir salidas sin bloque
             attributes: [
               "id",
               "nombre",

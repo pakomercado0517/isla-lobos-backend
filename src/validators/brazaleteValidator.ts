@@ -84,21 +84,35 @@ export class BrazaleteValidator {
       }),
 
     body("fecha_vencimiento")
-      .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de vencimiento debe ser una fecha válida en formato ISO8601"
-      )
+      .optional({ nullable: true, checkFalsy: false })
       .custom((value, { req }) => {
-        if (value) {
-          const fechaVencimiento = new Date(value);
-          const fechaCompra = new Date(req.body.fecha_compra);
-          if (fechaVencimiento <= fechaCompra) {
-            throw new Error(
-              "La fecha de vencimiento debe ser posterior a la fecha de compra"
-            );
-          }
+        // Si el valor es null, undefined o string vacío, es válido (opcional)
+        if (
+          !value ||
+          value === null ||
+          value === undefined ||
+          value.trim() === ""
+        ) {
+          return true;
         }
+
+        // Si hay valor, validar que sea una fecha ISO8601 válida
+        const fechaRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+        if (!fechaRegex.test(value)) {
+          throw new Error(
+            "La fecha de vencimiento debe ser una fecha válida en formato ISO8601"
+          );
+        }
+
+        // Validar que la fecha de vencimiento sea posterior a la fecha de compra
+        const fechaVencimiento = new Date(value);
+        const fechaCompra = new Date(req.body.fecha_compra);
+        if (fechaVencimiento <= fechaCompra) {
+          throw new Error(
+            "La fecha de vencimiento debe ser posterior a la fecha de compra"
+          );
+        }
+
         return true;
       }),
 
@@ -151,8 +165,8 @@ export class BrazaleteValidator {
 
     query("limit")
       .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage("El límite debe ser un número entero entre 1 y 100"),
+      .isInt({ min: 1 })
+      .withMessage("El límite debe ser un número entero mayor a 0"),
   ];
 
   // ============================================================================
@@ -415,8 +429,8 @@ export class BrazaleteValidator {
 
     query("limit")
       .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage("El límite debe ser un número entero entre 1 y 100"),
+      .isInt({ min: 1 })
+      .withMessage("El límite debe ser un número entero mayor a 0"),
   ];
 
   // ============================================================================
@@ -469,6 +483,89 @@ export class BrazaleteValidator {
       .withMessage(
         "El estado debe ser 'disponible', 'asignado', 'utilizado' o 'perdido'"
       ),
+  ];
+
+  // ============================================================================
+  // VALIDADORES PARA BÚSQUEDA
+  // ============================================================================
+
+  static buscarBrazaletes: ValidationChain[] = [
+    query("codigo")
+      .optional()
+      .matches(/^BRZ-\d{4}-\d{6}$/)
+      .withMessage(
+        "El código del brazalete debe tener el formato BRZ-YYYY-NNNNNN"
+      ),
+
+    query("tipo")
+      .optional()
+      .isIn(["universal"])
+      .withMessage("El tipo debe ser 'universal'"),
+
+    query("estado")
+      .optional()
+      .isIn(["disponible", "asignado", "utilizado", "perdido"])
+      .withMessage(
+        "El estado debe ser 'disponible', 'asignado', 'utilizado' o 'perdido'"
+      ),
+
+    query("prestador_id")
+      .optional()
+      .isUUID()
+      .withMessage("El ID del prestador debe ser un UUID válido"),
+
+    query("lote_id")
+      .optional()
+      .isUUID()
+      .withMessage("El ID del lote debe ser un UUID válido"),
+
+    query("salida_id")
+      .optional()
+      .isUUID()
+      .withMessage("El ID de la salida debe ser un UUID válido"),
+
+    query("fecha_inicio")
+      .optional()
+      .isISO8601()
+      .withMessage(
+        "La fecha de inicio debe ser una fecha válida en formato ISO8601"
+      ),
+
+    query("fecha_fin")
+      .optional()
+      .isISO8601()
+      .withMessage(
+        "La fecha de fin debe ser una fecha válida en formato ISO8601"
+      )
+      .custom((value, { req }) => {
+        if (value && req.query?.["fecha_inicio"]) {
+          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
+          const fechaFin = new Date(value);
+          if (fechaFin <= fechaInicio) {
+            throw new Error(
+              "La fecha de fin debe ser posterior a la fecha de inicio"
+            );
+          }
+        }
+        return true;
+      }),
+
+    query("turista_nacionalidad")
+      .optional()
+      .isIn(["local", "nacional", "internacional"])
+      .withMessage(
+        "La nacionalidad del turista debe ser 'local', 'nacional' o 'internacional'"
+      ),
+
+    query("page")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("La página debe ser un número entero mayor a 0"),
+
+    query("limit")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("El límite debe ser un número entero mayor a 0"),
   ];
 }
 

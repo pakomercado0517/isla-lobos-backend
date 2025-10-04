@@ -229,25 +229,13 @@ router.get(
  * Búsqueda de brazaletes por código o filtros
  * Acceso: CONANP y Prestadores
  */
-router.get("/search", authMiddleware, async (req, res) => {
-  try {
-    const { codigo, tipo, estado, prestador_id } = req.query;
-
-    // Implementar lógica de búsqueda aquí
-    res.json({
-      success: true,
-      message: "Funcionalidad de búsqueda - Por implementar",
-      data: {
-        filtros: { codigo, tipo, estado, prestador_id },
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error en la búsqueda",
-    });
-  }
-});
+router.get(
+  "/search",
+  authMiddleware,
+  BrazaleteValidator.buscarBrazaletes,
+  validationMiddleware,
+  BrazaleteController.buscarBrazaletes
+);
 
 // ============================================================================
 // RUTAS DE UTILIDAD

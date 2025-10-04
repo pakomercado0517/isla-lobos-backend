@@ -26,10 +26,15 @@ export class EstadisticasBrazaleteController {
 
       const totalComprados = await Brazalete.count();
       const totalDisponibles = await Brazalete.count({
-        where: { estado: "disponible" },
+        where: {
+          estado: "disponible",
+          prestador_id: null,
+        } as any,
       });
       const totalVendidos = await Brazalete.count({
-        where: { estado: { [Op.in]: ["asignado", "utilizado"] } },
+        where: {
+          prestador_id: { [Op.ne]: null },
+        } as any,
       });
       const totalUtilizados = await Brazalete.count({
         where: { estado: "utilizado" },
@@ -50,10 +55,11 @@ export class EstadisticasBrazaleteController {
         })) || 0;
 
       // Ingresos por mes
-      const ingresosPorMes = await this.calcularIngresosPorMes(
-        fechaInicio,
-        fechaFin
-      );
+      const ingresosPorMes =
+        await EstadisticasBrazaleteController.calcularIngresosPorMes(
+          fechaInicio,
+          fechaFin
+        );
 
       // ============================================================================
       // ESTADÍSTICAS DE UTILIZACIÓN

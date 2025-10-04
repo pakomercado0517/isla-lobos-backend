@@ -44,6 +44,12 @@ pids/
 # Coverage directory used by tools like istanbul
 coverage/
 
+# Folders and files to ignore
+documentation/
+API_ROUTES_DOCUMENTATION.md
+scripts/
+migrations/
+
 # nyc test coverage
 .nyc_output/
 

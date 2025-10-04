@@ -19,8 +19,13 @@ export class BrazaleteController {
   static async obtenerInventario(_req: Request, res: Response): Promise<void> {
     try {
       // Obtener totales por tipo (todos son universales ahora)
+      // Solo contar brazaletes disponibles sin prestador asignado
       const inventarioUniversal = await Brazalete.count({
-        where: { tipo: "universal", estado: "disponible" },
+        where: {
+          tipo: "universal",
+          estado: "disponible",
+          prestador_id: null,
+        } as any,
       });
 
       const totalDisponibles = inventarioUniversal;
@@ -37,9 +42,12 @@ export class BrazaleteController {
           lote.cantidad_disponibles * parseFloat(lote.precio_venta.toString());
       }
 
-      // Determinar si hay stock bajo (menos del 10% del total)
-      const totalBrazaletes = await Brazalete.count();
-      const stockBajo = totalDisponibles < totalBrazaletes * 0.1;
+      // Determinar si hay stock bajo (menos del 10% del total de brazaletes en el sistema)
+      const totalBrazaletesSistema = await Brazalete.count({
+        where: { tipo: "universal" },
+      });
+      const stockBajo =
+        totalDisponibles < (totalBrazaletesSistema as number) * 0.1;
 
       res.json({
         success: true,
@@ -525,6 +533,192 @@ export class BrazaleteController {
   }
 
   // ============================================================================
+  // BÚSQUEDA DE BRAZALETES
+  // ============================================================================
+
+  /**
+   * GET /api/brazaletes/search
+   * Buscar brazaletes por código o filtros
+   */
+  static async buscarBrazaletes(
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      const {
+        codigo,
+        tipo,
+        estado,
+        prestador_id,
+        lote_id,
+        salida_id,
+        fecha_inicio,
+        fecha_fin,
+        turista_nacionalidad,
+        page = 1,
+        limit = 20,
+      } = req.query;
+
+      // Construir condiciones de búsqueda
+      const whereClause: any = {};
+
+      // Filtro por código exacto
+      if (codigo) {
+        whereClause.codigo = codigo;
+      }
+
+      // Filtro por tipo
+      if (tipo) {
+        whereClause.tipo = tipo;
+      }
+
+      // Filtro por estado
+      if (estado) {
+        whereClause.estado = estado;
+      }
+
+      // Filtro por prestador
+      if (prestador_id) {
+        whereClause.prestador_id = prestador_id;
+      }
+
+      // Filtro por lote
+      if (lote_id) {
+        whereClause.lote_id = lote_id;
+      }
+
+      // Filtro por salida
+      if (salida_id) {
+        whereClause.salida_id = salida_id;
+      }
+
+      // Filtro por nacionalidad del turista
+      if (turista_nacionalidad) {
+        whereClause.turista_nacionalidad = turista_nacionalidad;
+      }
+
+      // Filtros de fecha
+      if (fecha_inicio || fecha_fin) {
+        whereClause.fecha_creacion = {};
+
+        if (fecha_inicio) {
+          whereClause.fecha_creacion[Op.gte] = new Date(fecha_inicio as string);
+        }
+
+        if (fecha_fin) {
+          whereClause.fecha_creacion[Op.lte] = new Date(fecha_fin as string);
+        }
+      }
+
+      // Si es prestador, solo puede ver sus propios brazaletes
+      if (req.user?.rol === "prestador") {
+        whereClause.prestador_id = req.user.id;
+      }
+
+      // Configurar paginación
+      const offset = (Number(page) - 1) * Number(limit);
+      const limitNumber = Number(limit);
+
+      // Realizar búsqueda con paginación
+      const { rows: brazaletes, count: total } =
+        await Brazalete.findAndCountAll({
+          where: whereClause,
+          include: [
+            {
+              model: LoteBrazalete,
+              as: "lote",
+              attributes: ["id", "numero_lote", "tipo", "fecha_compra"],
+            },
+            {
+              model: User,
+              as: "prestador",
+              attributes: ["id", "nombre", "email"],
+              required: false,
+            },
+            {
+              model: Salida,
+              as: "salida",
+              attributes: ["id", "fecha", "numero_pasajeros"],
+              required: false,
+            },
+          ],
+          order: [
+            ["fecha_creacion", "DESC"],
+            ["codigo", "ASC"],
+          ],
+          limit: limitNumber,
+          offset,
+        });
+
+      // Calcular estadísticas de la búsqueda
+      const estadisticas = {
+        total_encontrados: total,
+        por_estado: {
+          disponible: 0,
+          asignado: 0,
+          utilizado: 0,
+          perdido: 0,
+        },
+        por_nacionalidad: {
+          local: 0,
+          nacional: 0,
+          internacional: 0,
+        },
+      };
+
+      // Contar por estado y nacionalidad
+      brazaletes.forEach((brazalete) => {
+        estadisticas.por_estado[
+          brazalete.estado as keyof typeof estadisticas.por_estado
+        ]++;
+
+        if (brazalete.turista_nacionalidad) {
+          estadisticas.por_nacionalidad[
+            brazalete.turista_nacionalidad as keyof typeof estadisticas.por_nacionalidad
+          ]++;
+        }
+      });
+
+      const totalPages = Math.ceil(total / limitNumber);
+
+      res.json({
+        success: true,
+        data: {
+          brazaletes,
+          estadisticas,
+          pagination: {
+            page: Number(page),
+            limit: limitNumber,
+            total,
+            total_pages: totalPages,
+            has_next: Number(page) < totalPages,
+            has_prev: Number(page) > 1,
+          },
+          filtros_aplicados: {
+            codigo: codigo || null,
+            tipo: tipo || null,
+            estado: estado || null,
+            prestador_id: prestador_id || null,
+            lote_id: lote_id || null,
+            salida_id: salida_id || null,
+            fecha_inicio: fecha_inicio || null,
+            fecha_fin: fecha_fin || null,
+            turista_nacionalidad: turista_nacionalidad || null,
+          },
+        },
+        message: `Se encontraron ${total} brazaletes`,
+      });
+    } catch (error) {
+      console.error("Error al buscar brazaletes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
+
+  // ============================================================================
   // USO EN SALIDAS
   // ============================================================================
 
@@ -604,8 +798,11 @@ export class BrazaleteController {
       for (const brazalete of brazaletesDisponibles) {
         // Asignar brazalete a la salida (cambia estado a "asignado")
         await brazalete.asignarAPrestador(req.user!.id);
-        // Actualizar la fecha de asignación específica
-        await brazalete.update({ fecha_asignacion: fechaAsignacion });
+        // Actualizar la fecha de asignación específica y asignar a la salida
+        await brazalete.update({
+          fecha_asignacion: fechaAsignacion,
+          salida_id: salida_id, // ✅ Asignar la salida_id
+        });
         await brazalete.reload(); // Recargar para obtener los datos actualizados
 
         brazaletesAsignados.push({
@@ -614,6 +811,7 @@ export class BrazaleteController {
           tipo: brazalete.tipo,
           estado: brazalete.estado,
           fecha_asignacion: brazalete.fecha_asignacion,
+          salida_id: brazalete.salida_id, // ✅ Incluir salida_id en la respuesta
         });
       }
 

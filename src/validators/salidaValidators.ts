@@ -106,8 +106,20 @@ export const createSalidaValidation = [
 
   body("bloque_id")
     .optional()
-    .isUUID()
-    .withMessage("El ID del bloque debe ser un UUID válido"),
+    .custom((value) => {
+      // Permitir null o undefined
+      if (value === null || value === undefined) {
+        return true;
+      }
+      // Si tiene valor, debe ser un UUID válido
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("El ID del bloque debe ser un UUID válido o null");
+      }
+      return true;
+    })
+    .withMessage("El ID del bloque debe ser un UUID válido o null"),
 
   body("hora")
     .optional()
@@ -158,8 +170,20 @@ export const updateSalidaValidation = [
 
   body("bloque_id")
     .optional()
-    .isUUID()
-    .withMessage("El ID del bloque debe ser un UUID válido"),
+    .custom((value) => {
+      // Permitir null o undefined
+      if (value === null || value === undefined) {
+        return true;
+      }
+      // Si tiene valor, debe ser un UUID válido
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("El ID del bloque debe ser un UUID válido o null");
+      }
+      return true;
+    })
+    .withMessage("El ID del bloque debe ser un UUID válido o null"),
 
   body("hora")
     .optional()
