@@ -49,6 +49,7 @@ documentation/
 API_ROUTES_DOCUMENTATION.md
 scripts/
 migrations/
+seeders/
 
 # nyc test coverage
 .nyc_output/
