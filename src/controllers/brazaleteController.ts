@@ -468,7 +468,7 @@ export class BrazaleteController {
 
       // Obtener estadísticas de brazaletes del prestador
       const disponibles = await Brazalete.count({
-        where: { prestador_id: id, estado: "asignado" },
+        where: { prestador_id: id, estado: "disponible" },
       });
 
       const asignados = await Brazalete.count({

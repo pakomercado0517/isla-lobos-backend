@@ -310,6 +310,12 @@ export interface UsarBrazaleteRequest {
   }[];
 }
 
+export interface AsignarBrazaletesRequest {
+  salida_id: string;
+  cantidad: number;
+  fecha_asignacion: Date;
+}
+
 // Tipos para estadísticas de brazaletes
 export interface EstadisticasBrazaletes {
   inventario: {

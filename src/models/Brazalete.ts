@@ -218,15 +218,25 @@ Brazalete.init(
       allowNull: true,
       validate: {
         isDate: true,
-        isAfterCreation(value: Date) {
-          if (
-            value &&
-            this["fecha_creacion"] &&
-            value < this["fecha_creacion"]
-          ) {
-            throw new Error(
-              "La fecha de asignación debe ser posterior a la fecha de creación"
-            );
+        isWithinReasonableRange(value: Date) {
+          if (value) {
+            // const hoy = new Date();
+            const fechaMinima = new Date();
+            fechaMinima.setDate(fechaMinima.getDate() - 30);
+            const fechaMaxima = new Date();
+            fechaMaxima.setDate(fechaMaxima.getDate() + 7);
+
+            if (value < fechaMinima) {
+              throw new Error(
+                "La fecha de asignación no puede ser anterior a 30 días"
+              );
+            }
+
+            if (value > fechaMaxima) {
+              throw new Error(
+                "La fecha de asignación no puede ser más de 7 días en el futuro"
+              );
+            }
           }
         },
       },

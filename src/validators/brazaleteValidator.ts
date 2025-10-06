@@ -231,8 +231,15 @@ export class BrazaleteValidator {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
-        if (fechaAsignacion < hoy) {
-          throw new Error("La fecha de asignación no puede ser anterior a hoy");
+        // Permitir fechas anteriores pero con límite de 30 días
+        const fechaMinima = new Date();
+        fechaMinima.setDate(fechaMinima.getDate() - 30);
+        fechaMinima.setHours(0, 0, 0, 0);
+
+        if (fechaAsignacion < fechaMinima) {
+          throw new Error(
+            "La fecha de asignación no puede ser anterior a 30 días"
+          );
         }
 
         // Verificar que no sea más de 7 días en el futuro
