@@ -344,7 +344,7 @@ class UserController {
       }
 
       const userId = req.user?.id;
-      const { nombre, telefono } = req.body;
+      const { nombre, telefono, avatar_url } = req.body;
 
       const user = await User.findByPk(userId);
       if (!user) {
@@ -360,6 +360,7 @@ class UserController {
       // Actualizar campos permitidos
       if (nombre !== undefined) user.nombre = nombre;
       if (telefono !== undefined) user.telefono = telefono;
+      if (avatar_url !== undefined) user.avatar_url = avatar_url;
 
       await user.save();
 

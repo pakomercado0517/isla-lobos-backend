@@ -17,6 +17,7 @@ interface UserAttributes {
   email: string;
   password: string;
   telefono?: string;
+  avatar_url?: string;
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
@@ -36,6 +37,7 @@ interface UserCreationAttributes
     UserAttributes,
     | "id"
     | "telefono"
+    | "avatar_url"
     | "activo"
     | "fechaVencimientoPermiso"
     | "estadoPermiso"
@@ -55,6 +57,7 @@ class User
   public email!: string;
   public password!: string;
   public telefono?: string;
+  public avatar_url?: string;
   public rol!: UserRole;
   public activo!: boolean;
   // Campos de vigencia de permisos
@@ -177,6 +180,20 @@ User.init(
       validate: {
         is: /^[\+]?[1-9][\d]{0,15}$/,
       },
+    },
+    avatar_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      validate: {
+        isUrl: {
+          msg: "La URL del avatar debe ser una URL válida",
+        },
+        len: {
+          args: [0, 500],
+          msg: "La URL del avatar no puede exceder 500 caracteres",
+        },
+      },
+      comment: "URL de la imagen de perfil del usuario",
     },
     rol: {
       type: DataTypes.ENUM(...Object.values(UserRole)),

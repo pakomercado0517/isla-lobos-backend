@@ -128,6 +128,17 @@ export const updateProfileValidation = [
     .trim()
     .matches(/^(\+52\s?)?[0-9]{10}$/)
     .withMessage("El teléfono debe ser un número mexicano válido (10 dígitos)"),
+  body("avatar_url")
+    .optional()
+    .isURL({
+      protocols: ["http", "https"],
+      require_protocol: true,
+    })
+    .withMessage(
+      "La URL del avatar debe ser una URL válida con protocolo http o https"
+    )
+    .isLength({ max: 500 })
+    .withMessage("La URL del avatar no puede exceder 500 caracteres"),
 ];
 
 // Validación para obtener estadísticas

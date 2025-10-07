@@ -322,6 +322,47 @@ export class BrazaleteValidator {
       .withMessage("El ID de la salida debe ser un UUID válido"),
   ];
 
+  static actualizarUso: ValidationChain[] = [
+    body("salida_id")
+      .notEmpty()
+      .withMessage("El ID de la salida es obligatorio")
+      .isUUID()
+      .withMessage("El ID de la salida debe ser un UUID válido"),
+
+    body("fecha_uso")
+      .notEmpty()
+      .withMessage("La fecha de uso es obligatoria")
+      .isISO8601()
+      .withMessage(
+        "La fecha de uso debe ser una fecha válida en formato ISO 8601"
+      )
+      .custom((value) => {
+        if (value) {
+          const fechaUso = new Date(value);
+          const hoy = new Date();
+          hoy.setHours(23, 59, 59, 999); // Fin del día actual
+
+          if (fechaUso > hoy) {
+            throw new Error("La fecha de uso no puede ser futura");
+          }
+
+          // Verificar que no sea muy antigua (más de 1 año)
+          const unAnoAtras = new Date();
+          unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
+
+          if (fechaUso < unAnoAtras) {
+            throw new Error("La fecha de uso no puede ser anterior a un año");
+          }
+        }
+        return true;
+      }),
+
+    body("motivo")
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage("El motivo no puede exceder 500 caracteres"),
+  ];
+
   // ============================================================================
   // VALIDADORES PARA ESTADÍSTICAS
   // ============================================================================

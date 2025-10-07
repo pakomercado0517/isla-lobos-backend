@@ -49,6 +49,18 @@ export const registerValidation = [
       return value;
     }),
 
+  body("avatar_url")
+    .optional()
+    .isURL({
+      protocols: ["http", "https"],
+      require_protocol: true,
+    })
+    .withMessage(
+      "La URL del avatar debe ser una URL válida con protocolo http o https"
+    )
+    .isLength({ max: 500 })
+    .withMessage("La URL del avatar no puede exceder 500 caracteres"),
+
   body("password")
     .isLength({ min: 6, max: 128 })
     .withMessage("La contraseña debe tener entre 6 y 128 caracteres")

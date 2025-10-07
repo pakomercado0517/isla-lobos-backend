@@ -5,6 +5,7 @@ export interface User {
   nombre: string;
   email: string;
   telefono?: string;
+  avatar_url?: string;
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
@@ -169,6 +170,7 @@ export interface RegisterRequest {
   nombre: string;
   email: string;
   telefono?: string;
+  avatar_url?: string;
   password: string;
   codigo_invitacion?: string;
 }
