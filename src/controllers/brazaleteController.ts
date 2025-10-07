@@ -1028,6 +1028,203 @@ export class BrazaleteController {
       });
     }
   }
+
+  /**
+   * PUT /api/brazaletes/uso/actualizar
+   * Actualizar todos los brazaletes de una salida a estado "utilizado"
+   */
+  static async actualizarUso(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log(
+        "🔍 Iniciando actualización de uso de brazaletes por salida..."
+      );
+      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
+      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
+
+      const { salida_id, fecha_uso, motivo } = req.body;
+
+      // Verificar que la salida exista
+      const salida = await Salida.findOne({
+        where: { id: salida_id },
+        include: [
+          {
+            model: User,
+            as: "prestador",
+            attributes: ["id", "nombre", "email"],
+          },
+        ],
+      });
+
+      if (!salida) {
+        res.status(404).json({
+          success: false,
+          message: "Salida no encontrada",
+          error: "SALIDA_NOT_FOUND",
+        });
+        return;
+      }
+
+      // Verificar permisos según el rol
+      if (req.user?.rol === "prestador") {
+        // Los prestadores solo pueden actualizar brazaletes de sus propias salidas
+        if (salida.prestador_id !== req.user.id) {
+          res.status(403).json({
+            success: false,
+            message:
+              "No tienes permisos para actualizar brazaletes de esta salida",
+            error: "FORBIDDEN",
+          });
+          return;
+        }
+      }
+
+      // Buscar todos los brazaletes asignados a esta salida
+      const brazaletesAsignados = await Brazalete.findAll({
+        where: {
+          salida_id: salida_id,
+          estado: "asignado", // Solo actualizar los que están asignados
+        },
+        include: [
+          {
+            model: LoteBrazalete,
+            as: "lote",
+            attributes: ["numero_lote", "tipo"],
+          },
+          {
+            model: User,
+            as: "prestador",
+            attributes: ["id", "nombre", "email"],
+          },
+        ],
+        order: [["codigo", "ASC"]],
+      });
+
+      if (brazaletesAsignados.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: "No se encontraron brazaletes asignados a esta salida",
+          error: "NO_BRACELETS_FOUND",
+          data: {
+            salida_id: salida_id,
+            estado_buscado: "asignado",
+          },
+        });
+        return;
+      }
+
+      // Validar que la fecha de uso sea posterior a la fecha de asignación
+      const fechaUso = new Date(fecha_uso);
+      const brazaletesConFechaInvalida = brazaletesAsignados.filter(
+        (brazalete) => {
+          if (brazalete.fecha_asignacion) {
+            const fechaAsignacion = new Date(brazalete.fecha_asignacion);
+            return fechaUso < fechaAsignacion;
+          }
+          return false;
+        }
+      );
+
+      if (brazaletesConFechaInvalida.length > 0) {
+        res.status(400).json({
+          success: false,
+          message:
+            "La fecha de uso debe ser posterior a la fecha de asignación de todos los brazaletes",
+          error: "FECHA_USO_INVALID",
+          data: {
+            fecha_uso: fechaUso.toISOString(),
+            brazaletes_afectados: brazaletesConFechaInvalida.map((b) => ({
+              codigo: b.codigo,
+              fecha_asignacion: b.fecha_asignacion,
+            })),
+          },
+        });
+        return;
+      }
+
+      // Actualizar todos los brazaletes
+      const brazaletesActualizados = [];
+      const errores = [];
+      let contadorLotes: Record<string, number> = {};
+
+      for (const brazalete of brazaletesAsignados) {
+        try {
+          // Actualizar el brazalete
+          await brazalete.update({
+            estado: "utilizado",
+            fecha_uso: fechaUso,
+          });
+
+          // Contar para actualizar lotes
+          const loteId = brazalete.lote_id;
+          contadorLotes[loteId] = (contadorLotes[loteId] || 0) + 1;
+
+          brazaletesActualizados.push({
+            id: brazalete.id,
+            codigo: brazalete.codigo,
+            tipo: brazalete.tipo,
+            estado_anterior: "asignado",
+            estado_actual: "utilizado",
+            fecha_uso: fechaUso.toISOString(),
+            lote_id: loteId,
+            prestador_id: brazalete.prestador_id,
+          });
+        } catch (error) {
+          errores.push({
+            codigo: brazalete.codigo,
+            error: error instanceof Error ? error.message : "Error desconocido",
+          });
+        }
+      }
+
+      // Actualizar contadores de lotes
+      for (const [loteId, cantidad] of Object.entries(contadorLotes)) {
+        try {
+          const lote = await LoteBrazalete.findByPk(loteId);
+          if (lote) {
+            await lote.actualizarDespuesUso(cantidad);
+          }
+        } catch (error) {
+          console.error(`Error al actualizar lote ${loteId}:`, error);
+        }
+      }
+
+      console.log(
+        `✅ ${brazaletesActualizados.length} brazaletes actualizados exitosamente`
+      );
+
+      res.json({
+        success: true,
+        message: `${brazaletesActualizados.length} brazaletes actualizados exitosamente`,
+        data: {
+          salida: {
+            id: salida.id,
+            fecha: salida.fecha,
+            numero_pasajeros: salida.numero_pasajeros,
+            prestador: {
+              id: salida.prestador_id,
+            },
+          },
+          fecha_uso: fechaUso.toISOString(),
+          brazaletes_actualizados: brazaletesActualizados,
+          resumen: {
+            total_encontrados: brazaletesAsignados.length,
+            total_actualizados: brazaletesActualizados.length,
+            total_errores: errores.length,
+            lotes_afectados: Object.keys(contadorLotes).length,
+          },
+          errores: errores.length > 0 ? errores : undefined,
+          motivo: motivo || null,
+        },
+      });
+    } catch (error) {
+      console.error("Error al actualizar uso de brazaletes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
 }
 
 export default BrazaleteController;

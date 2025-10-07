@@ -140,6 +140,19 @@ router.get(
   BrazaleteController.obtenerBrazaletesSalida
 );
 
+/**
+ * PUT /api/brazaletes/uso/actualizar
+ * Actualizar estado y fecha_uso de un brazalete
+ * Acceso: CONANP y Prestadores (solo sus propios brazaletes)
+ */
+router.put(
+  "/uso/actualizar",
+  authMiddleware,
+  BrazaleteValidator.actualizarUso,
+  validationMiddleware,
+  BrazaleteController.actualizarUso
+);
+
 // ============================================================================
 // RUTAS PARA REPORTES Y ESTADÍSTICAS
 // ============================================================================

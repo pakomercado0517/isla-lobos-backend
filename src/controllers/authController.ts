@@ -130,6 +130,7 @@ class AuthController {
         nombre,
         email,
         telefono,
+        avatar_url,
         password,
         codigo_invitacion,
       }: RegisterRequest = req.body;
@@ -201,6 +202,10 @@ class AuthController {
 
       if (telefono?.trim()) {
         userData.telefono = telefono.trim();
+      }
+
+      if (avatar_url?.trim()) {
+        userData.avatar_url = avatar_url.trim();
       }
 
       const newUser = await User.create(userData);
