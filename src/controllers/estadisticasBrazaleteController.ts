@@ -173,11 +173,11 @@ export class EstadisticasBrazaleteController {
         where: { tipo: "universal", estado: "disponible" },
       });
 
-      if (disponiblesUniversal < 50) {
+      if (disponiblesUniversal < 10) {
         alertas.push({
           tipo: "stock_bajo",
           severidad:
-            disponiblesUniversal < 20 ? ("alta" as const) : ("media" as const),
+            disponiblesUniversal < 5 ? ("alta" as const) : ("media" as const),
           mensaje: `Solo quedan ${disponiblesUniversal} brazaletes disponibles`,
           fecha: new Date(),
         });
@@ -223,23 +223,38 @@ export class EstadisticasBrazaleteController {
           {
             model: Brazalete,
             as: "brazaletes",
-            where: { estado: "asignado" },
+            where: { estado: "disponible" },
             required: false,
           },
         ],
       });
 
       for (const prestador of prestadoresConPocoStock) {
-        const brazaletesAsignados = (prestador as any).brazaletes?.length || 0;
+        const brazaletesDisponibles =
+          (prestador as any).brazaletes?.length || 0;
 
-        if (brazaletesAsignados < 10) {
+        if (brazaletesDisponibles < 10) {
+          let mensaje = "";
+          let severidad: "alta" | "media" = "media";
+
+          if (brazaletesDisponibles === 0) {
+            mensaje = `${prestador.nombre} no tiene brazaletes - stock agotado`;
+            severidad = "alta";
+          } else if (brazaletesDisponibles === 1) {
+            mensaje = `${prestador.nombre} tiene solo 1 brazalete - stock crítico`;
+            severidad = "media";
+          } else if (brazaletesDisponibles >= 2 && brazaletesDisponibles <= 5) {
+            mensaje = `${prestador.nombre} tiene ${brazaletesDisponibles} brazaletes - stock muy bajo`;
+            severidad = "media";
+          } else if (brazaletesDisponibles >= 6 && brazaletesDisponibles <= 9) {
+            mensaje = `${prestador.nombre} tiene ${brazaletesDisponibles} brazaletes - stock bajo`;
+            severidad = "media";
+          }
+
           alertas.push({
             tipo: "prestador_sin_stock",
-            severidad:
-              brazaletesAsignados === 0
-                ? ("alta" as const)
-                : ("media" as const),
-            mensaje: `${prestador.nombre} tiene solo ${brazaletesAsignados} brazaletes disponibles`,
+            severidad: severidad,
+            mensaje: mensaje,
             fecha: new Date(),
           });
         }
