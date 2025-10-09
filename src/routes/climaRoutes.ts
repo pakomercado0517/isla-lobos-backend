@@ -50,6 +50,9 @@ router.get(
   ClimaController.getEstadisticas
 );
 
+// Ruta para sincronizar datos del SMN (Servicio Meteorológico Nacional)
+router.post("/sincronizar-smn", requireCONANP, ClimaController.sincronizarSMN);
+
 router.get(
   "/:id",
   getCondicionByIdValidation,
