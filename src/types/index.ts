@@ -358,3 +358,54 @@ export interface EstadisticasBrazaletes {
     fecha: Date;
   }[];
 }
+
+// Tipos para integración con API del SMN (Servicio Meteorológico Nacional - CONAGUA)
+export interface SMNDatosBase {
+  ides: string; // ID del estado
+  idmun: string; // ID del municipio
+  nes: string; // Nombre del estado
+  nmun: string; // Nombre del municipio
+  desciel: string; // Descripción del cielo
+  probprec: string; // Probabilidad de precipitación (%)
+  prec: string; // Precipitación (litros/m²)
+  velvien: string; // Velocidad del viento (km/h)
+  dirvienc: string; // Dirección del viento (Cardinal)
+  dirvieng: string; // Dirección del viento (Grados)
+  lat: string; // Latitud
+  lon: string; // Longitud
+  dh: string; // Diferencia respecto a hora UTC
+}
+
+export interface SMNDatosDiarios extends SMNDatosBase {
+  dloc: string; // Día local (formato: YYYYmmddTHH)
+  ndia: string; // Número de día (1-3)
+  tmax: string; // Temperatura máxima (°C)
+  tmin: string; // Temperatura mínima (°C)
+  cc: string; // Cobertura de nubes (%)
+}
+
+export interface SMNDatosHorarios extends SMNDatosBase {
+  hloc: string; // Hora local (formato: YYYYmmddTHH) - IMPORTANTE: es "hloc" no "dloc"
+  nhor: string; // Número de hora (0-48)
+  dsem: string; // Día de la semana
+  temp: string; // Temperatura superficie (°C)
+  hr: string; // Humedad relativa (%)
+  dpt: string; // Temperatura punto de rocío (°C)
+  raf: string; // Ráfagas de viento (km/h)
+}
+
+// Tipos para respuestas de sincronización con SMN
+export interface SMNSincronizacionResponse {
+  total_procesados: number;
+  condiciones_creadas: number;
+  condiciones_actualizadas: number;
+  condiciones: CondicionMeteorologica[];
+  errores?: string[];
+}
+
+// Configuración de regiones para filtrado de datos SMN
+export interface SMNConfiguracionRegion {
+  estado_id: string; // ID del estado (ej: "23" para Quintana Roo)
+  municipio_id?: string; // ID del municipio (opcional)
+  nombre_region: string; // Nombre descriptivo
+}

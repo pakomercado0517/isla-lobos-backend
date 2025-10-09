@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Op } from "sequelize";
+import sequelize from "../config/database";
 import LoteBrazalete from "../models/LoteBrazalete";
 import Brazalete from "../models/Brazalete";
 import VentaBrazalete from "../models/VentaBrazalete";
@@ -432,6 +433,10 @@ export class BrazaleteController {
   /**
    * POST /api/brazaletes/venta
    * Vender brazaletes a un prestador
+   *
+   * MODO HÍBRIDO:
+   * - Si se proporcionan primer_numero y ultimo_numero: venta por rango específico
+   * - Si NO se proporcionan: venta automática FIFO (comportamiento actual)
    */
   static async venderBrazaletes(
     req: AuthRequest,
@@ -444,6 +449,10 @@ export class BrazaleteController {
         tipo = "universal",
         metodo_pago,
         estado_pago = "pendiente",
+        primer_numero,
+        ultimo_numero,
+        año,
+        lote_id,
       } = req.body;
 
       // Verificar que el usuario sea CONANP
@@ -468,29 +477,207 @@ export class BrazaleteController {
         return;
       }
 
+      // ============================================================================
+      // MODO 1: VENTA POR RANGO ESPECÍFICO
+      // ============================================================================
+      if (primer_numero && ultimo_numero) {
+        const añoActual = año || new Date().getFullYear();
+
+        // Generar códigos del rango solicitado
+        const codigosRango: string[] = [];
+        for (let i = primer_numero; i <= ultimo_numero; i++) {
+          const codigo = Brazalete.generarCodigo(añoActual, i);
+          codigosRango.push(codigo);
+        }
+
+        // Buscar brazaletes específicos del rango
+        const whereClause: Record<string, unknown> = {
+          codigo: { [Op.in]: codigosRango },
+          estado: "disponible",
+          [Op.and]: [
+            sequelize.where(sequelize.col("prestador_id"), "IS", null),
+          ],
+        };
+
+        // Si se especifica un lote_id, filtrar por ese lote
+        if (lote_id) {
+          whereClause["lote_id"] = lote_id;
+        }
+
+        const brazaletesDisponibles = await Brazalete.findAll({
+          where: whereClause,
+          order: [["codigo", "ASC"]],
+          include: [
+            {
+              model: LoteBrazalete,
+              as: "lote",
+              where: { estado: "activo" },
+            },
+          ],
+        });
+
+        // Validar que TODOS los brazaletes del rango estén disponibles
+        if (brazaletesDisponibles.length < cantidad) {
+          // Identificar qué brazaletes faltan
+          const codigosEncontrados = brazaletesDisponibles.map((b) => b.codigo);
+          const codigosFaltantes = codigosRango.filter(
+            (codigo) => !codigosEncontrados.includes(codigo)
+          );
+
+          res.status(400).json({
+            success: false,
+            message: `No todos los brazaletes del rango ${primer_numero}-${ultimo_numero} están disponibles`,
+            error: "RANGO_NO_DISPONIBLE",
+            data: {
+              solicitados: cantidad,
+              disponibles: brazaletesDisponibles.length,
+              faltantes: codigosFaltantes.length,
+              codigos_faltantes: codigosFaltantes.slice(0, 10), // Mostrar solo los primeros 10
+            },
+          });
+          return;
+        }
+
+        // Obtener el lote (buscar el lote del primer brazalete si no se especificó)
+        let loteVenta: LoteBrazalete | null = null;
+
+        if (lote_id) {
+          loteVenta = await LoteBrazalete.findByPk(lote_id);
+        } else if (brazaletesDisponibles[0]?.lote_id) {
+          loteVenta = await LoteBrazalete.findByPk(
+            brazaletesDisponibles[0].lote_id
+          );
+        }
+
+        if (!loteVenta) {
+          res.status(404).json({
+            success: false,
+            message:
+              "No se encontró un lote activo para los brazaletes del rango",
+          });
+          return;
+        }
+
+        // Crear registro de venta
+        const venta = await VentaBrazalete.create({
+          prestador_id,
+          lote_id: loteVenta.id,
+          cantidad,
+          precio_unitario: loteVenta.precio_venta,
+          total: cantidad * loteVenta.precio_venta,
+          metodo_pago,
+          estado_pago,
+        });
+
+        // Vender brazaletes al prestador (mantienen estado disponible)
+        const codigosBrazaletes: string[] = [];
+        const loteIds: Set<string> = new Set();
+
+        for (const brazalete of brazaletesDisponibles) {
+          await brazalete.venderAPrestador(prestador_id);
+          codigosBrazaletes.push(brazalete.codigo);
+          loteIds.add(brazalete.lote_id);
+        }
+
+        // Actualizar cantidades de los lotes afectados
+        for (const loteIdActualizar of loteIds) {
+          const loteActualizar = await LoteBrazalete.findByPk(loteIdActualizar);
+          if (loteActualizar) {
+            const cantidadDelLote = brazaletesDisponibles.filter(
+              (b) => b.lote_id === loteIdActualizar
+            ).length;
+            await loteActualizar.actualizarDespuesVenta(cantidadDelLote);
+          }
+        }
+
+        // Formatear venta con fechas en YYYY-MM-DD
+        const ventaFormateada = BrazaleteController.formatearVentaParaRespuesta(
+          {
+            id: venta.id,
+            prestador_id: venta.prestador_id,
+            lote_id: venta.lote_id,
+            cantidad: venta.cantidad,
+            precio_unitario: venta.precio_unitario,
+            total: venta.total,
+            fecha_venta: venta.fecha_venta,
+            metodo_pago: venta.metodo_pago,
+            estado_pago: venta.estado_pago,
+          }
+        );
+
+        res.status(201).json({
+          success: true,
+          data: {
+            venta: ventaFormateada,
+            modo_venta: "rango_especifico",
+            rango_brazaletes: {
+              numero_inicial: primer_numero,
+              numero_final: ultimo_numero,
+              año: añoActual,
+              cantidad_total: cantidad,
+              primer_codigo: codigosBrazaletes[0],
+              ultimo_codigo: codigosBrazaletes[codigosBrazaletes.length - 1],
+            },
+            brazaletes_asignados: codigosBrazaletes,
+            prestador: {
+              id: prestador.id,
+              nombre: prestador.nombre,
+              email: prestador.email,
+            },
+            lote: {
+              numero_lote: loteVenta.numero_lote,
+              tipo: loteVenta.tipo,
+            },
+            message: `Venta realizada exitosamente. Brazaletes del rango ${primer_numero}-${ultimo_numero} asignados.`,
+          },
+        });
+        return;
+      }
+
+      // ============================================================================
+      // MODO 2: VENTA AUTOMÁTICA FIFO (Comportamiento actual)
+      // ============================================================================
+
       // Buscar lote activo con brazaletes disponibles del tipo solicitado
+      const whereConditions: {
+        tipo: string;
+        estado: string;
+        cantidad_disponibles: { [Op.gte]: number };
+        id?: string;
+      } = {
+        tipo,
+        estado: "activo",
+        cantidad_disponibles: { [Op.gte]: cantidad },
+      };
+
+      // Si se especificó un lote_id, forzar ese lote
+      if (lote_id) {
+        whereConditions.id = lote_id;
+      }
+
       const lote = await LoteBrazalete.findOne({
-        where: {
-          tipo,
-          estado: "activo",
-          cantidad_disponibles: { [Op.gte]: cantidad },
-        },
+        where: whereConditions,
         order: [["fecha_compra", "ASC"]], // FIFO
       });
 
       if (!lote) {
         res.status(400).json({
           success: false,
-          message: `No hay suficientes brazaletes disponibles`,
+          message: lote_id
+            ? `No hay suficientes brazaletes disponibles en el lote especificado`
+            : `No hay suficientes brazaletes disponibles`,
         });
         return;
       }
 
-      // Obtener brazaletes disponibles del lote
+      // Obtener brazaletes disponibles del lote (sin prestador asignado)
       const brazaletesDisponibles = await Brazalete.findAll({
         where: {
           lote_id: lote.id,
           estado: "disponible",
+          [Op.and]: [
+            sequelize.where(sequelize.col("prestador_id"), "IS", null),
+          ],
         },
         limit: cantidad,
         order: [["codigo", "ASC"]],
@@ -516,7 +703,7 @@ export class BrazaleteController {
       });
 
       // Vender brazaletes al prestador (mantienen estado disponible)
-      const codigosBrazaletes = [];
+      const codigosBrazaletes: string[] = [];
       for (const brazalete of brazaletesDisponibles) {
         await brazalete.venderAPrestador(prestador_id);
         codigosBrazaletes.push(brazalete.codigo);
@@ -531,7 +718,7 @@ export class BrazaleteController {
         codigosBrazaletes[codigosBrazaletes.length - 1] || "";
 
       // Extraer números de los códigos (formato: BRZ-YYYY-NNNNNN)
-      const extraerNumero = (codigo: string) => {
+      const extraerNumero = (codigo: string): number => {
         if (!codigo) return 0;
         const partes = codigo.split("-");
         return partes.length >= 3 && partes[2] ? parseInt(partes[2]) : 0;
@@ -557,6 +744,7 @@ export class BrazaleteController {
         success: true,
         data: {
           venta: ventaFormateada,
+          modo_venta: "automatico_fifo",
           rango_brazaletes: {
             numero_inicial: numeroInicial,
             numero_final: numeroFinal,
@@ -574,7 +762,7 @@ export class BrazaleteController {
             numero_lote: lote.numero_lote,
             tipo: lote.tipo,
           },
-          message: "Venta realizada exitosamente",
+          message: "Venta realizada exitosamente (FIFO automático)",
         },
       });
     } catch (error) {

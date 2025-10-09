@@ -182,7 +182,21 @@ export class BrazaleteValidator {
 
     body("cantidad")
       .isInt({ min: 1, max: 1000 })
-      .withMessage("La cantidad debe ser un número entero entre 1 y 1000"),
+      .withMessage("La cantidad debe ser un número entero entre 1 y 1000")
+      .custom((value, { req }) => {
+        const { primer_numero, ultimo_numero } = req.body;
+        
+        // Si se especifican primer y último número, validar que la cantidad coincida
+        if (primer_numero && ultimo_numero) {
+          const cantidadCalculada = ultimo_numero - primer_numero + 1;
+          if (value !== cantidadCalculada) {
+            throw new Error(
+              `La cantidad (${value}) no coincide con el rango especificado: ${primer_numero}-${ultimo_numero} (${cantidadCalculada} brazaletes)`
+            );
+          }
+        }
+        return true;
+      }),
 
     body("tipo")
       .isIn(["universal"])
@@ -201,6 +215,50 @@ export class BrazaleteValidator {
       .withMessage(
         "El estado de pago debe ser 'pendiente', 'pagado' o 'cancelado'"
       ),
+
+    // ⭐ NUEVOS PARÁMETROS OPCIONALES PARA VENTA POR RANGO
+    body("primer_numero")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("El primer número debe ser un entero mayor a 0"),
+
+    body("ultimo_numero")
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage("El último número debe ser un entero mayor a 0")
+      .custom((value, { req }) => {
+        const { primer_numero } = req.body;
+
+        if (value && primer_numero) {
+          if (value <= primer_numero) {
+            throw new Error("El último número debe ser mayor al primer número");
+          }
+        } else if ((value && !primer_numero) || (!value && primer_numero)) {
+          throw new Error(
+            "Si especificas primer_numero o ultimo_numero, debes especificar ambos"
+          );
+        }
+        return true;
+      }),
+
+    body("año")
+      .optional()
+      .isInt({ min: 2000, max: 2100 })
+      .withMessage("El año debe ser un número entero entre 2000 y 2100")
+      .custom((value) => {
+        if (value) {
+          const añoActual = new Date().getFullYear();
+          if (value > añoActual) {
+            throw new Error("El año no puede ser futuro");
+          }
+        }
+        return true;
+      }),
+
+    body("lote_id")
+      .optional()
+      .isUUID()
+      .withMessage("El ID del lote debe ser un UUID válido"),
   ];
 
   static obtenerBrazaletesPrestador: ValidationChain[] = [

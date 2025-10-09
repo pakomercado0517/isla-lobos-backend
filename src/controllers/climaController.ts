@@ -3,6 +3,7 @@ import CondicionMeteorologica from "../models/CondicionMeteorologica";
 import { Op } from "sequelize";
 import { EstadoPuerto } from "../types";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
+import SMNService from "../services/smnService";
 
 /**
  * ClimaController - Gestión de condiciones meteorológicas
@@ -411,7 +412,7 @@ class ClimaController {
         promedio_viento: Math.round(promedioViento * 100) / 100,
         tendencia_oleaje: oleajeTendencia,
         tendencia_viento: vientoTendencia,
-        recomendacion: this.generarRecomendacion(
+        recomendacion: ClimaController.generarRecomendacion(
           promedioOleaje,
           promedioViento
         ),
@@ -677,6 +678,127 @@ class ClimaController {
   }
 
   /**
+   * Sincronizar datos del SMN (Servicio Meteorológico Nacional - CONAGUA)
+   * POST /api/clima/sincronizar-smn
+   */
+  static async sincronizarSMN(req: Request, res: Response): Promise<void> {
+    try {
+      const { horas_limite = 24, solo_isla_lobos = true } = req.query;
+
+      console.log("🔄 Iniciando sincronización con SMN...");
+
+      // Obtener datos del SMN
+      const datosHorarios = await SMNService.getPronosticoHorario();
+
+      // Filtrar datos según configuración
+      let datosFiltrados = datosHorarios;
+      if (solo_isla_lobos === true || solo_isla_lobos === "true") {
+        datosFiltrados = SMNService.filtrarPorIslaLobos(datosHorarios);
+        console.log(
+          `📍 Filtrado para Isla de Lobos: ${datosFiltrados.length} registros`
+        );
+      }
+
+      if (datosFiltrados.length === 0) {
+        res.status(404).json({
+          status: "error",
+          message:
+            "No se encontraron datos del SMN para la región especificada",
+          error: "NO_SMN_DATA",
+        });
+        return;
+      }
+
+      // Limitar número de horas a procesar
+      const limite = Math.min(Number(horas_limite), 48); // Máximo 48 horas
+      const datosAProcesar = datosFiltrados.slice(0, limite);
+
+      console.log(
+        `⚙️ Procesando ${datosAProcesar.length} registros (límite: ${limite} horas)...`
+      );
+
+      // Convertir y guardar datos
+      const condicionesCreadas = [];
+      const condicionesActualizadas = [];
+      const errores: string[] = [];
+
+      for (const dato of datosAProcesar) {
+        try {
+          const condicionData =
+            SMNService.convertirACondicionMeteorologica(dato);
+
+          // Verificar si ya existe una condición para esta fecha/hora
+          const fechaCondicion = condicionData.fecha_hora;
+          const inicio = new Date(fechaCondicion);
+          inicio.setMinutes(0, 0, 0);
+          const fin = new Date(fechaCondicion);
+          fin.setMinutes(59, 59, 999);
+
+          const condicionExistente = await CondicionMeteorologica.findOne({
+            where: {
+              fecha_hora: {
+                [Op.between]: [inicio, fin],
+              },
+              fuente: "CONAGUA",
+            },
+          });
+
+          if (condicionExistente) {
+            // Actualizar condición existente
+            await condicionExistente.update(condicionData);
+            condicionesActualizadas.push(condicionExistente);
+          } else {
+            // Crear nueva condición
+            const nuevaCondicion = await CondicionMeteorologica.create(
+              condicionData
+            );
+            condicionesCreadas.push(nuevaCondicion);
+          }
+        } catch (error) {
+          // Manejar tanto hloc (horario) como dloc (diario)
+          const datoTemporal = dato as { hloc?: string; dloc?: string };
+          const fechaDato =
+            datoTemporal.hloc || datoTemporal.dloc || "sin fecha";
+          const errorMsg = `Error procesando dato para fecha ${fechaDato}: ${
+            error instanceof Error ? error.message : "Error desconocido"
+          }`;
+          console.error(`❌ ${errorMsg}`);
+          errores.push(errorMsg);
+        }
+      }
+
+      console.log(
+        `✅ Sincronización completada: ${condicionesCreadas.length} creadas, ${condicionesActualizadas.length} actualizadas`
+      );
+
+      res.status(200).json({
+        status: "success",
+        message: "Datos del SMN sincronizados exitosamente",
+        data: {
+          total_procesados: datosAProcesar.length,
+          condiciones_creadas: condicionesCreadas.length,
+          condiciones_actualizadas: condicionesActualizadas.length,
+          condiciones: [
+            ...condicionesCreadas.map((c) => c.toJSON()),
+            ...condicionesActualizadas.map((c) => c.toJSON()),
+          ],
+          errores: errores.length > 0 ? errores : undefined,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error al sincronizar datos del SMN:", error);
+      res.status(500).json({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Error al sincronizar con el SMN",
+        error: "SMN_SYNC_ERROR",
+      });
+    }
+  }
+
+  /**
    * Método auxiliar para generar recomendaciones basadas en condiciones
    */
   private static generarRecomendacion(oleaje: number, viento: number): string {
@@ -687,7 +809,7 @@ class ClimaController {
     } else if (oleaje > 1.0 || viento > 15) {
       return "Condiciones aceptables. Salidas permitidas con precaución.";
     } else {
-      return "Condiciones favorables. Salidas recomendadas para todos los tipos de embarcación.";
+      return "Condiciones favorables. Salidas recomendados para todos los tipos de embarcación.";
     }
   }
 }
