@@ -7,6 +7,19 @@ import User from "../models/User";
 
 export class EstadisticasBrazaleteController {
   /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+  /**
    * GET /api/brazaletes/estadisticas
    * Obtener estadísticas generales del sistema de brazaletes
    */
@@ -125,8 +138,10 @@ export class EstadisticasBrazaleteController {
         success: true,
         data: {
           periodo: {
-            fecha_inicio: fechaInicio.toISOString().split("T")[0],
-            fecha_fin: fechaFin.toISOString().split("T")[0],
+            fecha_inicio:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaInicio),
+            fecha_fin:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaFin),
           },
           inventario: {
             total_comprados: totalComprados,
@@ -388,8 +403,10 @@ export class EstadisticasBrazaleteController {
         success: true,
         data: {
           periodo: {
-            fecha_inicio: fechaInicio.toISOString().split("T")[0],
-            fecha_fin: fechaFin.toISOString().split("T")[0],
+            fecha_inicio:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaInicio),
+            fecha_fin:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaFin),
           },
           resumen: {
             total_ventas: totalVentas,
@@ -493,8 +510,10 @@ export class EstadisticasBrazaleteController {
         success: true,
         data: {
           periodo: {
-            fecha_inicio: fechaInicio.toISOString().split("T")[0],
-            fecha_fin: fechaFin.toISOString().split("T")[0],
+            fecha_inicio:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaInicio),
+            fecha_fin:
+              EstadisticasBrazaleteController.extraerSoloFecha(fechaFin),
           },
           resumen: {
             total_utilizados: brazaletesUtilizados.length,

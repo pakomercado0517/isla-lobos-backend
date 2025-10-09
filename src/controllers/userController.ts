@@ -10,6 +10,49 @@ import { ApiResponse, UserRole } from "../types";
  */
 class UserController {
   /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Formatea un usuario para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearUsuarioParaRespuesta(user: any): any {
+    const userFormateado = { ...user };
+    if (userFormateado.fechaVencimientoPermiso) {
+      userFormateado.fechaVencimientoPermiso = UserController.extraerSoloFecha(
+        userFormateado.fechaVencimientoPermiso
+      );
+    }
+    if (userFormateado.ultimaNotificacion) {
+      userFormateado.ultimaNotificacion = UserController.extraerSoloFecha(
+        userFormateado.ultimaNotificacion
+      );
+    }
+    return userFormateado;
+  }
+
+  /**
+   * Formatea múltiples usuarios para respuesta
+   */
+  private static formatearUsuariosParaRespuesta(users: any[]): any[] {
+    return users.map((user) =>
+      UserController.formatearUsuarioParaRespuesta(
+        user.toJSON ? user.toJSON() : user
+      )
+    );
+  }
+
+  /**
    * Obtener todos los usuarios (solo CONANP)
    */
   static async getAllUsers(req: Request, res: Response): Promise<void> {
@@ -30,11 +73,15 @@ class UserController {
         attributes: { exclude: ["password"] }, // Excluir contraseñas
       });
 
+      // Formatear usuarios con fechas en YYYY-MM-DD
+      const usersFormateados =
+        UserController.formatearUsuariosParaRespuesta(users);
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuarios obtenidos exitosamente",
         data: {
-          users,
+          users: usersFormateados,
           pagination: {
             total: count,
             page: Number(page),
@@ -77,10 +124,15 @@ class UserController {
         return;
       }
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuario obtenido exitosamente",
-        data: { user },
+        data: { user: userFormateado },
       };
 
       res.status(200).json(response);
@@ -153,10 +205,15 @@ class UserController {
 
       const newUser = await User.create(userData);
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        newUser.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuario creado exitosamente",
-        data: { user: newUser.toJSON() },
+        data: { user: userFormateado },
       };
 
       res.status(201).json(response);
@@ -228,10 +285,15 @@ class UserController {
 
       await user.save();
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuario actualizado exitosamente",
-        data: { user: user.toJSON() },
+        data: { user: userFormateado },
       };
 
       res.status(200).json(response);
@@ -268,10 +330,15 @@ class UserController {
       user.activo = false;
       await user.save();
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuario desactivado exitosamente",
-        data: { user: user.toJSON() },
+        data: { user: userFormateado },
       };
 
       res.status(200).json(response);
@@ -307,10 +374,15 @@ class UserController {
       user.activo = true;
       await user.save();
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Usuario activado exitosamente",
-        data: { user: user.toJSON() },
+        data: { user: userFormateado },
       };
 
       res.status(200).json(response);
@@ -364,10 +436,15 @@ class UserController {
 
       await user.save();
 
+      // Formatear usuario con fechas en YYYY-MM-DD
+      const userFormateado = UserController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Perfil actualizado exitosamente",
-        data: { user: user.toJSON() },
+        data: { user: userFormateado },
       };
 
       res.status(200).json(response);

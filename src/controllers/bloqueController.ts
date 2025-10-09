@@ -598,10 +598,6 @@ class BloqueController {
             fecha: fechaNormalizada,
           });
         }
-
-        console.log(
-          `Bloques creados para la fecha: ${fecha.toISOString().split("T")[0]}`
-        );
       }
     } catch (error) {
       console.error("Error al crear bloques para fecha:", error);

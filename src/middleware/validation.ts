@@ -13,11 +13,6 @@ export const handleValidationErrors = (
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    // Log detallado para debugging
-    console.log("🚨 Errores de validación encontrados:");
-    console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
-    console.log("❌ Errores:", errors.array());
-
     // Formatear errores para una respuesta más clara
     const formattedErrors = errors.array().map((error: ValidationError) => ({
       field: error.type === "field" ? error.path : "unknown",
@@ -39,7 +34,6 @@ export const handleValidationErrors = (
       },
     };
 
-    console.log("📤 Respuesta de error:", JSON.stringify(response, null, 2));
     res.status(400).json(response);
     return;
   }
