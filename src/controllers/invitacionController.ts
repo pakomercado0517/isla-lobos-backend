@@ -16,6 +16,46 @@ import { getCurrentMexicoTime } from "../utils/dateUtils";
  */
 class InvitacionController {
   /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Formatea una invitación para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearInvitacionParaRespuesta(invitacion: any): any {
+    const invitacionFormateada = { ...invitacion };
+    if (invitacionFormateada.expira_en) {
+      invitacionFormateada.expira_en = InvitacionController.extraerSoloFecha(
+        invitacionFormateada.expira_en
+      );
+    }
+    return invitacionFormateada;
+  }
+
+  /**
+   * Formatea múltiples invitaciones para respuesta
+   */
+  private static formatearInvitacionesParaRespuesta(
+    invitaciones: any[]
+  ): any[] {
+    return invitaciones.map((invitacion) =>
+      InvitacionController.formatearInvitacionParaRespuesta(
+        invitacion.toJSON ? invitacion.toJSON() : invitacion
+      )
+    );
+  }
+
+  /**
    * Obtener todas las invitaciones
    * GET /api/invitaciones
    */
@@ -57,11 +97,15 @@ class InvitacionController {
 
       const totalPages = Math.ceil(count / Number(limit));
 
+      // Formatear invitaciones con fechas en YYYY-MM-DD
+      const invitacionesFormateadas =
+        InvitacionController.formatearInvitacionesParaRespuesta(invitaciones);
+
       res.status(200).json({
         status: "success",
         message: "Invitaciones obtenidas exitosamente",
         data: {
-          invitaciones,
+          invitaciones: invitacionesFormateadas,
           pagination: {
             current_page: Number(page),
             total_pages: totalPages,
@@ -115,10 +159,16 @@ class InvitacionController {
         return;
       }
 
+      // Formatear invitación con fechas en YYYY-MM-DD
+      const invitacionFormateada =
+        InvitacionController.formatearInvitacionParaRespuesta(
+          invitacion.toJSON()
+        );
+
       res.status(200).json({
         status: "success",
         message: "Invitación obtenida exitosamente",
-        data: { invitacion },
+        data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
       console.error("Error al obtener invitación:", error);
@@ -176,10 +226,16 @@ class InvitacionController {
         ],
       });
 
+      // Formatear invitación con fechas en YYYY-MM-DD
+      const invitacionFormateada =
+        InvitacionController.formatearInvitacionParaRespuesta(
+          invitacionCreada?.toJSON()
+        );
+
       res.status(201).json({
         status: "success",
         message: "Invitación creada exitosamente",
-        data: { invitacion: invitacionCreada },
+        data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
       console.error("Error al crear invitación:", error);
@@ -239,10 +295,16 @@ class InvitacionController {
         ],
       });
 
+      // Formatear invitación con fechas en YYYY-MM-DD
+      const invitacionFormateada =
+        InvitacionController.formatearInvitacionParaRespuesta(
+          invitacionActualizada?.toJSON()
+        );
+
       res.status(200).json({
         status: "success",
         message: "Invitación actualizada exitosamente",
-        data: { invitacion: invitacionActualizada },
+        data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
       console.error("Error al actualizar invitación:", error);
@@ -358,7 +420,9 @@ class InvitacionController {
             email: invitacion.email,
             rol: invitacion.rol,
             creada_por: invitacion.creada_por,
-            expira_en: invitacion.expira_en,
+            expira_en: InvitacionController.extraerSoloFecha(
+              invitacion.expira_en
+            ),
           },
         },
       });
@@ -435,10 +499,16 @@ class InvitacionController {
         ],
       });
 
+      // Formatear invitación con fechas en YYYY-MM-DD
+      const invitacionFormateada =
+        InvitacionController.formatearInvitacionParaRespuesta(
+          invitacionActualizada?.toJSON()
+        );
+
       res.status(200).json({
         status: "success",
         message: "Invitación marcada como usada exitosamente",
-        data: { invitacion: invitacionActualizada },
+        data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
       console.error("Error al usar invitación:", error);

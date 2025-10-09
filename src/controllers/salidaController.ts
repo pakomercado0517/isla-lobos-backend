@@ -4,6 +4,7 @@ import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
 import { Op } from "sequelize";
+import sequelize from "../config/database";
 import { EstadoSalida, EstadoEmbarcacion, EstadoBloque } from "../types";
 
 /**
@@ -37,26 +38,32 @@ class SalidaController {
       // Construir filtros
       const where: any = {};
 
-      // Filtro por fecha específica
+      // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
       if (fecha) {
-        const fechaInicio = new Date(fecha as string);
-        fechaInicio.setHours(0, 0, 0, 0);
-        const fechaFin = new Date(fecha as string);
-        fechaFin.setHours(23, 59, 59, 999);
-        where.fecha = {
-          [Op.between]: [fechaInicio, fechaFin],
-        };
+        const fechaComparar = SalidaController.extraerSoloFecha(
+          fecha as string
+        );
+        where[Op.and] = where[Op.and] || [];
+        where[Op.and].push(
+          sequelize.where(
+            sequelize.fn("DATE", sequelize.col("Salida.fecha")),
+            fechaComparar
+          )
+        );
       }
 
-      // Filtro por rango de fechas
+      // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
       if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio as string);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin as string);
-        fin.setHours(23, 59, 59, 999);
-        where.fecha = {
-          [Op.between]: [inicio, fin],
-        };
+        const inicio = SalidaController.extraerSoloFecha(
+          fecha_inicio as string
+        );
+        const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
+        where[Op.and] = where[Op.and] || [];
+        where[Op.and].push(
+          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
+            [Op.between]: [inicio, fin],
+          })
+        );
       }
 
       // Filtro por estado
@@ -131,11 +138,15 @@ class SalidaController {
         }),
       };
 
+      // Formatear salidas con fechas en YYYY-MM-DD
+      const salidasFormateadas =
+        SalidaController.formatearSalidasParaRespuesta(salidas);
+
       res.status(200).json({
         status: "success",
         message: "Salidas obtenidas exitosamente",
         data: {
-          salidas,
+          salidas: salidasFormateadas,
           estadisticas,
           pagination: {
             page: Number(page),
@@ -199,10 +210,15 @@ class SalidaController {
         return;
       }
 
+      // Formatear fecha para respuesta
+      const salidaFormateada = SalidaController.formatearSalidaParaRespuesta(
+        salida.toJSON()
+      );
+
       res.status(200).json({
         status: "success",
         message: "Salida obtenida exitosamente",
-        data: { salida },
+        data: { salida: salidaFormateada },
       });
     } catch (error) {
       console.error("Error al obtener salida:", error);
@@ -265,18 +281,18 @@ class SalidaController {
       }
 
       // Verificar si hay conflicto específico para esta fecha Y bloque
-      // Crear fecha en UTC para evitar problemas de timezone
-      const fechaBusqueda = new Date(fecha + "T00:00:00.000Z");
-      const inicioDia = new Date(fechaBusqueda);
-      const finDia = new Date(fechaBusqueda);
-      finDia.setUTCHours(23, 59, 59, 999);
+      // Usar comparación solo por fecha (YYYY-MM-DD) sin horas
+      const fechaComparar = SalidaController.extraerSoloFecha(fecha);
 
       // Construir condiciones de búsqueda de conflicto
       const whereConflicto: any = {
         embarcacion_id: embarcacion_id,
-        fecha: {
-          [Op.between]: [inicioDia, finDia],
-        },
+        [Op.and]: [
+          sequelize.where(
+            sequelize.fn("DATE", sequelize.col("fecha")),
+            fechaComparar
+          ),
+        ],
         estado: {
           [Op.notIn]: [
             EstadoSalida.CANCELADA,
@@ -341,12 +357,18 @@ class SalidaController {
           return;
         }
 
-        // Calcular capacidad ocupada para esa fecha
+        // Calcular capacidad ocupada para esa fecha (usando comparación solo de fecha)
+        const fechaComparar = SalidaController.extraerSoloFecha(fecha);
         const salidas_en_bloque =
           (await Salida.sum("numero_pasajeros", {
             where: {
               bloque_id: bloque_id,
-              fecha: fecha,
+              [Op.and]: [
+                sequelize.where(
+                  sequelize.fn("DATE", sequelize.col("fecha")),
+                  fechaComparar
+                ),
+              ],
               estado: {
                 [Op.notIn]: [
                   "cancelada",
@@ -396,7 +418,7 @@ class SalidaController {
         destino,
         bloque_id: destino === "Isla de Lobos" ? bloque_id : null,
         hora: destino !== "Isla de Lobos" ? hora : null,
-        fecha: new Date(fecha),
+        fecha: SalidaController.normalizarFechaParaGuardar(fecha),
         numero_pasajeros,
         observaciones,
         estado: EstadoSalida.PROGRAMADA,
@@ -434,10 +456,15 @@ class SalidaController {
         ],
       });
 
+      // Formatear fecha para respuesta
+      const salidaFormateada = SalidaController.formatearSalidaParaRespuesta(
+        salidaCompleta?.toJSON()
+      );
+
       res.status(201).json({
         status: "success",
         message: "Salida creada exitosamente",
-        data: { salida: salidaCompleta },
+        data: { salida: salidaFormateada },
       });
     } catch (error) {
       console.error("Error al crear salida:", error);
@@ -595,7 +622,9 @@ class SalidaController {
       if (embarcacion_id) datosActualizacion.embarcacion_id = embarcacion_id;
       if (bloque_id) datosActualizacion.bloque_id = bloque_id;
       if (hora) datosActualizacion.hora = hora;
-      if (fecha) datosActualizacion.fecha = new Date(fecha);
+      if (fecha)
+        datosActualizacion.fecha =
+          SalidaController.normalizarFechaParaGuardar(fecha);
       if (numero_pasajeros)
         datosActualizacion.numero_pasajeros = numero_pasajeros;
       if (observaciones !== undefined)
@@ -666,10 +695,15 @@ class SalidaController {
         ],
       });
 
+      // Formatear fecha para respuesta
+      const salidaFormateada = SalidaController.formatearSalidaParaRespuesta(
+        salidaActualizada?.toJSON()
+      );
+
       res.status(200).json({
         status: "success",
         message: "Salida actualizada exitosamente",
-        data: { salida: salidaActualizada },
+        data: { salida: salidaFormateada },
       });
     } catch (error) {
       console.error("Error al actualizar salida:", error);
@@ -793,26 +827,32 @@ class SalidaController {
         prestador_id: prestadorId,
       };
 
-      // Filtro por fecha específica
+      // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
       if (fecha) {
-        const fechaInicio = new Date(fecha as string);
-        fechaInicio.setHours(0, 0, 0, 0);
-        const fechaFin = new Date(fecha as string);
-        fechaFin.setHours(23, 59, 59, 999);
-        where.fecha = {
-          [Op.between]: [fechaInicio, fechaFin],
-        };
+        const fechaComparar = SalidaController.extraerSoloFecha(
+          fecha as string
+        );
+        where[Op.and] = where[Op.and] || [];
+        where[Op.and].push(
+          sequelize.where(
+            sequelize.fn("DATE", sequelize.col("Salida.fecha")),
+            fechaComparar
+          )
+        );
       }
 
-      // Filtro por rango de fechas
+      // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
       if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio as string);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin as string);
-        fin.setHours(23, 59, 59, 999);
-        where.fecha = {
-          [Op.between]: [inicio, fin],
-        };
+        const inicio = SalidaController.extraerSoloFecha(
+          fecha_inicio as string
+        );
+        const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
+        where[Op.and] = where[Op.and] || [];
+        where[Op.and].push(
+          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
+            [Op.between]: [inicio, fin],
+          })
+        );
       }
 
       // Filtro por estado
@@ -867,11 +907,15 @@ class SalidaController {
         }),
       };
 
+      // Formatear salidas con fechas en YYYY-MM-DD
+      const salidasFormateadas =
+        SalidaController.formatearSalidasParaRespuesta(salidas);
+
       res.status(200).json({
         status: "success",
         message: "Mis salidas obtenidas exitosamente",
         data: {
-          salidas,
+          salidas: salidasFormateadas,
           estadisticas,
           pagination: {
             page: Number(page),
@@ -905,14 +949,18 @@ class SalidaController {
         where.prestador_id = prestador_id;
       }
 
+      // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
       if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio as string);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin as string);
-        fin.setHours(23, 59, 59, 999);
-        where.fecha = {
-          [Op.between]: [inicio, fin],
-        };
+        const inicio = SalidaController.extraerSoloFecha(
+          fecha_inicio as string
+        );
+        const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
+        where[Op.and] = where[Op.and] || [];
+        where[Op.and].push(
+          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
+            [Op.between]: [inicio, fin],
+          })
+        );
       }
 
       // Obtener estadísticas generales
@@ -968,6 +1016,59 @@ class SalidaController {
         error: "INTERNAL_SERVER_ERROR",
       });
     }
+  }
+
+  /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(fecha: Date | string): string {
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Normaliza una fecha YYYY-MM-DD a Date sin problemas de zona horaria
+   * Siempre guarda como YYYY-MM-DDT00:00:00.000Z en UTC
+   * Ejemplo: "2025-10-10" -> Date("2025-10-10T00:00:00.000Z")
+   */
+  private static normalizarFechaParaGuardar(fecha: string): Date {
+    // Asegurar que solo tenemos YYYY-MM-DD
+    const fechaLimpia = fecha.split("T")[0];
+    // Crear fecha en UTC con horas en cero
+    return new Date(fechaLimpia + "T00:00:00.000Z");
+  }
+
+  /**
+   * Formatea una salida para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearSalidaParaRespuesta(salida: any): any {
+    const salidaFormateada = { ...salida };
+    if (salidaFormateada.fecha) {
+      salidaFormateada.fecha = SalidaController.extraerSoloFecha(
+        salidaFormateada.fecha
+      );
+    }
+    // Formatear fecha del bloque si existe
+    if (salidaFormateada.bloque?.fecha) {
+      salidaFormateada.bloque.fecha = SalidaController.extraerSoloFecha(
+        salidaFormateada.bloque.fecha
+      );
+    }
+    return salidaFormateada;
+  }
+
+  /**
+   * Formatea múltiples salidas para respuesta
+   */
+  private static formatearSalidasParaRespuesta(salidas: any[]): any[] {
+    return salidas.map((salida) =>
+      SalidaController.formatearSalidaParaRespuesta(
+        salida.toJSON ? salida.toJSON() : salida
+      )
+    );
   }
 }
 

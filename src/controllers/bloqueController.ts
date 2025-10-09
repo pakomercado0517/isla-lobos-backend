@@ -3,6 +3,7 @@ import Bloque from "../models/Bloque";
 import Salida from "../models/Salida";
 import Embarcacion from "../models/Embarcacion";
 import { Op } from "sequelize";
+import sequelize from "../config/database";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
 import { EstadoBloque, EstadoSalida } from "../types";
 
@@ -127,11 +128,74 @@ class BloqueController {
         return;
       }
 
-      res.status(200).json({
-        status: "success",
-        message: "Bloque obtenido exitosamente",
-        data: { bloque },
-      });
+      // Calcular capacidad registrada dinámicamente si el bloque tiene fecha
+      if (bloque.fecha) {
+        // Extraer solo la fecha YYYY-MM-DD para comparación sin problemas de zona horaria
+        const fechaComparar = BloqueController.extraerSoloFecha(bloque.fecha);
+
+        const capacidad_registrada =
+          (await Salida.sum("numero_pasajeros", {
+            where: {
+              bloque_id: bloque.id,
+              [Op.and]: [
+                sequelize.where(
+                  sequelize.fn("DATE", sequelize.col("fecha")),
+                  fechaComparar
+                ),
+              ],
+              estado: {
+                [Op.notIn]: [
+                  EstadoSalida.CANCELADA,
+                  EstadoSalida.CANCELADA_POR_CLIMA,
+                  EstadoSalida.CANCELADA_CAPITARIA,
+                ],
+              },
+            },
+          })) || 0;
+
+        // Calcular capacidad disponible
+        const capacidad_disponible =
+          bloque.capacidad_total - capacidad_registrada;
+
+        // Determinar estado basado en capacidad
+        let estado_actual = bloque.estado;
+        if (capacidad_registrada >= bloque.capacidad_total) {
+          estado_actual = EstadoBloque.LLENO;
+        } else if (
+          bloque.estado === EstadoBloque.LLENO &&
+          capacidad_registrada < bloque.capacidad_total
+        ) {
+          estado_actual = EstadoBloque.ACTIVO;
+        }
+
+        // Devolver bloque con capacidad calculada y fecha formateada
+        const bloqueConCapacidad = {
+          id: bloque.id,
+          nombre: bloque.nombre,
+          hora_inicio: bloque.hora_inicio,
+          hora_fin: bloque.hora_fin,
+          capacidad_total: bloque.capacidad_total,
+          capacidad_registrada,
+          capacidad_disponible,
+          estado: estado_actual,
+          fecha: BloqueController.extraerSoloFecha(bloque.fecha),
+          created_at: bloque.created_at,
+          updated_at: bloque.updated_at,
+        };
+
+        res.status(200).json({
+          status: "success",
+          message: "Bloque obtenido exitosamente",
+          data: { bloque: bloqueConCapacidad },
+        });
+      } else {
+        // Si es un bloque plantilla (sin fecha), devolver tal cual
+        res.status(200).json({
+          status: "success",
+          message: "Bloque obtenido exitosamente",
+          data: { bloque },
+        });
+      }
     } catch (error) {
       console.error("Error al obtener bloque:", error);
       res.status(500).json({
@@ -199,10 +263,15 @@ class BloqueController {
         fecha: fechaBloque,
       });
 
+      // Formatear fecha para respuesta
+      const bloqueFormateado = BloqueController.formatearBloqueParaRespuesta(
+        nuevoBloque.toJSON()
+      );
+
       res.status(201).json({
         status: "success",
         message: "Bloque creado exitosamente",
-        data: { bloque: nuevoBloque },
+        data: { bloque: bloqueFormateado },
       });
     } catch (error) {
       console.error("Error al crear bloque:", error);
@@ -281,10 +350,15 @@ class BloqueController {
         ...(fecha && { fecha: new Date(fecha) }),
       });
 
+      // Formatear fecha para respuesta
+      const bloqueFormateado = BloqueController.formatearBloqueParaRespuesta(
+        bloque.toJSON()
+      );
+
       res.status(200).json({
         status: "success",
         message: "Bloque actualizado exitosamente",
-        data: { bloque },
+        data: { bloque: bloqueFormateado },
       });
     } catch (error) {
       console.error("Error al actualizar bloque:", error);
@@ -460,15 +534,28 @@ class BloqueController {
     return new Date(Date.UTC(year, month, day));
   }
 
-  private static obtenerRangoFecha(fecha: Date): { inicio: Date; fin: Date } {
-    const year = fecha.getUTCFullYear();
-    const month = fecha.getUTCMonth();
-    const day = fecha.getUTCDate();
+  /**
+   * Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(fecha: Date | string): string {
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
 
-    const inicio = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-    const fin = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-
-    return { inicio, fin };
+  /**
+   * Formatea un bloque para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearBloqueParaRespuesta(bloque: any): any {
+    const bloqueFormateado = { ...bloque };
+    if (bloqueFormateado.fecha) {
+      bloqueFormateado.fecha = BloqueController.extraerSoloFecha(
+        bloqueFormateado.fecha
+      );
+    }
+    return bloqueFormateado;
   }
 
   /**
@@ -511,10 +598,6 @@ class BloqueController {
             fecha: fechaNormalizada,
           });
         }
-
-        console.log(
-          `Bloques creados para la fecha: ${fecha.toISOString().split("T")[0]}`
-        );
       }
     } catch (error) {
       console.error("Error al crear bloques para fecha:", error);
@@ -541,15 +624,21 @@ class BloqueController {
       // Calcular capacidad ocupada para cada bloque
       const bloquesConCapacidad = await Promise.all(
         bloquesExistentes.map(async (bloque) => {
+          // Extraer solo la fecha YYYY-MM-DD para comparación sin problemas de zona horaria
+          const fechaComparar = BloqueController.extraerSoloFecha(fecha);
+
           // Calcular capacidad registrada sumando pasajeros de salidas activas
-          const rangoFecha = BloqueController.obtenerRangoFecha(fecha);
+          // Usamos sequelize.where con sequelize.fn para comparar solo fechas
           const capacidad_registrada =
             (await Salida.sum("numero_pasajeros", {
               where: {
                 bloque_id: bloque.id,
-                fecha: {
-                  [Op.between]: [rangoFecha.inicio, rangoFecha.fin],
-                },
+                [Op.and]: [
+                  sequelize.where(
+                    sequelize.fn("DATE", sequelize.col("fecha")),
+                    fechaComparar
+                  ),
+                ],
                 estado: {
                   [Op.notIn]: [
                     EstadoSalida.CANCELADA,
@@ -606,15 +695,19 @@ class BloqueController {
         return [];
       }
 
-      const rangoFecha = BloqueController.obtenerRangoFecha(fecha);
+      // Extraer solo la fecha YYYY-MM-DD para comparación sin problemas de zona horaria
+      const fechaComparar = BloqueController.extraerSoloFecha(fecha);
 
       // Buscar salidas del prestador en este bloque específico
       const salidasEnBloque = await Salida.findAll({
         where: {
           bloque_id: bloqueId,
-          fecha: {
-            [Op.between]: [rangoFecha.inicio, rangoFecha.fin],
-          },
+          [Op.and]: [
+            sequelize.where(
+              sequelize.fn("DATE", sequelize.col("fecha")),
+              fechaComparar
+            ),
+          ],
           estado: {
             [Op.notIn]: [
               EstadoSalida.CANCELADA,

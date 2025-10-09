@@ -28,6 +28,49 @@ import { getCurrentMexicoTime } from "../utils/dateUtils";
  */
 class DashboardController {
   /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Formatea un usuario para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearUsuarioParaRespuesta(user: any): any {
+    const userFormateado = { ...user };
+    if (userFormateado.fechaVencimientoPermiso) {
+      userFormateado.fechaVencimientoPermiso =
+        DashboardController.extraerSoloFecha(
+          userFormateado.fechaVencimientoPermiso
+        );
+    }
+    if (userFormateado.ultimaNotificacion) {
+      userFormateado.ultimaNotificacion = DashboardController.extraerSoloFecha(
+        userFormateado.ultimaNotificacion
+      );
+    }
+    return userFormateado;
+  }
+
+  /**
+   * Formatea múltiples usuarios para respuesta
+   */
+  private static formatearUsuariosParaRespuesta(users: any[]): any[] {
+    return users.map((user) =>
+      DashboardController.formatearUsuarioParaRespuesta(
+        user.toJSON ? user.toJSON() : user
+      )
+    );
+  }
+  /**
    * Obtener estadísticas generales del sistema
    * GET /api/dashboard/estadisticas
    */
@@ -320,8 +363,8 @@ class DashboardController {
       // Estadísticas de ocupación
       const estadisticasOcupacion = {
         periodo_dias: Number(dias),
-        fecha_inicio: fechaInicio,
-        fecha_fin: ahora,
+        fecha_inicio: DashboardController.extraerSoloFecha(fechaInicio),
+        fecha_fin: DashboardController.extraerSoloFecha(ahora),
         total_bloques: bloques.length,
         total_salidas: salidas.length,
         promedio_ocupacion:
@@ -520,15 +563,27 @@ class DashboardController {
           u.estadoPermiso === EstadoPermiso.VIGENTE
       );
 
+      // Formatear usuarios con fechas en YYYY-MM-DD
+      const usuariosFormateados =
+        DashboardController.formatearUsuariosParaRespuesta(usuarios);
+      const usuariosPorVencerFormateados =
+        DashboardController.formatearUsuariosParaRespuesta(usuariosPorVencer);
+      const usuariosVencidosFormateados =
+        DashboardController.formatearUsuariosParaRespuesta(usuariosVencidos);
+      const usuariosVencenProximosFormateados =
+        DashboardController.formatearUsuariosParaRespuesta(
+          usuariosVencenProximos
+        );
+
       res.status(200).json({
         status: "success",
         message: "Estado de permisos obtenido exitosamente",
         data: {
           estadisticas,
-          usuarios_por_vencer: usuariosPorVencer,
-          usuarios_vencidos: usuariosVencidos,
-          usuarios_vencen_proximos_30_dias: usuariosVencenProximos,
-          todos_los_usuarios: usuarios,
+          usuarios_por_vencer: usuariosPorVencerFormateados,
+          usuarios_vencidos: usuariosVencidosFormateados,
+          usuarios_vencen_proximos_30_dias: usuariosVencenProximosFormateados,
+          todos_los_usuarios: usuariosFormateados,
         },
       });
     } catch (error) {

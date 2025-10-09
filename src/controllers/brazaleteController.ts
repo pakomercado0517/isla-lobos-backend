@@ -9,6 +9,137 @@ import { AuthRequest } from "../middleware/auth";
 
 export class BrazaleteController {
   // ============================================================================
+  // MÉTODOS AUXILIARES PARA FORMATO DE FECHAS
+  // ============================================================================
+
+  /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Formatea un brazalete para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearBrazaleteParaRespuesta(brazalete: any): any {
+    const brazaleteFormateado = { ...brazalete };
+    if (brazaleteFormateado.fecha_creacion) {
+      brazaleteFormateado.fecha_creacion = BrazaleteController.extraerSoloFecha(
+        brazaleteFormateado.fecha_creacion
+      );
+    }
+    if (brazaleteFormateado.fecha_asignacion) {
+      brazaleteFormateado.fecha_asignacion =
+        BrazaleteController.extraerSoloFecha(
+          brazaleteFormateado.fecha_asignacion
+        );
+    }
+    if (brazaleteFormateado.fecha_uso) {
+      brazaleteFormateado.fecha_uso = BrazaleteController.extraerSoloFecha(
+        brazaleteFormateado.fecha_uso
+      );
+    }
+    // Formatear fechas del lote si existe
+    if (brazaleteFormateado.lote) {
+      if (brazaleteFormateado.lote.fecha_compra) {
+        brazaleteFormateado.lote.fecha_compra =
+          BrazaleteController.extraerSoloFecha(
+            brazaleteFormateado.lote.fecha_compra
+          );
+      }
+      if (brazaleteFormateado.lote.fecha_vencimiento) {
+        brazaleteFormateado.lote.fecha_vencimiento =
+          BrazaleteController.extraerSoloFecha(
+            brazaleteFormateado.lote.fecha_vencimiento
+          );
+      }
+    }
+    // Formatear fecha de salida si existe
+    if (brazaleteFormateado.salida?.fecha) {
+      brazaleteFormateado.salida.fecha = BrazaleteController.extraerSoloFecha(
+        brazaleteFormateado.salida.fecha
+      );
+    }
+    return brazaleteFormateado;
+  }
+
+  /**
+   * Formatea un lote para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearLoteParaRespuesta(lote: any): any {
+    const loteFormateado = { ...lote };
+    if (loteFormateado.fecha_compra) {
+      loteFormateado.fecha_compra = BrazaleteController.extraerSoloFecha(
+        loteFormateado.fecha_compra
+      );
+    }
+    if (loteFormateado.fecha_vencimiento) {
+      loteFormateado.fecha_vencimiento = BrazaleteController.extraerSoloFecha(
+        loteFormateado.fecha_vencimiento
+      );
+    }
+    return loteFormateado;
+  }
+
+  /**
+   * Formatea una venta para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearVentaParaRespuesta(venta: any): any {
+    const ventaFormateada = { ...venta };
+    if (ventaFormateada.fecha_venta) {
+      ventaFormateada.fecha_venta = BrazaleteController.extraerSoloFecha(
+        ventaFormateada.fecha_venta
+      );
+    }
+    // Formatear fechas del lote si existe
+    if (ventaFormateada.lote) {
+      if (ventaFormateada.lote.fecha_compra) {
+        ventaFormateada.lote.fecha_compra =
+          BrazaleteController.extraerSoloFecha(
+            ventaFormateada.lote.fecha_compra
+          );
+      }
+      if (ventaFormateada.lote.fecha_vencimiento) {
+        ventaFormateada.lote.fecha_vencimiento =
+          BrazaleteController.extraerSoloFecha(
+            ventaFormateada.lote.fecha_vencimiento
+          );
+      }
+    }
+    return ventaFormateada;
+  }
+
+  /**
+   * Formatea múltiples brazaletes para respuesta
+   */
+  private static formatearBrazaletesParaRespuesta(brazaletes: any[]): any[] {
+    return brazaletes.map((brazalete) =>
+      BrazaleteController.formatearBrazaleteParaRespuesta(
+        brazalete.toJSON ? brazalete.toJSON() : brazalete
+      )
+    );
+  }
+
+  /**
+   * Formatea múltiples lotes para respuesta
+   */
+  private static formatearLotesParaRespuesta(lotes: any[]): any[] {
+    return lotes.map((lote) =>
+      BrazaleteController.formatearLoteParaRespuesta(
+        lote.toJSON ? lote.toJSON() : lote
+      )
+    );
+  }
+
+  // ============================================================================
   // GESTIÓN DE INVENTARIO
   // ============================================================================
 
@@ -207,10 +338,15 @@ export class BrazaleteController {
 
       await Brazalete.bulkCreate(brazaletes);
 
+      // Formatear lote con fechas en YYYY-MM-DD
+      const loteFormateado = BrazaleteController.formatearLoteParaRespuesta(
+        nuevoLote.toJSON()
+      );
+
       res.status(201).json({
         success: true,
         data: {
-          lote: nuevoLote,
+          lote: loteFormateado,
           brazaletes_generados: cantidadReal,
           rango_numeros: {
             primer_numero: numeroInicial,
@@ -263,10 +399,14 @@ export class BrazaleteController {
 
       const totalPages = Math.ceil(total / Number(limit));
 
+      // Formatear lotes con fechas en YYYY-MM-DD
+      const lotesFormateados =
+        BrazaleteController.formatearLotesParaRespuesta(lotes);
+
       res.json({
         success: true,
         data: {
-          lotes,
+          lotes: lotesFormateados,
           pagination: {
             page: Number(page),
             limit: Number(limit),
@@ -400,20 +540,23 @@ export class BrazaleteController {
       const numeroInicial = extraerNumero(primerCodigo);
       const numeroFinal = extraerNumero(ultimoCodigo);
 
+      // Formatear venta con fechas en YYYY-MM-DD
+      const ventaFormateada = BrazaleteController.formatearVentaParaRespuesta({
+        id: venta.id,
+        prestador_id: venta.prestador_id,
+        lote_id: venta.lote_id,
+        cantidad: venta.cantidad,
+        precio_unitario: venta.precio_unitario,
+        total: venta.total,
+        fecha_venta: venta.fecha_venta,
+        metodo_pago: venta.metodo_pago,
+        estado_pago: venta.estado_pago,
+      });
+
       res.status(201).json({
         success: true,
         data: {
-          venta: {
-            id: venta.id,
-            prestador_id: venta.prestador_id,
-            lote_id: venta.lote_id,
-            cantidad: venta.cantidad,
-            precio_unitario: venta.precio_unitario,
-            total: venta.total,
-            fecha_venta: venta.fecha_venta,
-            metodo_pago: venta.metodo_pago,
-            estado_pago: venta.estado_pago,
-          },
+          venta: ventaFormateada,
           rango_brazaletes: {
             numero_inicial: numeroInicial,
             numero_final: numeroFinal,
@@ -505,6 +648,10 @@ export class BrazaleteController {
         order: [["fecha_asignacion", "DESC"]],
       });
 
+      // Formatear brazaletes con fechas en YYYY-MM-DD
+      const detalleFormateado =
+        BrazaleteController.formatearBrazaletesParaRespuesta(detalle);
+
       res.json({
         success: true,
         data: {
@@ -521,7 +668,7 @@ export class BrazaleteController {
               universal,
             },
           },
-          detalle,
+          detalle: detalleFormateado,
         },
       });
     } catch (error) {
@@ -683,10 +830,14 @@ export class BrazaleteController {
 
       const totalPages = Math.ceil(total / limitNumber);
 
+      // Formatear brazaletes con fechas en YYYY-MM-DD
+      const brazaletesFormateados =
+        BrazaleteController.formatearBrazaletesParaRespuesta(brazaletes);
+
       res.json({
         success: true,
         data: {
-          brazaletes,
+          brazaletes: brazaletesFormateados,
           estadisticas,
           pagination: {
             page: Number(page),
@@ -733,10 +884,6 @@ export class BrazaleteController {
     res: Response
   ): Promise<void> {
     try {
-      console.log("🔍 Iniciando asignación de brazaletes...");
-      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
-      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
-
       const { salida_id, cantidad, fecha_asignacion } = req.body;
 
       // Verificar que la salida exista y pertenezca al prestador
@@ -817,9 +964,9 @@ export class BrazaleteController {
         });
       }
 
-      console.log(
-        `✅ ${brazaletesAsignados.length} brazaletes asignados exitosamente`
-      );
+      // Formatear fecha_asignacion con YYYY-MM-DD
+      const fechaAsignacionFormateada =
+        BrazaleteController.extraerSoloFecha(fechaAsignacion);
 
       res.status(201).json({
         success: true,
@@ -827,8 +974,13 @@ export class BrazaleteController {
         data: {
           salida_id: salida_id,
           cantidad_asignada: brazaletesAsignados.length,
-          fecha_asignacion: fechaAsignacion.toISOString(),
-          brazaletes: brazaletesAsignados,
+          fecha_asignacion: fechaAsignacionFormateada,
+          brazaletes: brazaletesAsignados.map((b: any) => ({
+            ...b,
+            fecha_asignacion: BrazaleteController.extraerSoloFecha(
+              b.fecha_asignacion
+            ),
+          })),
         },
       });
     } catch (error) {
@@ -847,10 +999,6 @@ export class BrazaleteController {
    */
   static async registrarUso(req: AuthRequest, res: Response): Promise<void> {
     try {
-      console.log("🔍 Iniciando registro de uso de brazaletes...");
-      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
-      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
-
       const { salida_id, brazaletes } = req.body;
 
       // Verificar que la salida exista y pertenezca al prestador
@@ -1006,15 +1154,21 @@ export class BrazaleteController {
         ).length,
       };
 
+      // Formatear brazaletes con fechas en YYYY-MM-DD
+      const brazaletesFormateados =
+        BrazaleteController.formatearBrazaletesParaRespuesta(
+          brazaletesUtilizados
+        );
+
       res.json({
         success: true,
         data: {
           salida: {
             id: salida.id,
-            fecha: salida.fecha,
+            fecha: BrazaleteController.extraerSoloFecha(salida.fecha),
             numero_pasajeros: salida.numero_pasajeros,
           },
-          brazaletes_utilizados: brazaletesUtilizados,
+          brazaletes_utilizados: brazaletesFormateados,
           estadisticas: {
             total_brazaletes: totalBrazaletes,
             por_nacionalidad: porNacionalidad,
@@ -1037,12 +1191,6 @@ export class BrazaleteController {
    */
   static async actualizarUso(req: AuthRequest, res: Response): Promise<void> {
     try {
-      console.log(
-        "🔍 Iniciando actualización de uso de brazaletes por salida..."
-      );
-      console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
-      console.log("👤 Usuario autenticado:", req.user?.id, req.user?.rol);
-
       const { salida_id, fecha_uso, motivo } = req.body;
 
       // Verificar que la salida exista
@@ -1133,10 +1281,12 @@ export class BrazaleteController {
             "La fecha de uso debe ser posterior a la fecha de asignación de todos los brazaletes",
           error: "FECHA_USO_INVALID",
           data: {
-            fecha_uso: fechaUso.toISOString(),
+            fecha_uso: BrazaleteController.extraerSoloFecha(fechaUso),
             brazaletes_afectados: brazaletesConFechaInvalida.map((b) => ({
               codigo: b.codigo,
-              fecha_asignacion: b.fecha_asignacion,
+              fecha_asignacion: BrazaleteController.extraerSoloFecha(
+                b.fecha_asignacion
+              ),
             })),
           },
         });
@@ -1166,7 +1316,7 @@ export class BrazaleteController {
             tipo: brazalete.tipo,
             estado_anterior: "asignado",
             estado_actual: "utilizado",
-            fecha_uso: fechaUso.toISOString(),
+            fecha_uso: BrazaleteController.extraerSoloFecha(fechaUso),
             lote_id: loteId,
             prestador_id: brazalete.prestador_id,
           });
@@ -1190,23 +1340,19 @@ export class BrazaleteController {
         }
       }
 
-      console.log(
-        `✅ ${brazaletesActualizados.length} brazaletes actualizados exitosamente`
-      );
-
       res.json({
         success: true,
         message: `${brazaletesActualizados.length} brazaletes actualizados exitosamente`,
         data: {
           salida: {
             id: salida.id,
-            fecha: salida.fecha,
+            fecha: BrazaleteController.extraerSoloFecha(salida.fecha),
             numero_pasajeros: salida.numero_pasajeros,
             prestador: {
               id: salida.prestador_id,
             },
           },
-          fecha_uso: fechaUso.toISOString(),
+          fecha_uso: BrazaleteController.extraerSoloFecha(fechaUso),
           brazaletes_actualizados: brazaletesActualizados,
           resumen: {
             total_encontrados: brazaletesAsignados.length,

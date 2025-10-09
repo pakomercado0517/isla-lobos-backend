@@ -28,6 +28,38 @@ const generateJWT = (payload: any): string => {
  */
 class AuthController {
   /**
+   * Método auxiliar: Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
+   * NO usa zona horaria - simplemente recorta el string ISO
+   * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   */
+  private static extraerSoloFecha(
+    fecha: Date | string | null | undefined
+  ): string | null | undefined {
+    if (!fecha) return fecha as null | undefined;
+    const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  }
+
+  /**
+   * Formatea un usuario para respuesta, convirtiendo fechas a YYYY-MM-DD
+   */
+  private static formatearUsuarioParaRespuesta(user: any): any {
+    const userFormateado = { ...user };
+    if (userFormateado.fechaVencimientoPermiso) {
+      userFormateado.fechaVencimientoPermiso = AuthController.extraerSoloFecha(
+        userFormateado.fechaVencimientoPermiso
+      );
+    }
+    if (userFormateado.ultimaNotificacion) {
+      userFormateado.ultimaNotificacion = AuthController.extraerSoloFecha(
+        userFormateado.ultimaNotificacion
+      );
+    }
+    return userFormateado;
+  }
+
+  /**
    * Iniciar sesión de usuario
    * POST /api/auth/login
    */
@@ -88,11 +120,14 @@ class AuthController {
       });
 
       // Respuesta exitosa
+      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
+        user.toJSON()
+      );
       const response: ApiResponse<AuthResponse> = {
         status: "success",
         message: "Inicio de sesión exitoso",
         data: {
-          user: user.toJSON() as any,
+          user: userFormateado as any,
           token,
         },
       };
@@ -116,7 +151,6 @@ class AuthController {
       // Verificar errores de validación
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log("🔍 Debug - errors:", errors);
         const firstError = errors.array()[0];
         res.status(400).json({
           status: "error",
@@ -219,11 +253,14 @@ class AuthController {
       });
 
       // Respuesta exitosa
+      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
+        newUser.toJSON()
+      );
       const response: ApiResponse<AuthResponse> = {
         status: "success",
         message: "Usuario registrado exitosamente",
         data: {
-          user: newUser.toJSON() as any,
+          user: userFormateado as any,
           token,
         },
       };
@@ -265,11 +302,14 @@ class AuthController {
         return;
       }
 
+      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
+        dbUser.toJSON()
+      );
       const response: ApiResponse<{ user: any }> = {
         status: "success",
         message: "Token válido",
         data: {
-          user: dbUser.toJSON(),
+          user: userFormateado,
         },
       };
 
@@ -458,11 +498,14 @@ class AuthController {
         return;
       }
 
+      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
+        dbUser.toJSON()
+      );
       const response: ApiResponse<{ user: any }> = {
         status: "success",
         message: "Perfil obtenido exitosamente",
         data: {
-          user: dbUser.toJSON(),
+          user: userFormateado,
         },
       };
 
@@ -531,10 +574,6 @@ class AuthController {
       });
 
       // TODO: Aquí se enviaría el email con el enlace de recuperación
-      // Por ahora, solo logueamos el token para desarrollo
-      console.log(`🔑 Token de recuperación para ${email}: ${resetToken}`);
-      console.log(`⏰ Expira en: ${resetExpires.toISOString()}`);
-
       // En producción, aquí se enviaría un email con el enlace:
       // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
       // await sendPasswordResetEmail(user.email, user.nombre, resetUrl);
