@@ -16,7 +16,9 @@
     "db:drop": "sequelize-cli db:drop",
     "db:clean": "node scripts/clean-database.js",
     "seed:demo": "node scripts/run-seeders.js",
-    "seed:clean": "node scripts/clean-seeders.js"
+    "seed:clean": "node scripts/clean-seeders.js",
+    "seed:reportes": "node scripts/seed-septiembre-octubre-2025.js",
+    "seed:reportes:clean": "node scripts/clean-septiembre-octubre-2025.js"
   },
   "keywords": [
     "express",

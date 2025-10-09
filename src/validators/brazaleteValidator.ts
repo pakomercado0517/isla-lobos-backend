@@ -194,6 +194,13 @@ export class BrazaleteValidator {
       .withMessage(
         "El método de pago debe ser 'efectivo', 'transferencia', 'credito' o 'debito'"
       ),
+
+    body("estado_pago")
+      .optional()
+      .isIn(["pendiente", "pagado", "cancelado"])
+      .withMessage(
+        "El estado de pago debe ser 'pendiente', 'pagado' o 'cancelado'"
+      ),
   ];
 
   static obtenerBrazaletesPrestador: ValidationChain[] = [

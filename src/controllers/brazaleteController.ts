@@ -303,6 +303,7 @@ export class BrazaleteController {
         cantidad,
         tipo = "universal",
         metodo_pago,
+        estado_pago = "pendiente",
       } = req.body;
 
       // Verificar que el usuario sea CONANP
@@ -371,6 +372,7 @@ export class BrazaleteController {
         precio_unitario: lote.precio_venta,
         total: cantidad * lote.precio_venta,
         metodo_pago,
+        estado_pago,
       });
 
       // Vender brazaletes al prestador (mantienen estado disponible)
