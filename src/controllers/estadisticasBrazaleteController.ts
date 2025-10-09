@@ -15,10 +15,24 @@ export class EstadisticasBrazaleteController {
       const { fecha_inicio, fecha_fin } = req.query;
 
       // Definir rango de fechas (por defecto último mes)
-      const fechaFin = fecha_fin ? new Date(fecha_fin as string) : new Date();
-      const fechaInicio = fecha_inicio
-        ? new Date(fecha_inicio as string)
-        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      let fechaFin: Date;
+      let fechaInicio: Date;
+
+      if (fecha_fin) {
+        // Si se proporciona fecha_fin, ajustar al final del día en UTC (23:59:59.999)
+        fechaFin = new Date(fecha_fin as string);
+        fechaFin.setUTCHours(23, 59, 59, 999);
+      } else {
+        fechaFin = new Date();
+      }
+
+      if (fecha_inicio) {
+        // Si se proporciona fecha_inicio, ajustar al inicio del día en UTC (00:00:00.000)
+        fechaInicio = new Date(fecha_inicio as string);
+        fechaInicio.setUTCHours(0, 0, 0, 0);
+      } else {
+        fechaInicio = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      }
 
       // ============================================================================
       // ESTADÍSTICAS DE INVENTARIO
