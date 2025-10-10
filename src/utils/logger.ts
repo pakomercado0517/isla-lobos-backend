@@ -3,21 +3,31 @@ import pino from "pino";
 /**
  * Logger centralizado usando Pino
  *
+ * Configuración estilo Morgan Dev para logs HTTP limpios y claros
+ *
  * Características:
- * - Logs estructurados en formato JSON
+ * - Formato Morgan Dev: METHOD /path STATUS TIME - SIZE
+ * - Logs estructurados en formato JSON en producción
  * - Pretty print en desarrollo
  * - Child loggers por módulo
  * - Niveles configurables: trace, debug, info, warn, error, fatal
  */
 
 const isDevelopment = process.env["NODE_ENV"] === "development";
+const isProd = process.env["NODE_ENV"] === "production";
 const logLevel = process.env["LOG_LEVEL"] || (isDevelopment ? "debug" : "info");
 
 // Configuración base común
 const baseConfig = {
   level: logLevel,
   base: {
+    service: process.env["SERVICE_NAME"] || "isla-lobos-backend",
     env: process.env["NODE_ENV"] || "development",
+  },
+  // Redactar información sensible
+  redact: {
+    paths: ["req.headers.authorization", "password", "token", "jwt"],
+    remove: true,
   },
   serializers: {
     err: pino.stdSerializers.err,
@@ -28,17 +38,19 @@ const baseConfig = {
 };
 
 // Configuración del logger principal
-export const logger = isDevelopment
+export const logger = !isProd
   ? pino({
       ...baseConfig,
       transport: {
         target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: "HH:MM:ss.l",
-          ignore: "pid,hostname",
-          singleLine: false,
-          messageFormat: "{levelLabel} [{module}] {msg}",
+          translateTime: false, // Sin timestamp (como morgan dev)
+          singleLine: true,
+          // Ignorar campos innecesarios
+          ignore: "pid,hostname,service",
+          // Formato simple - pino-pretty se encarga del resto
+          messageFormat: "{msg}",
         },
       },
     })

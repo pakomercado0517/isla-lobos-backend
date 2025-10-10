@@ -1,13 +1,13 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { pinoHttp } from "pino-http";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { testConnection } from "./config/database";
 import { syncModels } from "./models";
 import apiRoutes from "./routes";
-import { logger, serverLogger } from "./utils/logger";
+import { serverLogger } from "./utils/logger";
+import { httpLogger } from "./utils/http-logger";
 dotenv.config();
 
 const app = express();
@@ -29,30 +29,9 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware de logging con Pino
-app.use(
-  pinoHttp({
-    logger,
-    // Personalizar mensajes de request/response
-    customLogLevel: (_req, res, err) => {
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        return "warn";
-      } else if (res.statusCode >= 500 || err) {
-        return "error";
-      } else if (res.statusCode >= 300 && res.statusCode < 400) {
-        return "silent";
-      }
-      return "info";
-    },
-    // Personalizar mensaje
-    customSuccessMessage: (req, res) => {
-      return `${req.method} ${req.url} - ${res.statusCode}`;
-    },
-    customErrorMessage: (req, res, err) => {
-      return `${req.method} ${req.url} - ${res.statusCode} - ${err.message}`;
-    },
-  })
-);
+// Middleware de logging HTTP - Estilo Morgan Dev
+// Formato: METHOD /path STATUS TIME - SIZE
+app.use(httpLogger);
 
 // Middleware para parsing
 app.use(express.json({ limit: "10mb" }));
