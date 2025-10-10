@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import Invitacion from "../models/Invitacion";
 import User from "../models/User";
 import { Op } from "sequelize";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("InvitacionController");
 import { getCurrentMexicoTime } from "../utils/dateUtils";
 
 /**
@@ -117,7 +120,7 @@ class InvitacionController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener invitaciones:", error);
+      logger.error({ err: error }, "Error al obtener invitaciones:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -171,7 +174,7 @@ class InvitacionController {
         data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
-      console.error("Error al obtener invitación:", error);
+      logger.error({ err: error }, "Error al obtener invitación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -238,7 +241,7 @@ class InvitacionController {
         data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
-      console.error("Error al crear invitación:", error);
+      logger.error({ err: error }, "Error al crear invitación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -307,7 +310,7 @@ class InvitacionController {
         data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
-      console.error("Error al actualizar invitación:", error);
+      logger.error({ err: error }, "Error al actualizar invitación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -352,7 +355,7 @@ class InvitacionController {
         message: "Invitación eliminada exitosamente",
       });
     } catch (error) {
-      console.error("Error al eliminar invitación:", error);
+      logger.error({ err: error }, "Error al eliminar invitación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -427,7 +430,7 @@ class InvitacionController {
         },
       });
     } catch (error) {
-      console.error("Error al validar código:", error);
+      logger.error({ err: error }, "Error al validar código:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -511,7 +514,7 @@ class InvitacionController {
         data: { invitacion: invitacionFormateada },
       });
     } catch (error) {
-      console.error("Error al usar invitación:", error);
+      logger.error({ err: error }, "Error al usar invitación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -604,7 +607,7 @@ class InvitacionController {
         data: { estadisticas },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",

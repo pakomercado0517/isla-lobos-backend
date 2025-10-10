@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { validationResult, ValidationError } from "express-validator";
 import { ApiResponse } from "../types";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("ValidationMiddleware");
 
 /**
  * Middleware para manejar errores de validación de express-validator
@@ -188,7 +191,10 @@ export const validateUserExists = async (
     (req as any).targetUser = user;
     next();
   } catch (error) {
-    console.error("Error al validar usuario:", error);
+    logger.error(
+      { err: error, userId: req.params["userId"] },
+      "Error al validar usuario"
+    );
     res.status(500).json({
       status: "error",
       message: "Error interno del servidor",

@@ -1,12 +1,13 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import morgan from "morgan";
+import { pinoHttp } from "pino-http";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { testConnection } from "./config/database";
 import { syncModels } from "./models";
 import apiRoutes from "./routes";
+import { logger, serverLogger } from "./utils/logger";
 dotenv.config();
 
 const app = express();
@@ -28,8 +29,30 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware de logging
-app.use(morgan("dev"));
+// Middleware de logging con Pino
+app.use(
+  pinoHttp({
+    logger,
+    // Personalizar mensajes de request/response
+    customLogLevel: (_req, res, err) => {
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        return "warn";
+      } else if (res.statusCode >= 500 || err) {
+        return "error";
+      } else if (res.statusCode >= 300 && res.statusCode < 400) {
+        return "silent";
+      }
+      return "info";
+    },
+    // Personalizar mensaje
+    customSuccessMessage: (req, res) => {
+      return `${req.method} ${req.url} - ${res.statusCode}`;
+    },
+    customErrorMessage: (req, res, err) => {
+      return `${req.method} ${req.url} - ${res.statusCode} - ${err.message}`;
+    },
+  })
+);
 
 // Middleware para parsing
 app.use(express.json({ limit: "10mb" }));
@@ -40,9 +63,12 @@ const initializeDatabase = async (): Promise<void> => {
   try {
     await testConnection();
     await syncModels();
-    console.log("🚀 Base de datos inicializada correctamente");
+    serverLogger.info("🚀 Base de datos inicializada correctamente");
   } catch (error) {
-    console.error("❌ Error al inicializar la base de datos:", error);
+    serverLogger.error(
+      { err: error },
+      "❌ Error al inicializar la base de datos"
+    );
     process.exit(1);
   }
 };
@@ -78,7 +104,7 @@ app.use(
     res: express.Response,
     _next: express.NextFunction
   ) => {
-    console.error(err.stack);
+    serverLogger.error({ err, stack: err.stack }, "Error interno del servidor");
     res.status(500).json({
       status: "ERROR",
       message: "Error interno del servidor",

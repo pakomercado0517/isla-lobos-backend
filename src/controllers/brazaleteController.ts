@@ -7,6 +7,9 @@ import VentaBrazalete from "../models/VentaBrazalete";
 import User from "../models/User";
 import Salida from "../models/Salida";
 import { AuthRequest } from "../middleware/auth";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("BrazaleteController");
 
 export class BrazaleteController {
   // ============================================================================
@@ -194,7 +197,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener inventario:", error);
+      logger.error({ err: error }, "Error al obtener inventario:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -358,7 +361,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al crear lote:", error);
+      logger.error({ err: error }, "Error al crear lote:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -417,7 +420,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al listar lotes:", error);
+      logger.error({ err: error }, "Error al listar lotes:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -766,7 +769,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al vender brazaletes:", error);
+      logger.error({ err: error }, "Error al vender brazaletes:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -860,7 +863,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener brazaletes del prestador:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener brazaletes del prestador:",
+        error
+      );
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -1050,7 +1057,7 @@ export class BrazaleteController {
         message: `Se encontraron ${total} brazaletes`,
       });
     } catch (error) {
-      console.error("Error al buscar brazaletes:", error);
+      logger.error({ err: error }, "Error al buscar brazaletes:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -1172,7 +1179,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al asignar brazaletes:", error);
+      logger.error({ err: error }, "Error al asignar brazaletes:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -1280,7 +1287,7 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al registrar uso:", error);
+      logger.error({ err: error }, "Error al registrar uso:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -1364,7 +1371,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener brazaletes de salida:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener brazaletes de salida:",
+        error
+      );
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -1524,7 +1535,11 @@ export class BrazaleteController {
             await lote.actualizarDespuesUso(cantidad);
           }
         } catch (error) {
-          console.error(`Error al actualizar lote ${loteId}:`, error);
+          logger.error(
+            { err: error },
+            `Error al actualizar lote ${loteId}:`,
+            error
+          );
         }
       }
 
@@ -1553,7 +1568,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al actualizar uso de brazaletes:", error);
+      logger.error(
+        { err: error },
+        "Error al actualizar uso de brazaletes:",
+        error
+      );
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",

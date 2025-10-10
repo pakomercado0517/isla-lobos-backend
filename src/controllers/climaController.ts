@@ -4,6 +4,9 @@ import { Op } from "sequelize";
 import { EstadoPuerto } from "../types";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
 import SMNService from "../services/smnService";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("ClimaController");
 
 /**
  * ClimaController - Gestión de condiciones meteorológicas
@@ -105,7 +108,11 @@ class ClimaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener condiciones meteorológicas:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener condiciones meteorológicas:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -139,7 +146,11 @@ class ClimaController {
         data: { condicion },
       });
     } catch (error) {
-      console.error("Error al obtener condición meteorológica:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener condición meteorológica:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -207,7 +218,11 @@ class ClimaController {
         data: { condicion: nuevaCondicion },
       });
     } catch (error) {
-      console.error("Error al crear condición meteorológica:", error);
+      logger.error(
+        { err: error },
+        "Error al crear condición meteorológica:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -267,7 +282,11 @@ class ClimaController {
         data: { condicion },
       });
     } catch (error) {
-      console.error("Error al actualizar condición meteorológica:", error);
+      logger.error(
+        { err: error },
+        "Error al actualizar condición meteorológica:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -302,7 +321,11 @@ class ClimaController {
         message: "Condición meteorológica eliminada exitosamente",
       });
     } catch (error) {
-      console.error("Error al eliminar condición meteorológica:", error);
+      logger.error(
+        { err: error },
+        "Error al eliminar condición meteorológica:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -348,7 +371,7 @@ class ClimaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener condición actual:", error);
+      logger.error({ err: error }, "Error al obtener condición actual:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -431,7 +454,7 @@ class ClimaController {
         data: { prediccion },
       });
     } catch (error) {
-      console.error("Error al generar predicción:", error);
+      logger.error({ err: error }, "Error al generar predicción:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -564,7 +587,7 @@ class ClimaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener alertas:", error);
+      logger.error({ err: error }, "Error al obtener alertas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -668,7 +691,7 @@ class ClimaController {
         data: { estadisticas },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -685,7 +708,7 @@ class ClimaController {
     try {
       const { horas_limite = 24, solo_isla_lobos = true } = req.query;
 
-      console.log("🔄 Iniciando sincronización con SMN...");
+      logger.info("🔄 Iniciando sincronización con SMN...");
 
       // Obtener datos del SMN
       const datosHorarios = await SMNService.getPronosticoHorario();
@@ -694,7 +717,7 @@ class ClimaController {
       let datosFiltrados = datosHorarios;
       if (solo_isla_lobos === true || solo_isla_lobos === "true") {
         datosFiltrados = SMNService.filtrarPorIslaLobos(datosHorarios);
-        console.log(
+        logger.info(
           `📍 Filtrado para Isla de Lobos: ${datosFiltrados.length} registros`
         );
       }
@@ -713,7 +736,7 @@ class ClimaController {
       const limite = Math.min(Number(horas_limite), 48); // Máximo 48 horas
       const datosAProcesar = datosFiltrados.slice(0, limite);
 
-      console.log(
+      logger.info(
         `⚙️ Procesando ${datosAProcesar.length} registros (límite: ${limite} horas)...`
       );
 
@@ -762,12 +785,12 @@ class ClimaController {
           const errorMsg = `Error procesando dato para fecha ${fechaDato}: ${
             error instanceof Error ? error.message : "Error desconocido"
           }`;
-          console.error(`❌ ${errorMsg}`);
+          logger.error({ err: error }, `❌ ${errorMsg}`);
           errores.push(errorMsg);
         }
       }
 
-      console.log(
+      logger.info(
         `✅ Sincronización completada: ${condicionesCreadas.length} creadas, ${condicionesActualizadas.length} actualizadas`
       );
 
@@ -786,7 +809,11 @@ class ClimaController {
         },
       });
     } catch (error) {
-      console.error("❌ Error al sincronizar datos del SMN:", error);
+      logger.error(
+        { err: error },
+        "❌ Error al sincronizar datos del SMN:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message:

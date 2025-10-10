@@ -6,6 +6,9 @@ import { Op } from "sequelize";
 import sequelize from "../config/database";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
 import { EstadoBloque, EstadoSalida } from "../types";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("BloqueController");
 
 /**
  * BloqueController - Gestión de bloques horarios
@@ -100,7 +103,7 @@ class BloqueController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener bloques:", error);
+      logger.error({ err: error }, "Error al obtener bloques:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -197,7 +200,7 @@ class BloqueController {
         });
       }
     } catch (error) {
-      console.error("Error al obtener bloque:", error);
+      logger.error({ err: error }, "Error al obtener bloque:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -274,7 +277,7 @@ class BloqueController {
         data: { bloque: bloqueFormateado },
       });
     } catch (error) {
-      console.error("Error al crear bloque:", error);
+      logger.error({ err: error }, "Error al crear bloque:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -361,7 +364,7 @@ class BloqueController {
         data: { bloque: bloqueFormateado },
       });
     } catch (error) {
-      console.error("Error al actualizar bloque:", error);
+      logger.error({ err: error }, "Error al actualizar bloque:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -420,7 +423,7 @@ class BloqueController {
         message: "Bloque eliminado exitosamente",
       });
     } catch (error) {
-      console.error("Error al eliminar bloque:", error);
+      logger.error({ err: error }, "Error al eliminar bloque:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -512,7 +515,7 @@ class BloqueController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -600,7 +603,7 @@ class BloqueController {
         }
       }
     } catch (error) {
-      console.error("Error al crear bloques para fecha:", error);
+      logger.error({ err: error }, "Error al crear bloques para fecha:", error);
       throw error;
     }
   }
@@ -673,7 +676,11 @@ class BloqueController {
 
       return bloquesConCapacidad;
     } catch (error) {
-      console.error("Error al obtener bloques con capacidad:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener bloques con capacidad:",
+        error
+      );
       throw error;
     }
   }
@@ -753,7 +760,8 @@ class BloqueController {
 
       return embarcacionesOcupadas;
     } catch (error) {
-      console.error(
+      logger.error(
+        { err: error },
         "Error al obtener embarcaciones ocupadas en bloque:",
         error
       );

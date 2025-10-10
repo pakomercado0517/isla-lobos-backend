@@ -4,6 +4,9 @@ import LoteBrazalete from "../models/LoteBrazalete";
 import Brazalete from "../models/Brazalete";
 import VentaBrazalete from "../models/VentaBrazalete";
 import User from "../models/User";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("EstadisticasBrazaleteController");
 
 export class EstadisticasBrazaleteController {
   /**
@@ -160,7 +163,7 @@ export class EstadisticasBrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -322,7 +325,7 @@ export class EstadisticasBrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener alertas:", error);
+      logger.error({ err: error }, "Error al obtener alertas:", error);
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -418,7 +421,11 @@ export class EstadisticasBrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al generar reporte de ventas:", error);
+      logger.error(
+        { err: error },
+        "Error al generar reporte de ventas:",
+        error
+      );
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",
@@ -525,7 +532,11 @@ export class EstadisticasBrazaleteController {
         },
       });
     } catch (error) {
-      console.error("Error al generar reporte de utilización:", error);
+      logger.error(
+        { err: error },
+        "Error al generar reporte de utilización:",
+        error
+      );
       res.status(500).json({
         success: false,
         message: "Error interno del servidor",

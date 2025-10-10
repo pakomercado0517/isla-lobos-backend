@@ -1,4 +1,5 @@
 import sequelize from "../config/database";
+import { dbLogger } from "../utils/logger";
 
 // Importar todos los modelos
 import User from "./User";
@@ -142,10 +143,10 @@ export const syncModels = async (): Promise<void> => {
   try {
     if (process.env["NODE_ENV"] === "development") {
       await sequelize.sync({ force: false });
-      console.log("✅ Todos los modelos sincronizados correctamente.");
+      dbLogger.info("✅ Todos los modelos sincronizados correctamente");
     }
   } catch (error) {
-    console.error("❌ Error al sincronizar modelos:", error);
+    dbLogger.error({ err: error }, "❌ Error al sincronizar modelos");
     throw error;
   }
 };

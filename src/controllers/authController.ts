@@ -11,9 +11,11 @@ import {
   ApiResponse,
   UserRole,
 } from "../types";
+import { createLogger } from "../utils/logger";
 
 // Importar jsonwebtoken usando require para evitar problemas de tipos
 const jwt = require("jsonwebtoken");
+const logger = createLogger("AuthController");
 
 // Helper function para generar tokens JWT
 const generateJWT = (payload: any): string => {
@@ -134,7 +136,7 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en login:", error);
+      logger.error({ err: error, email: req.body.email }, "Error en login");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -267,7 +269,7 @@ class AuthController {
 
       res.status(201).json(response);
     } catch (error) {
-      console.error("Error en registro:", error);
+      logger.error({ err: error, email: req.body.email }, "Error en registro");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -315,7 +317,7 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en verificación de token:", error);
+      logger.error({ err: error }, "Error en verificación de token");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -367,7 +369,7 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en renovación de token:", error);
+      logger.error({ err: error }, "Error en renovación de token");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -390,7 +392,7 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en logout:", error);
+      logger.error({ err: error, userId: _req.user?.id }, "Error en logout");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -464,7 +466,10 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en cambio de contraseña:", error);
+      logger.error(
+        { err: error, userId: req.user?.id },
+        "Error en cambio de contraseña"
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -511,7 +516,10 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error al obtener perfil:", error);
+      logger.error(
+        { err: error, userId: req.user?.id },
+        "Error al obtener perfil"
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -580,7 +588,10 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en forgot password:", error);
+      logger.error(
+        { err: error, email: req.body.email },
+        "Error en forgot password"
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -661,7 +672,10 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error en reset password:", error);
+      logger.error(
+        { err: error, token: req.body.token },
+        "Error en reset password"
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",

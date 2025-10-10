@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import User from "../models/User";
 import { ApiResponse, UserRole } from "../types";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("UserController");
 
 /**
  * Controlador para gestión de usuarios
@@ -93,7 +96,7 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error obteniendo usuarios:", error);
+      logger.error({ err: error }, "Error obteniendo usuarios");
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -137,7 +140,10 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error obteniendo usuario:", error);
+      logger.error(
+        { err: error, userId: req.params["id"] },
+        "Error obteniendo usuario"
+      );
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -218,7 +224,7 @@ class UserController {
 
       res.status(201).json(response);
     } catch (error) {
-      console.error("Error creando usuario:", error);
+      logger.error({ err: error }, "Error creando usuario");
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -298,7 +304,10 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error actualizando usuario:", error);
+      logger.error(
+        { err: error, userId: req.params["id"] },
+        "Error actualizando usuario"
+      );
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -343,7 +352,10 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error eliminando usuario:", error);
+      logger.error(
+        { err: error, userId: req.params["id"] },
+        "Error eliminando usuario"
+      );
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -387,7 +399,10 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error activando usuario:", error);
+      logger.error(
+        { err: error, userId: req.params["id"] },
+        "Error activando usuario"
+      );
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -449,7 +464,10 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error actualizando perfil:", error);
+      logger.error(
+        { err: error, userId: req.user?.id },
+        "Error actualizando perfil"
+      );
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",
@@ -485,7 +503,7 @@ class UserController {
 
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error obteniendo estadísticas:", error);
+      logger.error({ err: error }, "Error obteniendo estadísticas");
       const response: ApiResponse = {
         status: "error",
         message: "Error interno del servidor",

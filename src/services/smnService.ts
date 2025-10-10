@@ -7,8 +7,10 @@ import {
   SMNConfiguracionRegion,
   EstadoPuerto,
 } from "../types";
+import { createLogger } from "../utils/logger";
 
 const gunzip = promisify(zlib.gunzip);
+const logger = createLogger("SMNService");
 
 /**
  * SMNService - Servicio para integración con API del Servicio Meteorológico Nacional (CONAGUA)
@@ -45,7 +47,7 @@ class SMNService {
    */
   static async getPronosticoDiario(): Promise<SMNDatosDiarios[]> {
     try {
-      console.log("📡 Obteniendo pronóstico diario del SMN...");
+      logger.info("📡 Obteniendo pronóstico diario del SMN...");
 
       const response = await axios.get(`${this.BASE_URL}?method=1`, {
         responseType: "arraybuffer",
@@ -59,13 +61,17 @@ class SMNService {
       const decompressed = await gunzip(response.data);
       const jsonData = JSON.parse(decompressed.toString());
 
-      console.log(
+      logger.info(
+        { registros: jsonData.length || 0 },
         `✅ Pronóstico diario obtenido: ${jsonData.length || 0} registros`
       );
 
       return Array.isArray(jsonData) ? jsonData : [];
     } catch (error) {
-      console.error("❌ Error al obtener pronóstico diario del SMN:", error);
+      logger.error(
+        { err: error },
+        "❌ Error al obtener pronóstico diario del SMN"
+      );
       throw new Error(
         "No se pudo obtener el pronóstico diario del SMN. Verifique la conexión o intente más tarde."
       );
@@ -78,7 +84,7 @@ class SMNService {
    */
   static async getPronosticoHorario(): Promise<SMNDatosHorarios[]> {
     try {
-      console.log("📡 Obteniendo pronóstico horario del SMN...");
+      logger.info("📡 Obteniendo pronóstico horario del SMN...");
 
       const response = await axios.get(`${this.BASE_URL}?method=3`, {
         responseType: "arraybuffer",
@@ -92,25 +98,29 @@ class SMNService {
       const decompressed = await gunzip(response.data);
       const jsonData = JSON.parse(decompressed.toString());
 
-      console.log(
+      logger.info(
+        { registros: jsonData.length || 0 },
         `✅ Pronóstico horario obtenido: ${jsonData.length || 0} registros`
       );
 
       // Log de muestra de los primeros datos para debugging
       if (jsonData.length > 0) {
-        console.log(
-          "🔍 Muestra del primer registro:",
-          JSON.stringify(jsonData[0], null, 2)
+        logger.debug(
+          { muestra: jsonData[0] },
+          "🔍 Muestra del primer registro"
         );
-        console.log(
-          "🔍 Campos disponibles:",
-          Object.keys(jsonData[0]).join(", ")
+        logger.debug(
+          { campos: Object.keys(jsonData[0]) },
+          "🔍 Campos disponibles"
         );
       }
 
       return Array.isArray(jsonData) ? jsonData : [];
     } catch (error) {
-      console.error("❌ Error al obtener pronóstico horario del SMN:", error);
+      logger.error(
+        { err: error },
+        "❌ Error al obtener pronóstico horario del SMN"
+      );
       throw new Error(
         "No se pudo obtener el pronóstico horario del SMN. Verifique la conexión o intente más tarde."
       );

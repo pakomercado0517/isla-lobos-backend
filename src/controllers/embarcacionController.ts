@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import Embarcacion from "../models/Embarcacion";
 import User from "../models/User";
 import { Op } from "sequelize";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("EmbarcacionController");
 
 /**
  * EmbarcacionController - Gestión de embarcaciones
@@ -90,7 +93,7 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener embarcaciones:", error);
+      logger.error({ err: error }, "Error al obtener embarcaciones:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -132,7 +135,7 @@ class EmbarcacionController {
         data: { embarcacion },
       });
     } catch (error) {
-      console.error("Error al obtener embarcación:", error);
+      logger.error({ err: error }, "Error al obtener embarcación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -220,7 +223,7 @@ class EmbarcacionController {
         data: { embarcacion: embarcacionCompleta },
       });
     } catch (error) {
-      console.error("Error al crear embarcación:", error);
+      logger.error({ err: error }, "Error al crear embarcación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -318,7 +321,7 @@ class EmbarcacionController {
         data: { embarcacion: embarcacionActualizada },
       });
     } catch (error) {
-      console.error("Error al actualizar embarcación:", error);
+      logger.error({ err: error }, "Error al actualizar embarcación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -364,7 +367,7 @@ class EmbarcacionController {
         message: "Embarcación eliminada exitosamente",
       });
     } catch (error) {
-      console.error("Error al eliminar embarcación:", error);
+      logger.error({ err: error }, "Error al eliminar embarcación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -441,7 +444,11 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener mis embarcaciones:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener mis embarcaciones:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -522,7 +529,7 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",

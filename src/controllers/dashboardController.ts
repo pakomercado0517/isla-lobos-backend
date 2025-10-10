@@ -14,6 +14,9 @@ import {
   EstadoPuerto,
 } from "../types";
 import { getCurrentMexicoTime } from "../utils/dateUtils";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("DashboardController");
 
 /**
  * DashboardController - Vista general del sistema
@@ -243,7 +246,11 @@ class DashboardController {
         data: { estadisticas },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas generales:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener estadísticas generales:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -396,7 +403,7 @@ class DashboardController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener ocupación:", error);
+      logger.error({ err: error }, "Error al obtener ocupación:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -491,7 +498,11 @@ class DashboardController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estado de embarcaciones:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener estado de embarcaciones:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -587,7 +598,11 @@ class DashboardController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estado de permisos:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener estado de permisos:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -700,7 +715,11 @@ class DashboardController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener resumen meteorológico:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener resumen meteorológico:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -821,7 +840,11 @@ class DashboardController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener alertas del sistema:", error);
+      logger.error(
+        { err: error },
+        "Error al obtener alertas del sistema:",
+        error
+      );
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",

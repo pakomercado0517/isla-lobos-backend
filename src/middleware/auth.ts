@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { UserRole } from "../types";
 import User from "../models/User";
 import { param, validationResult } from "express-validator";
+import { authLogger } from "../utils/logger";
 
 // Importar jsonwebtoken usando require para evitar problemas de tipos
 const jwt = require("jsonwebtoken");
@@ -120,7 +121,7 @@ export const authenticateToken = async (
       return;
     }
 
-    console.error("Error en autenticación:", error);
+    authLogger.error({ err: error }, "Error en autenticación");
     res.status(500).json({
       status: "error",
       message: "Error interno del servidor",

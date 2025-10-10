@@ -1,13 +1,17 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import { dbLogger } from "../utils/logger";
 
 dotenv.config();
 
 // Configuración de la base de datos
 const sequelize = new Sequelize(process.env["DB_URL"] || "", {
   dialect: "postgres",
-  // logging: process.env["NODE_ENV"] === "development" ? console.log : false,
-  logging: false,
+  // Logging con Pino en modo debug
+  logging:
+    process.env["NODE_ENV"] === "development"
+      ? (msg: string) => dbLogger.debug(msg)
+      : false,
   timezone: "America/Mexico_City", // Zona horaria de México
   dialectOptions: {
     timezone: "local", // Usar zona horaria local
@@ -29,9 +33,9 @@ const sequelize = new Sequelize(process.env["DB_URL"] || "", {
 export const testConnection = async (): Promise<void> => {
   try {
     await sequelize.authenticate();
-    console.log("✅ Conexión a la base de datos establecida correctamente.");
+    dbLogger.info("✅ Conexión a la base de datos establecida correctamente");
   } catch (error) {
-    console.error("❌ Error al conectar con la base de datos:", error);
+    dbLogger.error({ err: error }, "❌ Error al conectar con la base de datos");
     throw error;
   }
 };
@@ -41,10 +45,10 @@ export const syncDatabase = async (): Promise<void> => {
   try {
     if (process.env["NODE_ENV"] === "development") {
       await sequelize.sync({ force: false });
-      console.log("🔄 Base de datos sincronizada correctamente.");
+      dbLogger.info("🔄 Base de datos sincronizada correctamente");
     }
   } catch (error) {
-    console.error("❌ Error al sincronizar la base de datos:", error);
+    dbLogger.error({ err: error }, "❌ Error al sincronizar la base de datos");
     throw error;
   }
 };

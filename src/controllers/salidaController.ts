@@ -4,6 +4,9 @@ import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
 import { Op } from "sequelize";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("SalidaController");
 import sequelize from "../config/database";
 import { EstadoSalida, EstadoEmbarcacion, EstadoBloque } from "../types";
 
@@ -157,7 +160,7 @@ class SalidaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener salidas:", error);
+      logger.error({ err: error }, "Error al obtener salidas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -221,7 +224,7 @@ class SalidaController {
         data: { salida: salidaFormateada },
       });
     } catch (error) {
-      console.error("Error al obtener salida:", error);
+      logger.error({ err: error }, "Error al obtener salida:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -467,7 +470,7 @@ class SalidaController {
         data: { salida: salidaFormateada },
       });
     } catch (error) {
-      console.error("Error al crear salida:", error);
+      logger.error({ err: error }, "Error al crear salida:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -706,7 +709,7 @@ class SalidaController {
         data: { salida: salidaFormateada },
       });
     } catch (error) {
-      console.error("Error al actualizar salida:", error);
+      logger.error({ err: error }, "Error al actualizar salida:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -797,7 +800,7 @@ class SalidaController {
         message: "Salida cancelada exitosamente",
       });
     } catch (error) {
-      console.error("Error al cancelar salida:", error);
+      logger.error({ err: error }, "Error al cancelar salida:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -926,7 +929,7 @@ class SalidaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener mis salidas:", error);
+      logger.error({ err: error }, "Error al obtener mis salidas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
@@ -1009,7 +1012,7 @@ class SalidaController {
         },
       });
     } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
+      logger.error({ err: error }, "Error al obtener estadísticas:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
