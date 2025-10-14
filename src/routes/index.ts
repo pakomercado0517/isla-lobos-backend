@@ -8,6 +8,7 @@ import climaRoutes from "./climaRoutes";
 import dashboardRoutes from "./dashboardRoutes";
 import invitacionRoutes from "./invitacionRoutes";
 import brazaleteRoutes from "./brazaleteRoutes";
+import notificacionRoutes from "./notificacionRoutes";
 
 const router = Router();
 
@@ -43,5 +44,8 @@ router.use("/invitaciones", invitacionRoutes);
 
 // Rutas de brazaletes
 router.use("/brazaletes", brazaleteRoutes);
+
+// Rutas de notificaciones (WhatsApp)
+router.use("/notificaciones", notificacionRoutes);
 
 export default router;

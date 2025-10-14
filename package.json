@@ -47,6 +47,7 @@
     "pino-pretty": "^13.1.1",
     "postgresql": "^0.0.1",
     "sequelize": "^6.37.7",
+    "twilio": "^5.10.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
@@ -58,6 +59,7 @@
     "@types/node": "^24.5.2",
     "@types/pg": "^8.15.5",
     "@types/sequelize": "^6.12.0",
+    "@types/twilio": "^3.19.3",
     "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.3",
     "ts-node": "^10.9.2",

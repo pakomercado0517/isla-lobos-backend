@@ -409,3 +409,154 @@ export interface SMNConfiguracionRegion {
   municipio_id?: string; // ID del municipio (opcional)
   nombre_region: string; // Nombre descriptivo
 }
+
+// ============================================================================
+// TIPOS PARA SISTEMA DE NOTIFICACIONES POR WHATSAPP (TWILIO)
+// ============================================================================
+
+// Tipos de notificaciones disponibles en el sistema
+export enum TipoNotificacion {
+  ALERTA_CLIMA = "alerta_clima",
+  PERMISO_POR_VENCER = "permiso_por_vencer",
+  PERMISO_VENCIDO = "permiso_vencido",
+  CONFIRMACION_SALIDA = "confirmacion_salida",
+  CANCELACION_SALIDA = "cancelacion_salida",
+  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
+  RESUMEN_DIARIO = "resumen_diario",
+  BIENVENIDA = "bienvenida",
+  RECORDATORIO_GENERICO = "recordatorio_generico",
+}
+
+// Prioridad de las notificaciones
+export enum PrioridadNotificacion {
+  URGENTE = "urgente", // Puerto cerrado, emergencias
+  ALTA = "alta", // Permisos vencidos, alertas importantes
+  MEDIA = "media", // Recordatorios, confirmaciones
+  BAJA = "baja", // Resúmenes, información general
+}
+
+// Estado de envío de notificación
+export enum EstadoNotificacion {
+  PENDIENTE = "pendiente",
+  ENVIADO = "enviado",
+  ENTREGADO = "entregado",
+  LEIDO = "leido",
+  FALLIDO = "fallido",
+  REINTENTANDO = "reintentando",
+}
+
+// Request para enviar notificación individual
+export interface EnviarNotificacionRequest {
+  telefono: string;
+  mensaje: string;
+  tipo: TipoNotificacion;
+  prioridad: PrioridadNotificacion;
+  datos_adicionales?: Record<string, string | number | boolean>;
+}
+
+// Request para enviar notificación masiva
+export interface EnviarNotificacionMasivaRequest {
+  usuarios_ids: string[];
+  mensaje: string;
+  tipo: TipoNotificacion;
+  prioridad: PrioridadNotificacion;
+  plantilla?: string;
+}
+
+// Respuesta de envío de notificación
+export interface NotificacionResponse {
+  success: boolean;
+  message_id?: string;
+  telefono: string;
+  estado: EstadoNotificacion;
+  fecha_envio: Date;
+  error?: string;
+}
+
+// Respuesta de envío masivo
+export interface NotificacionMasivaResponse {
+  total: number;
+  enviados: number;
+  fallidos: number;
+  resultados: NotificacionResponse[];
+}
+
+// Template de mensaje
+export interface PlantillaNotificacion {
+  tipo: TipoNotificacion;
+  titulo: string;
+  plantilla: string;
+  variables: string[];
+  ejemplo: string;
+}
+
+// Configuración de Twilio
+export interface TwilioConfig {
+  accountSid: string;
+  authToken: string;
+  whatsappNumber: string;
+}
+
+// Datos para notificación de alerta de clima
+export interface NotificacionAlertaClimaData {
+  estado_puerto: EstadoPuerto;
+  oleaje: number;
+  viento_velocidad: number;
+  mensaje_adicional?: string;
+}
+
+// Datos para notificación de permiso
+export interface NotificacionPermisoData {
+  nombre_usuario: string;
+  dias_restantes: number;
+  fecha_vencimiento: string;
+  estado_permiso: EstadoPermiso;
+}
+
+// Datos para notificación de salida
+export interface NotificacionSalidaData {
+  prestador_nombre: string;
+  embarcacion_nombre: string;
+  destino: string;
+  fecha: string;
+  hora?: string;
+  bloque_nombre?: string;
+  numero_pasajeros: number;
+}
+
+// Datos para notificación de stock
+export interface NotificacionStockData {
+  tipo_brazalete: TipoBrazalete;
+  cantidad_disponible: number;
+  cantidad_minima: number;
+  porcentaje_disponible: number;
+}
+
+// Datos para resumen diario
+export interface NotificacionResumenDiarioData {
+  fecha: string;
+  total_salidas: number;
+  total_pasajeros: number;
+  embarcaciones_activas: number;
+  capacidad_ocupada: number;
+  estado_puerto: EstadoPuerto;
+}
+
+// Historial de notificaciones (para futuras implementaciones con BD)
+export interface HistorialNotificacion {
+  id: string;
+  usuario_id?: string;
+  telefono: string;
+  tipo: TipoNotificacion;
+  prioridad: PrioridadNotificacion;
+  mensaje: string;
+  estado: EstadoNotificacion;
+  message_sid?: string; // ID de Twilio
+  fecha_envio: Date;
+  fecha_entrega?: Date;
+  fecha_lectura?: Date;
+  intentos: number;
+  error?: string;
+  created_at: Date;
+  updated_at: Date;
+}
