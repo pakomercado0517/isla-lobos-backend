@@ -9,6 +9,7 @@ import dashboardRoutes from "./dashboardRoutes";
 import invitacionRoutes from "./invitacionRoutes";
 import brazaleteRoutes from "./brazaleteRoutes";
 import notificacionRoutes from "./notificacionRoutes";
+import emailRoutes from "./emailRoutes";
 
 const router = Router();
 
@@ -47,5 +48,8 @@ router.use("/brazaletes", brazaleteRoutes);
 
 // Rutas de notificaciones (WhatsApp)
 router.use("/notificaciones", notificacionRoutes);
+
+// Rutas de emails
+router.use("/emails", emailRoutes);
 
 export default router;

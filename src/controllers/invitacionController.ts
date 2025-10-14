@@ -3,6 +3,8 @@ import Invitacion from "../models/Invitacion";
 import User from "../models/User";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
+import emailService from "../services/emailService";
+import { EmailInvitacionData, UserRole } from "../types";
 
 const logger = createLogger("InvitacionController");
 import { getCurrentMexicoTime } from "../utils/dateUtils";
@@ -85,12 +87,6 @@ class InvitacionController {
             model: User,
             as: "creador",
             attributes: ["id", "nombre", "email"],
-          },
-          {
-            model: User,
-            as: "usuario",
-            attributes: ["id", "nombre", "email"],
-            required: false,
           },
         ],
         order: [["created_at", "DESC"]],
@@ -189,7 +185,7 @@ class InvitacionController {
    */
   static async createInvitacion(req: Request, res: Response): Promise<void> {
     try {
-      const { codigo, fecha_expiracion } = req.body;
+      const { codigo, fecha_expiracion, email, nombre, rol } = req.body;
       const creada_por = (req as any).user.id;
 
       // Verificar que el código no exista
@@ -209,8 +205,8 @@ class InvitacionController {
       // Crear la invitación
       const invitacion = await Invitacion.create({
         codigo,
-        email: null, // Se llenará cuando se use la invitación
-        rol: "prestador" as any, // Por defecto para prestadores
+        email: email || null, // Email del destinatario (opcional)
+        rol: (rol as UserRole) || UserRole.PRESTADOR, // Rol del invitado
         expira_en: fecha_expiracion
           ? new Date(fecha_expiracion)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días por defecto
@@ -235,10 +231,60 @@ class InvitacionController {
           invitacionCreada?.toJSON()
         );
 
+      // Enviar email de invitación si se proporcionó email
+      let emailEnviado = false;
+      if (email && nombre) {
+        try {
+          const fechaExpiracion = invitacion.expira_en;
+          const diasExpiracion = Math.ceil(
+            (fechaExpiracion.getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          const urlInvitacion = `${process.env["FRONTEND_URL"]}/registro?codigo=${codigo}`;
+
+          const datosInvitacion: EmailInvitacionData = {
+            nombre,
+            email,
+            codigo_invitacion: codigo,
+            rol: (rol as UserRole) || UserRole.PRESTADOR,
+            url_invitacion: urlInvitacion,
+            expiracion_dias: diasExpiracion,
+          };
+
+          const resultadoEmail = await emailService.enviarInvitacion(
+            datosInvitacion
+          );
+          emailEnviado = resultadoEmail.success;
+
+          if (emailEnviado) {
+            logger.info(
+              { email, codigo, messageId: resultadoEmail.message_id },
+              "✅ Email de invitación enviado exitosamente"
+            );
+          } else {
+            logger.warn(
+              { email, codigo, error: resultadoEmail.error },
+              "⚠️ Error al enviar email de invitación"
+            );
+          }
+        } catch (emailError) {
+          logger.error(
+            { email, codigo, error: emailError },
+            "❌ Error al enviar email de invitación"
+          );
+        }
+      }
+
       res.status(201).json({
         status: "success",
-        message: "Invitación creada exitosamente",
-        data: { invitacion: invitacionFormateada },
+        message: emailEnviado
+          ? "Invitación creada y email enviado exitosamente"
+          : "Invitación creada exitosamente",
+        data: {
+          invitacion: invitacionFormateada,
+          email_enviado: emailEnviado,
+        },
       });
     } catch (error) {
       logger.error({ err: error }, "Error al crear invitación:", error);
@@ -559,7 +605,10 @@ class InvitacionController {
         attributes: [
           "creada_por",
           [
-            Invitacion.sequelize!.fn("COUNT", Invitacion.sequelize!.col("id")),
+            Invitacion.sequelize!.fn(
+              "COUNT",
+              Invitacion.sequelize!.col("Invitacion.id")
+            ),
             "total_creadas",
           ],
         ],
@@ -573,7 +622,10 @@ class InvitacionController {
         group: ["creada_por", "creador.id", "creador.nombre", "creador.email"],
         order: [
           [
-            Invitacion.sequelize!.fn("COUNT", Invitacion.sequelize!.col("id")),
+            Invitacion.sequelize!.fn(
+              "COUNT",
+              Invitacion.sequelize!.col("Invitacion.id")
+            ),
             "DESC",
           ],
         ],
@@ -608,6 +660,117 @@ class InvitacionController {
       });
     } catch (error) {
       logger.error({ err: error }, "Error al obtener estadísticas:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Error interno del servidor",
+        error: "INTERNAL_SERVER_ERROR",
+      });
+    }
+  }
+
+  /**
+   * Validar código de invitación por GET (para frontend)
+   * GET /api/invitaciones/validar/:codigo
+   */
+  static async validarCodigoPorGet(req: Request, res: Response): Promise<void> {
+    try {
+      const { codigo } = req.params;
+
+      const invitacion = await Invitacion.findOne({
+        where: { codigo },
+        include: [
+          {
+            model: User,
+            as: "creador",
+            attributes: ["id", "nombre", "email"],
+          },
+        ],
+      });
+
+      if (!invitacion) {
+        res.status(404).json({
+          status: "error",
+          message: "Código de invitación no encontrado",
+          error: "INVALID_INVITATION_CODE",
+          data: {
+            valida: false,
+            razon: "Código no existe",
+          },
+        });
+        return;
+      }
+
+      // Verificar si ya fue usada
+      if (invitacion.usada) {
+        res.status(200).json({
+          status: "error",
+          message: "El código de invitación ya ha sido utilizado",
+          error: "INVITATION_ALREADY_USED",
+          data: {
+            valida: false,
+            razon: "Ya utilizada",
+            invitacion: {
+              id: invitacion.id,
+              codigo: invitacion.codigo,
+              email: invitacion.email,
+              rol: invitacion.rol,
+              expira_en: InvitacionController.extraerSoloFecha(
+                invitacion.expira_en
+              ),
+              usada: invitacion.usada,
+            },
+          },
+        });
+        return;
+      }
+
+      // Verificar si ha expirado
+      const ahora = getCurrentMexicoTime();
+      if (invitacion.expira_en && invitacion.expira_en < ahora) {
+        res.status(200).json({
+          status: "error",
+          message: "El código de invitación ha expirado",
+          error: "INVITATION_EXPIRED",
+          data: {
+            valida: false,
+            razon: "Expirada",
+            invitacion: {
+              id: invitacion.id,
+              codigo: invitacion.codigo,
+              email: invitacion.email,
+              rol: invitacion.rol,
+              expira_en: InvitacionController.extraerSoloFecha(
+                invitacion.expira_en
+              ),
+              usada: invitacion.usada,
+            },
+          },
+        });
+        return;
+      }
+
+      // Código válido
+      res.status(200).json({
+        status: "success",
+        message: "Código de invitación válido",
+        data: {
+          valida: true,
+          invitacion: {
+            id: invitacion.id,
+            codigo: invitacion.codigo,
+            email: invitacion.email,
+            rol: invitacion.rol,
+            creada_por: invitacion.creada_por,
+            expira_en: InvitacionController.extraerSoloFecha(
+              invitacion.expira_en
+            ),
+            usada: invitacion.usada,
+            creador: (invitacion as any).creador,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error }, "Error al validar código por GET:", error);
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",

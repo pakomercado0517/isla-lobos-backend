@@ -28,6 +28,8 @@ router.post(
   InvitacionController.validarCodigo
 );
 
+router.get("/validar/:codigo", InvitacionController.validarCodigoPorGet);
+
 // Rutas protegidas (requieren autenticación)
 router.use(authenticateToken);
 

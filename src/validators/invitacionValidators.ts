@@ -45,6 +45,19 @@ export const createInvitacionValidation = [
     .withMessage("El código debe tener entre 8 y 20 caracteres")
     .matches(/^[A-Z0-9]+$/)
     .withMessage("El código solo puede contener letras mayúsculas y números"),
+  body("email")
+    .optional()
+    .isEmail()
+    .withMessage("Debe ser un email válido")
+    .normalizeEmail(),
+  body("nombre")
+    .optional()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("El nombre debe tener entre 2 y 100 caracteres"),
+  body("rol")
+    .optional()
+    .isIn(["conanp", "prestador"])
+    .withMessage("El rol debe ser 'conanp' o 'prestador'"),
   body("descripcion")
     .optional()
     .isLength({ max: 255 })
