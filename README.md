@@ -223,11 +223,28 @@ npm run db:create
 npm run db:migrate
 ```
 
-### **6. (Opcional) Poblar con datos de prueba**
+### **6. Crear primer administrador**
+
+**Opción A: Para PRODUCCIÓN (recomendado)**
+
+```bash
+# Configurar variables de entorno en .env
+FIRST_ADMIN_EMAIL=admin@conanp.gob.mx
+FIRST_ADMIN_PASSWORD=ContraseñaSegura123!
+FIRST_ADMIN_NAME=Administrador CONANP
+FIRST_ADMIN_PHONE=+52 55 1234 5678
+
+# Ejecutar script de bootstrap
+npm run create:admin
+```
+
+**Opción B: Para DESARROLLO (datos de prueba)**
 
 ```bash
 npm run seed:demo
 ```
+
+📚 **Más información:** Ver [`QUICKSTART_ADMIN.md`](QUICKSTART_ADMIN.md)
 
 ---
 
@@ -387,6 +404,7 @@ npm run db:clean            # Limpiar base de datos completamente
 ### **Seeders Personalizados**
 
 ```bash
+npm run create:admin            # Crear primer administrador (producción)
 npm run seed:demo               # Cargar datos de demostración
 npm run seed:clean              # Limpiar datos de demostración
 npm run seed:reportes           # Cargar datos para reportes
@@ -717,6 +735,13 @@ El proyecto cuenta con documentación exhaustiva en el directorio [`documentatio
 - 📖 [`PROYECTO_CONTEXTO.md`](documentation/PROYECTO_CONTEXTO.md) - Contexto y propósito del sistema
 - 🔧 [`REGLAS_TRABAJO.md`](documentation/REGLAS_TRABAJO.md) - Reglas de desarrollo y estándares
 - ✅ [`CHECKLIST_PROGRESO.md`](documentation/CHECKLIST_PROGRESO.md) - Progreso del proyecto
+
+### **Setup y Despliegue**
+
+- ⚡ [`QUICKSTART_ADMIN.md`](QUICKSTART_ADMIN.md) - Crear primer admin en 2 minutos
+- 🚀 [`SETUP_PRODUCCION.md`](SETUP_PRODUCCION.md) - Guía completa de instalación en producción
+- 🔐 [`documentation/BOOTSTRAP_ADMIN.md`](documentation/BOOTSTRAP_ADMIN.md) - Creación del primer administrador
+- ❓ [`documentation/CREAR_PRIMER_ADMIN.md`](documentation/CREAR_PRIMER_ADMIN.md) - 3 opciones para crear admin
 
 ### **API y Endpoints**
 
