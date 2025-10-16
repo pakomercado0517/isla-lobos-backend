@@ -81,6 +81,31 @@ Sistema de gestión integral para el control de visitas, embarcaciones y bloques
 - ✅ Alertas de permisos
 - ✅ Resumen meteorológico
 
+### **Sistema de Notificaciones WhatsApp**
+
+- ✅ Integración con Twilio WhatsApp API
+- ✅ Notificaciones individuales y masivas
+- ✅ Alertas de clima automáticas
+- ✅ Recordatorios de permisos por vencer
+- ✅ Confirmaciones de salidas registradas
+- ✅ Alertas de stock de brazaletes
+- ✅ Plantillas de mensajes predefinidas
+- ✅ Tracking de estado de mensajes
+- ✅ Modo de prueba para desarrollo
+
+### **Sistema de Emails (Nodemailer)**
+
+- ✅ Integración con Nodemailer SMTP
+- ✅ Emails individuales y masivos
+- ✅ Plantillas HTML profesionales
+- ✅ Alertas de clima por email
+- ✅ Recordatorios de permisos por vencer
+- ✅ Confirmaciones de salidas registradas
+- ✅ Emails de recuperación de contraseña
+- ✅ Emails de bienvenida
+- ✅ Verificación de conexión SMTP
+- ✅ Modo de prueba para desarrollo
+
 ---
 
 ## 🚀 **Tecnologías**
@@ -115,6 +140,11 @@ Sistema de gestión integral para el control de visitas, embarcaciones y bloques
 - **[Axios](https://axios-http.com/)** - Cliente HTTP
 - **[UUID](https://www.npmjs.com/package/uuid)** - Generación de IDs únicos
 - **[Dotenv](https://www.npmjs.com/package/dotenv)** - Variables de entorno
+
+### **Notificaciones**
+
+- **[Twilio](https://www.twilio.com/)** - WhatsApp API para notificaciones automatizadas
+- **[Nodemailer](https://nodemailer.com/)** - Envío de correos electrónicos SMTP
 
 ### **Desarrollo**
 
@@ -193,11 +223,28 @@ npm run db:create
 npm run db:migrate
 ```
 
-### **6. (Opcional) Poblar con datos de prueba**
+### **6. Crear primer administrador**
+
+**Opción A: Para PRODUCCIÓN (recomendado)**
+
+```bash
+# Configurar variables de entorno en .env
+FIRST_ADMIN_EMAIL=admin@conanp.gob.mx
+FIRST_ADMIN_PASSWORD=ContraseñaSegura123!
+FIRST_ADMIN_NAME=Administrador CONANP
+FIRST_ADMIN_PHONE=+52 55 1234 5678
+
+# Ejecutar script de bootstrap
+npm run create:admin
+```
+
+**Opción B: Para DESARROLLO (datos de prueba)**
 
 ```bash
 npm run seed:demo
 ```
+
+📚 **Más información:** Ver [`QUICKSTART_ADMIN.md`](QUICKSTART_ADMIN.md)
 
 ---
 
@@ -232,6 +279,17 @@ LOG_LEVEL=debug  # trace, debug, info, warn, error, fatal
 
 # Frontend (para emails de recuperación)
 FRONTEND_URL=http://localhost:3000
+
+# Twilio WhatsApp (opcional - para notificaciones)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=tu_auth_token_secreto
+TWILIO_WHATSAPP_NUMBER=+14155238886
+
+# Nodemailer SMTP (opcional - para emails)
+NODEMAILER_HOST=smtp.gmail.com
+NODEMAILER_PORT=587
+NODEMAILER_USER=tu-email@gmail.com
+NODEMAILER_PASS=tu_password_de_aplicacion
 ```
 
 📚 **Documentación completa:** [`documentation/ENV_VARIABLES.md`](documentation/ENV_VARIABLES.md)
@@ -346,6 +404,7 @@ npm run db:clean            # Limpiar base de datos completamente
 ### **Seeders Personalizados**
 
 ```bash
+npm run create:admin            # Crear primer administrador (producción)
 npm run seed:demo               # Cargar datos de demostración
 npm run seed:clean              # Limpiar datos de demostración
 npm run seed:reportes           # Cargar datos para reportes
@@ -569,6 +628,31 @@ isla-lobos-backend/
 | GET    | `/ventas`      | Reporte de ventas      | 🔐 CONANP |
 | GET    | `/utilizacion` | Reporte de utilización | 🔐 CONANP |
 
+### **Notificaciones WhatsApp** (`/api/notificaciones`)
+
+| Método | Endpoint              | Descripción                    | Auth      |
+| ------ | --------------------- | ------------------------------ | --------- |
+| GET    | `/estado`             | Estado del servicio            | 🔐 CONANP |
+| POST   | `/enviar`             | Enviar notificación individual | 🔐 CONANP |
+| POST   | `/enviar-masivo`      | Enviar notificaciones masivas  | 🔐 CONANP |
+| POST   | `/alerta-clima`       | Alerta meteorológica a todos   | 🔐 CONANP |
+| POST   | `/alerta-permisos`    | Alertas de permisos por vencer | 🔐 CONANP |
+| GET    | `/plantillas`         | Plantillas de mensajes         | 🔐 CONANP |
+| GET    | `/estado/:messageSid` | Estado de mensaje enviado      | 🔐 CONANP |
+| POST   | `/test`               | Mensaje de prueba (dev)        | 🔐 CONANP |
+
+### **Notificaciones Emails** (`/api/emails`)
+
+| Método | Endpoint           | Descripción                    | Auth      |
+| ------ | ------------------ | ------------------------------ | --------- |
+| GET    | `/estado`          | Estado del servicio SMTP       | 🔐 CONANP |
+| POST   | `/enviar`          | Enviar email individual        | 🔐 CONANP |
+| POST   | `/enviar-masivo`   | Enviar emails masivos          | 🔐 CONANP |
+| POST   | `/alerta-clima`    | Alerta meteorológica por email | 🔐 CONANP |
+| POST   | `/alerta-permisos` | Alertas de permisos por email  | 🔐 CONANP |
+| GET    | `/plantillas`      | Plantillas de emails           | 🔐 CONANP |
+| POST   | `/test`            | Email de prueba (dev)          | 🔐 CONANP |
+
 **Leyenda:**
 
 - ❌ = Público (no requiere autenticación)
@@ -577,6 +661,8 @@ isla-lobos-backend/
 - ✅ Prestador = Solo rol Prestador
 
 📚 **Documentación completa:** [`documentation/API ROUTES/`](documentation/API%20ROUTES/)
+
+📱 **Documentación WhatsApp:** [`documentation/NOTIFICACIONES_WHATSAPP_API.md`](documentation/NOTIFICACIONES_WHATSAPP_API.md)
 
 ---
 
@@ -650,6 +736,13 @@ El proyecto cuenta con documentación exhaustiva en el directorio [`documentatio
 - 🔧 [`REGLAS_TRABAJO.md`](documentation/REGLAS_TRABAJO.md) - Reglas de desarrollo y estándares
 - ✅ [`CHECKLIST_PROGRESO.md`](documentation/CHECKLIST_PROGRESO.md) - Progreso del proyecto
 
+### **Setup y Despliegue**
+
+- ⚡ [`QUICKSTART_ADMIN.md`](QUICKSTART_ADMIN.md) - Crear primer admin en 2 minutos
+- 🚀 [`SETUP_PRODUCCION.md`](SETUP_PRODUCCION.md) - Guía completa de instalación en producción
+- 🔐 [`documentation/BOOTSTRAP_ADMIN.md`](documentation/BOOTSTRAP_ADMIN.md) - Creación del primer administrador
+- ❓ [`documentation/CREAR_PRIMER_ADMIN.md`](documentation/CREAR_PRIMER_ADMIN.md) - 3 opciones para crear admin
+
 ### **API y Endpoints**
 
 - 🔌 [`API ROUTES/API_ROUTES_REFERENCE.md`](documentation/API%20ROUTES/API_ROUTES_REFERENCE.md) - Referencia completa de endpoints
@@ -660,6 +753,8 @@ El proyecto cuenta con documentación exhaustiva en el directorio [`documentatio
 - 🌤️ [`CLIMA_API_DOCUMENTATION.md`](documentation/CLIMA_API_DOCUMENTATION.md) - Condiciones meteorológicas
 - 📊 [`DASHBOARD_API_DOCUMENTATION.md`](documentation/DASHBOARD_API_DOCUMENTATION.md) - Dashboard
 - 💌 [`INVITACION_API_DOCUMENTATION.md`](documentation/INVITACION_API_DOCUMENTATION.md) - Invitaciones
+- 📱 [`NOTIFICACIONES_WHATSAPP_API.md`](documentation/NOTIFICACIONES_WHATSAPP_API.md) - Notificaciones WhatsApp
+- 📧 [`NOTIFICACIONES_EMAIL_API.md`](documentation/NOTIFICACIONES_EMAIL_API.md) - Sistema de Emails
 
 ### **Base de Datos**
 

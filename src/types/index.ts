@@ -560,3 +560,135 @@ export interface HistorialNotificacion {
   created_at: Date;
   updated_at: Date;
 }
+
+// ============================================================================
+// TIPOS PARA SISTEMA DE EMAILS (NODEMAILER)
+// ============================================================================
+
+// Tipos de emails disponibles en el sistema
+export enum TipoEmail {
+  ALERTA_CLIMA = "alerta_clima",
+  PERMISO_POR_VENCER = "permiso_por_vencer",
+  PERMISO_VENCIDO = "permiso_vencido",
+  CONFIRMACION_SALIDA = "confirmacion_salida",
+  CANCELACION_SALIDA = "cancelacion_salida",
+  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
+  RESUMEN_DIARIO = "resumen_diario",
+  BIENVENIDA = "bienvenida",
+  RECUPERACION_PASSWORD = "recuperacion_password",
+  REGISTRO_EXITOSO = "registro_exitoso",
+  INVITACION = "invitacion",
+  NOTIFICACION_GENERAL = "notificacion_general",
+}
+
+// Configuración de Nodemailer
+export interface NodemailerConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
+// Request para enviar email individual
+export interface EnviarEmailRequest {
+  email: string;
+  asunto: string;
+  mensaje: string;
+  tipo: TipoEmail;
+  html?: boolean;
+  datos_adicionales?: Record<string, string | number | boolean>;
+}
+
+// Request para enviar email masivo
+export interface EnviarEmailMasivoRequest {
+  usuarios_ids: string[];
+  asunto: string;
+  mensaje: string;
+  tipo: TipoEmail;
+  html?: boolean;
+}
+
+// Respuesta de envío de email
+export interface EmailResponse {
+  success: boolean;
+  message_id?: string;
+  email: string;
+  estado: EstadoNotificacion;
+  fecha_envio: Date;
+  error?: string;
+}
+
+// Respuesta de envío masivo de emails
+export interface EmailMasivoResponse {
+  total: number;
+  enviados: number;
+  fallidos: number;
+  resultados: EmailResponse[];
+}
+
+// Template de email
+export interface PlantillaEmail {
+  tipo: TipoEmail;
+  asunto: string;
+  plantilla_html: string;
+  plantilla_texto: string;
+  variables: string[];
+  ejemplo: string;
+}
+
+// Datos para email de alerta de clima
+export interface EmailAlertaClimaData {
+  estado_puerto: EstadoPuerto;
+  oleaje: number;
+  viento_velocidad: number;
+  mensaje_adicional?: string;
+  fecha: string;
+}
+
+// Datos para email de permiso
+export interface EmailPermisoData {
+  nombre_usuario: string;
+  dias_restantes: number;
+  fecha_vencimiento: string;
+  estado_permiso: EstadoPermiso;
+}
+
+// Datos para email de salida
+export interface EmailSalidaData {
+  prestador_nombre: string;
+  embarcacion_nombre: string;
+  destino: string;
+  fecha: string;
+  hora?: string;
+  bloque_nombre?: string;
+  numero_pasajeros: number;
+}
+
+// Datos para email de recuperación de contraseña
+export interface EmailRecuperacionPasswordData {
+  nombre_usuario: string;
+  token: string;
+  url_reset: string;
+  expiracion_minutos: number;
+}
+
+// Datos para email de bienvenida
+export interface EmailBienvenidaData {
+  nombre_usuario: string;
+  email: string;
+  rol: UserRole;
+  url_plataforma: string;
+}
+
+// Datos para email de invitación
+export interface EmailInvitacionData {
+  nombre: string;
+  email: string;
+  codigo_invitacion: string;
+  rol: UserRole;
+  url_invitacion: string;
+  expiracion_dias: number;
+}
