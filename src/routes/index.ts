@@ -10,6 +10,7 @@ import invitacionRoutes from "./invitacionRoutes";
 import brazaleteRoutes from "./brazaleteRoutes";
 import notificacionRoutes from "./notificacionRoutes";
 import emailRoutes from "./emailRoutes";
+import avatarRoutes from "./avatarRoutes";
 
 const router = Router();
 
@@ -51,5 +52,8 @@ router.use("/notificaciones", notificacionRoutes);
 
 // Rutas de emails
 router.use("/emails", emailRoutes);
+
+// Rutas de avatares
+router.use("/avatars", avatarRoutes);
 
 export default router;
