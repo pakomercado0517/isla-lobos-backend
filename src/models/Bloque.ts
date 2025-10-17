@@ -16,14 +16,16 @@ interface BloqueAttributes {
   capacidad_total: number;
   capacidad_registrada: number;
   estado: EstadoBloque;
-  fecha?: Date; // Opcional para bloques plantilla
+  destino: string;
+  es_plantilla: boolean; // true = plantilla para todos los días, false = bloque específico
+  fecha?: Date; // null si es_plantilla = true, obligatorio si es_plantilla = false
 }
 
 // Atributos opcionales (para actualizaciones)
 interface BloqueCreationAttributes
   extends Optional<
     BloqueAttributes,
-    "id" | "capacidad_registrada" | "estado" | "fecha"
+    "id" | "capacidad_registrada" | "estado" | "fecha" | "es_plantilla"
   > {}
 
 class Bloque
@@ -37,6 +39,8 @@ class Bloque
   public capacidad_total!: number;
   public capacidad_registrada!: number;
   public estado!: EstadoBloque;
+  public destino!: string;
+  public es_plantilla!: boolean;
   public fecha?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -63,7 +67,7 @@ class Bloque
   }
 
   public get dia_semana(): string {
-    return this.fecha ? getDayNameMexico(this.fecha) : "Plantilla";
+    return this.es_plantilla ? "Plantilla" : (this.fecha ? getDayNameMexico(this.fecha) : "Sin fecha");
   }
 
   public get esta_activo(): boolean {
@@ -125,14 +129,37 @@ Bloque.init(
       allowNull: false,
       defaultValue: EstadoBloque.ACTIVO,
     },
+    destino: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "Isla de Lobos",
+      validate: {
+        notEmpty: true,
+        isIn: [
+          [
+            "Isla de Lobos",
+            "Arrecife Tuxpan",
+            "Arrecife de en Medio",
+            "Arrecife Tanhuijo",
+          ],
+        ],
+      },
+      comment: "Destino al que pertenece el bloque horario",
+    },
+    es_plantilla: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "true = plantilla para todos los días, false = bloque específico"
+    },
     fecha: {
       type: DataTypes.DATEONLY,
-      allowNull: true, // Permitir NULL para bloques plantilla
+      allowNull: true, // Permitir NULL para bloques plantilla (es_plantilla = true)
       validate: {
         notEmpty: true,
       },
       comment:
-        "Fecha del bloque en zona horaria de México (America/Mexico_City). NULL para bloques plantilla",
+        "Fecha del bloque en zona horaria de México (America/Mexico_City). NULL cuando es_plantilla = true",
     },
   },
   {
@@ -150,6 +177,21 @@ Bloque.init(
       },
       {
         fields: ["fecha", "hora_inicio"],
+      },
+      {
+        fields: ["destino"],
+      },
+      {
+        fields: ["destino", "fecha"],
+      },
+      {
+        fields: ["destino", "estado"],
+      },
+      {
+        fields: ["es_plantilla"],
+      },
+      {
+        fields: ["es_plantilla", "destino"],
       },
     ],
     validate: {

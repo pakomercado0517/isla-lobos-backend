@@ -132,17 +132,31 @@ export const createSalidaValidation = [
     .withMessage("Las observaciones no pueden exceder 500 caracteres")
     .trim(),
 
-  // Validación condicional: si destino es "Isla de Lobos", bloque_id es requerido
+  // Validación condicional dinámica: verificar configuración de bloques por destino
+  // NOTA: Esta validación es básica. El SalidaController hace la validación completa con BD
   body().custom((_, { req }) => {
-    if (req.body.destino === "Isla de Lobos") {
-      if (!req.body.bloque_id) {
-        throw new Error("bloque_id es requerido para salidas a Isla de Lobos");
-      }
-    } else {
-      if (!req.body.hora) {
-        throw new Error("hora es requerida para este destino");
-      }
+    const { destino, bloque_id, hora } = req.body;
+    
+    // Si se proporciona bloque_id, asumir que el destino usa bloques
+    if (bloque_id && !hora) {
+      return true; // Destino con bloques - validación OK
     }
+    
+    // Si se proporciona hora pero no bloque_id, asumir que el destino no usa bloques  
+    if (hora && !bloque_id) {
+      return true; // Destino sin bloques - validación OK
+    }
+    
+    // Si no se proporciona ni bloque_id ni hora, error
+    if (!bloque_id && !hora) {
+      throw new Error(`Debe proporcionar 'bloque_id' (si ${destino} usa bloques) o 'hora' (si no usa bloques)`);
+    }
+    
+    // Si se proporcionan ambos, advertencia
+    if (bloque_id && hora) {
+      throw new Error(`No puede proporcionar tanto 'bloque_id' como 'hora'. Use solo uno según la configuración del destino.`);
+    }
+    
     return true;
   }),
 ];

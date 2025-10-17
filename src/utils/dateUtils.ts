@@ -1,25 +1,34 @@
 /**
  * Utilidades para manejo de fechas con zona horaria de México
- * Importante: La base de datos está en Virginia, USA, pero el proyecto es para Veracruz, México
+ * 
+ * ESTRATEGIA MEJORADA:
+ * - Base de datos almacena en UTC
+ * - Conversiones precisas usando date-fns
+ * - API mantiene formato YYYY-MM-DD para compatibilidad
+ * - Manejo automático de horario de verano
  */
+
+import { parseISO } from 'date-fns';
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 // Zona horaria de México
 export const MEXICO_TIMEZONE = "America/Mexico_City";
 
 /**
  * Obtiene la fecha y hora actual en zona horaria de México
+ * MEJORADO: Usa date-fns para mayor precisión
  */
 export const getCurrentMexicoTime = (): Date => {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: MEXICO_TIMEZONE })
-  );
+  const now = new Date();
+  return toZonedTime(now, MEXICO_TIMEZONE);
 };
 
 /**
  * Convierte una fecha a zona horaria de México
+ * MEJORADO: Usa date-fns-tz para manejo preciso de zona horaria
  */
 export const toMexicoTime = (date: Date): Date => {
-  return new Date(date.toLocaleString("en-US", { timeZone: MEXICO_TIMEZONE }));
+  return toZonedTime(date, MEXICO_TIMEZONE);
 };
 
 /**
@@ -196,4 +205,76 @@ export const getMonthNameMexico = (date: Date): string => {
     "Diciembre",
   ];
   return months[mexicoTime.getMonth()] || "Mes desconocido";
+};
+
+// ============================================================================
+// FUNCIONES PARA COMPATIBILIDAD CON CONTROLADORES EXISTENTES
+// ============================================================================
+
+/**
+ * Extrae solo la fecha (YYYY-MM-DD) de cualquier input de fecha
+ * COMPATIBLE con método existente en controladores
+ * MEJORADO: Usa date-fns para manejo preciso de zona horaria
+ */
+export const extraerSoloFecha = (fecha: Date | string | null | undefined): string | null | undefined => {
+  if (!fecha) return fecha as null | undefined;
+  
+  try {
+    let dateObj: Date;
+    
+    if (typeof fecha === 'string') {
+      // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        return fecha;
+      }
+      // Si es ISO string, parsearlo
+      dateObj = parseISO(fecha);
+    } else {
+      dateObj = fecha;
+    }
+    
+    // Convertir a zona horaria de México y extraer solo fecha
+    return formatInTimeZone(dateObj, MEXICO_TIMEZONE, 'yyyy-MM-dd');
+  } catch (error) {
+    console.error('Error al extraer fecha:', error);
+    return null;
+  }
+};
+
+/**
+ * Convierte fecha del frontend (YYYY-MM-DD) a UTC para almacenamiento
+ * Asume que la fecha viene en zona horaria de México
+ */
+export const parseFromFrontend = (dateString: string): Date => {
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    throw new Error('Formato de fecha inválido. Use YYYY-MM-DD');
+  }
+  
+  // Crear fecha en medianoche de zona horaria de México
+  const mexicoDate = new Date(`${dateString}T00:00:00`);
+  return fromZonedTime(mexicoDate, MEXICO_TIMEZONE);
+};
+
+/**
+ * Obtiene la fecha de hoy en formato YYYY-MM-DD en zona horaria de México
+ */
+export const getTodayMexico = (): string => {
+  const now = new Date();
+  return formatInTimeZone(now, MEXICO_TIMEZONE, 'yyyy-MM-dd');
+};
+
+/**
+ * Valida si una fecha está en el rango permitido para operaciones
+ */
+export const isValidDateRange = (dateString: string, daysBack: number = 30, daysForward: number = 365): boolean => {
+  try {
+    const inputDate = parseFromFrontend(dateString);
+    const now = new Date();
+    const pastLimit = new Date(now.getTime() - (daysBack * 24 * 60 * 60 * 1000));
+    const futureLimit = new Date(now.getTime() + (daysForward * 24 * 60 * 60 * 1000));
+    
+    return inputDate >= pastLimit && inputDate <= futureLimit;
+  } catch {
+    return false;
+  }
 };

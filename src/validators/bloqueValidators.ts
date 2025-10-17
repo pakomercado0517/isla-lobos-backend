@@ -35,6 +35,18 @@ export const getAllBloquesValidation = [
       `El estado debe ser uno de: ${Object.values(EstadoBloque).join(", ")}`
     ),
 
+  query("destino")
+    .optional()
+    .isIn([
+      "Isla de Lobos",
+      "Arrecife Tuxpan",
+      "Arrecife de en Medio",
+      "Arrecife Tanhuijo",
+    ])
+    .withMessage(
+      "El destino debe ser uno de: Isla de Lobos, Arrecife Tuxpan, Arrecife de en Medio, Arrecife Tanhuijo"
+    ),
+
   query("fecha_inicio")
     .optional()
     .isISO8601()
@@ -116,15 +128,18 @@ export const createBloqueValidation = [
     .withMessage("La capacidad total debe ser un número entre 1 y 1000"),
 
   body("fecha")
+    .optional() // 🆕 Hacer fecha opcional
     .isISO8601()
     .withMessage("La fecha debe tener formato ISO 8601 (YYYY-MM-DD)")
     .custom((value) => {
-      const fecha = new Date(value);
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      if (value) { // Solo validar si se proporciona
+        const fecha = new Date(value);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
 
-      if (fecha < hoy) {
-        throw new Error("No se puede crear un bloque para una fecha pasada");
+        if (fecha < hoy) {
+          throw new Error("No se puede crear un bloque para una fecha pasada");
+        }
       }
       return true;
     }),
@@ -135,6 +150,44 @@ export const createBloqueValidation = [
     .withMessage(
       `El estado debe ser uno de: ${Object.values(EstadoBloque).join(", ")}`
     ),
+
+  body("destino")
+    .notEmpty()
+    .withMessage("El destino es requerido")
+    .isIn([
+      "Isla de Lobos",
+      "Arrecife Tuxpan",
+      "Arrecife de en Medio",
+      "Arrecife Tanhuijo",
+    ])
+    .withMessage(
+      "El destino debe ser uno de: Isla de Lobos, Arrecife Tuxpan, Arrecife de en Medio, Arrecife Tanhuijo"
+    ),
+
+  body("es_plantilla")
+    .optional()
+    .isBoolean()
+    .withMessage("es_plantilla debe ser un valor booleano (true o false)"),
+
+  // Validación lógica: consistencia entre fecha y es_plantilla (si se proporciona)
+  body().custom((_, { req }) => {
+    const { fecha, es_plantilla } = req.body;
+    
+    // Solo validar si es_plantilla se proporciona explícitamente
+    if (es_plantilla !== undefined) {
+      // Si no hay fecha pero es_plantilla es false, error
+      if (!fecha && es_plantilla === false) {
+        throw new Error("Los bloques sin fecha deben tener es_plantilla como true");
+      }
+      
+      // Si hay fecha pero es_plantilla es true, error
+      if (fecha && es_plantilla === true) {
+        throw new Error("Los bloques con fecha deben tener es_plantilla como false");
+      }
+    }
+    
+    return true;
+  }),
 ];
 
 // Validaciones para actualizar bloque
@@ -215,6 +268,23 @@ export const updateBloqueValidation = [
     .withMessage(
       `El estado debe ser uno de: ${Object.values(EstadoBloque).join(", ")}`
     ),
+
+  body("destino")
+    .optional()
+    .isIn([
+      "Isla de Lobos",
+      "Arrecife Tuxpan",
+      "Arrecife de en Medio",
+      "Arrecife Tanhuijo",
+    ])
+    .withMessage(
+      "El destino debe ser uno de: Isla de Lobos, Arrecife Tuxpan, Arrecife de en Medio, Arrecife Tanhuijo"
+    ),
+
+  body("es_plantilla")
+    .optional()
+    .isBoolean()
+    .withMessage("es_plantilla debe ser un valor booleano (true o false)"),
 ];
 
 // Validaciones para eliminar bloque
