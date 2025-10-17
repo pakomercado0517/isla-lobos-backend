@@ -97,3 +97,6 @@ jspm_packages/
 
 # TernJS port file
 .tern-port
+
+# Warp AI session context (local only)
+WARP.md
