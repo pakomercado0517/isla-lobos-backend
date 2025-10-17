@@ -11,6 +11,7 @@ import brazaleteRoutes from "./brazaleteRoutes";
 import notificacionRoutes from "./notificacionRoutes";
 import emailRoutes from "./emailRoutes";
 import avatarRoutes from "./avatarRoutes";
+import publicRoutes from "./publicRoutes";
 
 const router = Router();
 
@@ -19,6 +20,9 @@ const router = Router();
  *
  * Todas las rutas de la API están bajo el prefijo /api
  */
+
+// Rutas públicas (sin autenticación)
+router.use("/public", publicRoutes);
 
 // Rutas de autenticación
 router.use("/auth", authRoutes);
