@@ -61,7 +61,9 @@ export interface Bloque {
   capacidad_total: number;
   capacidad_registrada: number;
   estado: EstadoBloque;
-  fecha: Date;
+  destino: DestinoType;
+  es_plantilla: boolean; // true = plantilla para todos los días, false = bloque específico
+  fecha?: Date; // null si es_plantilla = true, obligatorio si es_plantilla = false
   created_at: Date;
   updated_at: Date;
 }
@@ -72,7 +74,6 @@ export enum EstadoBloque {
   SUSPENDIDO_POR_CLIMA = "suspendido_por_clima",
   CERRADO_CAPITANIA = "cerrado_capitaria",
   LLENO = "lleno",
-  PLANTILLA = "plantilla", // Para bloques predefinidos
 }
 
 // Destinos disponibles
@@ -90,8 +91,8 @@ export interface Salida {
   prestador_id: string;
   embarcacion_id: string;
   destino: string;
-  bloque_id?: string; // Opcional - solo para Isla de Lobos
-  hora?: string; // Opcional - solo para otros destinos
+  bloque_id?: string; // Opcional - solo cuando el destino tiene bloques configurados
+  hora?: string; // Opcional - solo cuando el destino NO tiene bloques configurados
   fecha: Date;
   numero_pasajeros: number;
   observaciones?: string;

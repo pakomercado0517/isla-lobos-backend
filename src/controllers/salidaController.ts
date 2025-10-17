@@ -305,9 +305,9 @@ class SalidaController {
         },
       };
 
-      // Para Isla de Lobos, también verificar bloque_id
-      // Para otros destinos, verificar que no tengan bloque_id (null)
-      if (destino === "Isla de Lobos") {
+      // Para destinos con bloques, también verificar bloque_id
+      // Para destinos sin bloques, verificar que no tengan bloque_id (null)
+      if (bloque_id) {
         whereConflicto.bloque_id = bloque_id;
       } else {
         whereConflicto.bloque_id = null;
@@ -337,24 +337,47 @@ class SalidaController {
         return;
       }
 
-      // VALIDACIÓN CONDICIONAL según destino
-      if (destino === "Isla de Lobos") {
-        // Para Isla Lobos, bloque_id es REQUERIDO
+      // VALIDACIÓN CONDICIONAL DINÁMICA según configuración de bloques del destino
+      // Verificar si el destino tiene bloques configurados
+      const fechaSalida = new Date(fecha);
+      fechaSalida.setHours(0, 0, 0, 0);
+      
+      const bloquesDisponiblesParaDestino = await Bloque.count({
+        where: {
+          destino,
+          [Op.or]: [
+            { es_plantilla: true }, // Plantillas disponibles
+            { 
+              fecha: fechaSalida,
+              estado: { [Op.ne]: EstadoBloque.INACTIVO }
+            }
+          ]
+        },
+      });
+      
+      if (bloquesDisponiblesParaDestino > 0) {
+        // Destino CON bloques configurados - bloque_id es REQUERIDO
         if (!bloque_id) {
           res.status(400).json({
             status: "error",
-            message: "bloque_id es requerido para salidas a Isla de Lobos",
+            message: `bloque_id es requerido para ${destino} (destino con control de bloques)`,
             error: "VALIDATION_ERROR",
           });
           return;
         }
 
-        // Verificar que el bloque existe
-        const bloque = await Bloque.findByPk(bloque_id);
+        // Verificar que el bloque existe y corresponde al destino
+        const bloque = await Bloque.findOne({
+          where: {
+            id: bloque_id,
+            destino: destino
+          }
+        });
+        
         if (!bloque) {
           res.status(404).json({
             status: "error",
-            message: "Bloque no encontrado",
+            message: "Bloque no encontrado o no corresponde al destino especificado",
             error: "BLOQUE_NOT_FOUND",
           });
           return;
@@ -393,11 +416,21 @@ class SalidaController {
           return;
         }
       } else {
-        // Para otros destinos, hora es REQUERIDA
+        // Destino SIN bloques configurados - hora es REQUERIDA
         if (!hora) {
           res.status(400).json({
             status: "error",
-            message: "hora es requerida para este destino",
+            message: `hora es requerida para ${destino} (destino sin bloques)`,
+            error: "VALIDATION_ERROR",
+          });
+          return;
+        }
+        
+        // Validar que no se haya enviado bloque_id
+        if (bloque_id) {
+          res.status(400).json({
+            status: "error",
+            message: `${destino} no utiliza bloques horarios. Use el campo 'hora' en su lugar.`,
             error: "VALIDATION_ERROR",
           });
           return;
@@ -419,8 +452,8 @@ class SalidaController {
         prestador_id,
         embarcacion_id,
         destino,
-        bloque_id: destino === "Isla de Lobos" ? bloque_id : null,
-        hora: destino !== "Isla de Lobos" ? hora : null,
+        bloque_id: bloque_id || null,  // Usar bloque_id si existe, null si no
+        hora: hora || null,           // Usar hora si existe, null si no
         fecha: SalidaController.normalizarFechaParaGuardar(fecha),
         numero_pasajeros,
         observaciones,

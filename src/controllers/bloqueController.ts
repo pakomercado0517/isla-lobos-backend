@@ -23,11 +23,11 @@ class BloqueController {
   /**
    * Obtener bloques disponibles con capacidad
    * Crea bloques dinámicamente para la fecha si no existen
-   * GET /api/bloques?fecha=YYYY-MM-DD
+   * GET /api/bloques?fecha=YYYY-MM-DD&destino=DESTINO_OPCIONAL
    */
   static async getAllBloques(req: Request, res: Response): Promise<void> {
     try {
-      const { fecha } = req.query;
+      const { fecha, destino } = req.query;
 
       // Validar que la fecha sea requerida
       if (!fecha) {
@@ -70,13 +70,13 @@ class BloqueController {
         return;
       }
 
-      // Crear bloques para la fecha si no existen
-      await BloqueController.crearBloquesParaFecha(fechaSolicitada);
+      // Crear bloques para la fecha si no existen (para todos los destinos que tienen plantillas)
+      await BloqueController.crearBloquesParaFecha(fechaSolicitada, destino as string);
 
       // Obtener bloques con capacidad calculada y embarcaciones ocupadas
       const prestadorId = (req as any).user?.id;
       const bloquesConCapacidad =
-        await BloqueController.obtenerBloquesConCapacidad(fechaSolicitada);
+        await BloqueController.obtenerBloquesConCapacidad(fechaSolicitada, destino as string);
 
       // Obtener embarcaciones ocupadas por bloque para el prestador autenticado
       const bloquesConEmbarcaciones = await Promise.all(
@@ -181,7 +181,8 @@ class BloqueController {
           capacidad_registrada,
           capacidad_disponible,
           estado: estado_actual,
-          fecha: BloqueController.extraerSoloFecha(bloque.fecha),
+          destino: bloque.destino,
+          fecha: BloqueController.extraerSoloFecha(bloque.fecha), // Puede ser null para plantillas
           created_at: bloque.created_at,
           updated_at: bloque.updated_at,
         };
@@ -220,51 +221,81 @@ class BloqueController {
         hora_inicio,
         hora_fin,
         capacidad_total,
+        destino,
         fecha,
         estado = EstadoBloque.ACTIVO,
       } = req.body;
 
-      // Validar que la fecha no sea en el pasado
-      const fechaBloque = new Date(fecha);
-      const hoy = getCurrentMexicoTime();
-      hoy.setHours(0, 0, 0, 0);
+      // Validar fecha solo si se proporciona (bloques con fecha vs plantillas)
+      let fechaBloque = null;
+      if (fecha) {
+        fechaBloque = new Date(fecha);
+        const hoy = getCurrentMexicoTime();
+        hoy.setHours(0, 0, 0, 0);
 
-      if (fechaBloque < hoy) {
-        res.status(400).json({
-          status: "error",
-          message: "No se puede crear un bloque para una fecha pasada",
-          error: "INVALID_DATE",
-        });
-        return;
+        if (fechaBloque < hoy) {
+          res.status(400).json({
+            status: "error",
+            message: "No se puede crear un bloque para una fecha pasada",
+            error: "INVALID_DATE",
+          });
+          return;
+        }
       }
 
-      // Validar que no exista un bloque con el mismo nombre y fecha
+      // Validar unicidad: nombre + destino + fecha (o plantilla si no hay fecha)
+      const whereCondition: any = {
+        nombre,
+        destino,
+      };
+      
+      if (fechaBloque) {
+        whereCondition.fecha = fechaBloque;
+        whereCondition.es_plantilla = false;
+      } else {
+        // Para plantillas, verificar que no exista otra plantilla con mismo nombre y destino
+        whereCondition.fecha = null;
+        whereCondition.es_plantilla = true;
+      }
+      
       const bloqueExistente = await Bloque.findOne({
-        where: {
-          nombre,
-          fecha: fechaBloque,
-        },
+        where: whereCondition,
       });
 
       if (bloqueExistente) {
+        const mensaje = fechaBloque 
+          ? "Ya existe un bloque con ese nombre para esa fecha y destino"
+          : "Ya existe una plantilla de bloque con ese nombre y destino";
+        
         res.status(409).json({
           status: "error",
-          message: "Ya existe un bloque con ese nombre para esa fecha",
+          message: mensaje,
           error: "BLOQUE_ALREADY_EXISTS",
         });
         return;
       }
 
+      // El estado ya no determina si es plantilla, usamos es_plantilla
+      let estadoFinal = estado;
+      
       // Crear el bloque
-      const nuevoBloque = await Bloque.create({
+      const datosBloque: any = {
         nombre,
         hora_inicio,
         hora_fin,
         capacidad_total,
         capacidad_registrada: 0,
-        estado,
-        fecha: fechaBloque,
-      });
+        estado: estadoFinal,
+        destino,
+        es_plantilla: !fechaBloque, // true si no hay fecha, false si hay fecha
+      };
+      
+      // Solo agregar fecha si se proporciona
+      if (fechaBloque) {
+        datosBloque.fecha = fechaBloque;
+      }
+      
+      const nuevoBloque = await Bloque.create(datosBloque);
 
       // Formatear fecha para respuesta
       const bloqueFormateado = BloqueController.formatearBloqueParaRespuesta(
@@ -293,7 +324,7 @@ class BloqueController {
   static async updateBloque(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { nombre, hora_inicio, hora_fin, capacidad_total, estado, fecha } =
+      const { nombre, hora_inicio, hora_fin, capacidad_total, estado, destino, fecha } =
         req.body;
 
       const bloque = await Bloque.findByPk(id);
@@ -323,11 +354,12 @@ class BloqueController {
         }
       }
 
-      // Validar que no exista otro bloque con el mismo nombre y fecha
-      if (nombre && fecha) {
+      // Validar que no exista otro bloque con el mismo nombre, destino y fecha
+      if ((nombre || destino) && fecha) {
         const bloqueExistente = await Bloque.findOne({
           where: {
-            nombre,
+            nombre: nombre || bloque.nombre,
+            destino: destino || bloque.destino,
             fecha: new Date(fecha),
             id: { [Op.ne]: id },
           },
@@ -336,7 +368,7 @@ class BloqueController {
         if (bloqueExistente) {
           res.status(409).json({
             status: "error",
-            message: "Ya existe otro bloque con ese nombre para esa fecha",
+            message: "Ya existe otro bloque con ese nombre para esa fecha y destino",
             error: "BLOQUE_ALREADY_EXISTS",
           });
           return;
@@ -350,6 +382,7 @@ class BloqueController {
         ...(hora_fin && { hora_fin }),
         ...(capacidad_total && { capacidad_total }),
         ...(estado && { estado }),
+        ...(destino && { destino }),
         ...(fecha && { fecha: new Date(fecha) }),
       });
 
@@ -541,8 +574,10 @@ class BloqueController {
    * Extrae solo la parte de fecha (YYYY-MM-DD) recortando el string
    * NO usa zona horaria - simplemente recorta el string ISO
    * Ejemplo: "2025-10-10T06:00:00.000Z" -> "2025-10-10"
+   * Para plantillas (fecha null/undefined) devuelve null
    */
-  private static extraerSoloFecha(fecha: Date | string): string {
+  private static extraerSoloFecha(fecha: Date | string | null | undefined): string | null {
+    if (!fecha) return null; // 🆕 Manejar null/undefined
     const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
     const partes = fechaString.split("T");
     return partes[0] || fechaString.substring(0, 10);
@@ -564,27 +599,42 @@ class BloqueController {
   /**
    * Método auxiliar: Crear bloques para una fecha específica desde las plantillas
    * @param fecha - Fecha para la cual crear los bloques
+   * @param destino - Destino específico (opcional, si no se proporciona crea para todos)
    */
-  private static async crearBloquesParaFecha(fecha: Date): Promise<void> {
+  private static async crearBloquesParaFecha(fecha: Date, destino?: string): Promise<void> {
     try {
       // Normalizar la fecha para evitar problemas de zona horaria
       const fechaNormalizada = BloqueController.normalizarFecha(fecha);
 
-      // Verificar si ya existen bloques para esta fecha
+      // Construir filtros de búsqueda
+      const whereExistentes: any = { fecha: fechaNormalizada };
+      if (destino) {
+        whereExistentes.destino = destino;
+      }
+
+      // Verificar si ya existen bloques para esta fecha (y destino si se especifica)
       const bloquesExistentes = await Bloque.count({
-        where: { fecha: fechaNormalizada },
+        where: whereExistentes,
       });
 
       // Si no existen bloques para esta fecha, crear desde plantillas
       if (bloquesExistentes === 0) {
+        const wherePlantillas: any = { 
+          es_plantilla: true,
+          estado: EstadoBloque.ACTIVO  // Solo plantillas activas
+        };
+        if (destino) {
+          wherePlantillas.destino = destino;
+        }
+
         const plantillas = await Bloque.findAll({
-          where: { estado: EstadoBloque.PLANTILLA },
+          where: wherePlantillas,
           order: [["hora_inicio", "ASC"]],
         });
 
         if (plantillas.length === 0) {
           throw new Error(
-            "No se encontraron plantillas de bloques. Contacte al administrador."
+            "No se encontraron plantillas activas de bloques para el destino especificado. Contacte al administrador."
           );
         }
 
@@ -598,6 +648,8 @@ class BloqueController {
             capacidad_total: plantilla.capacidad_total,
             capacidad_registrada: 0,
             estado: EstadoBloque.ACTIVO,
+            destino: plantilla.destino,
+            es_plantilla: false,  // Bloque específico para la fecha
             fecha: fechaNormalizada,
           });
         }
@@ -611,16 +663,26 @@ class BloqueController {
   /**
    * Método auxiliar: Obtener bloques con capacidad calculada para una fecha
    * @param fecha - Fecha para la cual obtener los bloques
+   * @param destino - Destino específico (opcional)
    * @returns Array de bloques con capacidad calculada
    */
-  private static async obtenerBloquesConCapacidad(fecha: Date): Promise<any[]> {
+  private static async obtenerBloquesConCapacidad(fecha: Date, destino?: string): Promise<any[]> {
     try {
       // Normalizar la fecha para evitar problemas de zona horaria
       const fechaNormalizada = BloqueController.normalizarFecha(fecha);
 
-      // Obtener bloques existentes para la fecha
+      // Construir filtros de búsqueda
+      const whereBloquesExistentes: any = { 
+        fecha: fechaNormalizada,
+        es_plantilla: false  // Solo bloques específicos de la fecha
+      };
+      if (destino) {
+        whereBloquesExistentes.destino = destino;
+      }
+
+      // Obtener bloques existentes para la fecha (y destino si se especifica)
       const bloquesExistentes = await Bloque.findAll({
-        where: { fecha: fechaNormalizada },
+        where: whereBloquesExistentes,
         order: [["hora_inicio", "ASC"]],
       });
 
@@ -667,6 +729,7 @@ class BloqueController {
             capacidad_registrada,
             capacidad_disponible: bloque.capacidad_total - capacidad_registrada,
             estado: estado_actual,
+            destino: bloque.destino,
             fecha: fecha.toISOString().split("T")[0], // Formato YYYY-MM-DD
             created_at: bloque.created_at,
             updated_at: bloque.updated_at,

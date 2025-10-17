@@ -6,7 +6,7 @@ async function crearPlantillas() {
 
     // Verificar si ya existen plantillas
     const plantillasExistentes = await Bloque.count({
-      where: { fecha: null },
+      where: { es_plantilla: true },
     });
 
     if (plantillasExistentes > 0) {
@@ -16,7 +16,7 @@ async function crearPlantillas() {
       return;
     }
 
-    // Crear las plantillas con IDs fijos
+    // Crear las plantillas con IDs fijos para Isla de Lobos
     const plantillas = [
       {
         id: "11111111-1111-1111-1111-111111111111",
@@ -25,27 +25,33 @@ async function crearPlantillas() {
         hora_fin: "10:00:00",
         capacidad_total: 65,
         capacidad_registrada: 0,
-        estado: "plantilla",
+        estado: "activo",
+        destino: "Isla de Lobos",
+        es_plantilla: true,
         fecha: null,
       },
       {
         id: "22222222-2222-2222-2222-222222222222",
-        nombre: "Bloque Mediodía",
-        hora_inicio: "11:00:00",
-        hora_fin: "13:00:00",
+        nombre: "Bloque Intermedio", // Cambié nombre para consistencia
+        hora_inicio: "10:00:00", // Cambié horarios para que coincidan con seeders
+        hora_fin: "12:00:00",
         capacidad_total: 65,
         capacidad_registrada: 0,
-        estado: "plantilla",
+        estado: "activo",
+        destino: "Isla de Lobos",
+        es_plantilla: true,
         fecha: null,
       },
       {
         id: "33333333-3333-3333-3333-333333333333",
         nombre: "Bloque Vespertino",
-        hora_inicio: "14:00:00",
-        hora_fin: "16:00:00",
+        hora_inicio: "12:00:00", // Cambié horarios para que coincidan con seeders
+        hora_fin: "14:00:00",
         capacidad_total: 65,
         capacidad_registrada: 0,
-        estado: "plantilla",
+        estado: "activo",
+        destino: "Isla de Lobos",
+        es_plantilla: true,
         fecha: null,
       },
     ];
@@ -61,7 +67,7 @@ async function crearPlantillas() {
 
     // Verificar que se crearon correctamente
     const plantillasCreadas = await Bloque.findAll({
-      where: { fecha: null },
+      where: { es_plantilla: true },
       order: [["hora_inicio", "ASC"]],
     });
 

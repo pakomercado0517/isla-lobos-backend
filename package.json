@@ -37,6 +37,8 @@
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
@@ -59,6 +61,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.19",
+    "@types/date-fns": "^2.6.3",
     "@types/express": "^5.0.3",
     "@types/express-validator": "^3.0.2",
     "@types/jsonwebtoken": "^9.0.10",
