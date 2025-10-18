@@ -339,23 +339,24 @@ class DashboardController {
         }
 
         const dia = ocupacionPorDia.get(fecha);
+        const capacidadTotal = bloque.capacidad_total || 0;
         dia.bloques.push({
           id: bloque.id,
           nombre: bloque.nombre,
           hora_inicio: bloque.hora_inicio,
           hora_fin: bloque.hora_fin,
-          capacidad_total: bloque.capacidad_total,
+          capacidad_total: capacidadTotal,
           capacidad_registrada: bloque.capacidad_registrada,
           estado: bloque.estado,
           porcentaje_ocupacion:
-            bloque.capacidad_total > 0
+            capacidadTotal > 0
               ? Math.round(
-                  (bloque.capacidad_registrada / bloque.capacidad_total) * 100
+                  (bloque.capacidad_registrada / capacidadTotal) * 100
                 )
               : 0,
         });
 
-        dia.total_capacidad += bloque.capacidad_total;
+        dia.total_capacidad += capacidadTotal;
         dia.total_ocupados += bloque.capacidad_registrada;
       });
 
@@ -378,11 +379,13 @@ class DashboardController {
           bloques.length > 0
             ? Math.round(
                 bloques.reduce(
-                  (sum, b) =>
-                    sum +
-                    (b.capacidad_total > 0
-                      ? (b.capacidad_registrada / b.capacidad_total) * 100
-                      : 0),
+                  (sum, b) => {
+                    const capacidadTotal = b.capacidad_total || 0;
+                    return sum +
+                    (capacidadTotal > 0
+                      ? (b.capacidad_registrada / capacidadTotal) * 100
+                      : 0);
+                  },
                   0
                 ) / bloques.length
               )

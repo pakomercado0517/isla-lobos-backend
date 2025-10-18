@@ -213,8 +213,8 @@ export const getMonthNameMexico = (date: Date): string => {
 
 /**
  * Extrae solo la fecha (YYYY-MM-DD) de cualquier input de fecha
- * COMPATIBLE con método existente en controladores
- * MEJORADO: Usa date-fns para manejo preciso de zona horaria
+ * CON CONVERSIÓN de zona horaria a México
+ * Úsalo cuando necesites la fecha en zona horaria de México
  */
 export const extraerSoloFecha = (fecha: Date | string | null | undefined): string | null | undefined => {
   if (!fecha) return fecha as null | undefined;
@@ -237,6 +237,36 @@ export const extraerSoloFecha = (fecha: Date | string | null | undefined): strin
     return formatInTimeZone(dateObj, MEXICO_TIMEZONE, 'yyyy-MM-dd');
   } catch (error) {
     console.error('Error al extraer fecha:', error);
+    return null;
+  }
+};
+
+/**
+ * Extrae solo la fecha (YYYY-MM-DD) SIN conversión de zona horaria
+ * Úsalo para validaciones donde necesitas la fecha "cruda" como se almacenó
+ * Ejemplo: 2025-10-18T00:00:00.000Z → "2025-10-18"
+ */
+export const extraerSoloFechaUTC = (fecha: Date | string | null | undefined): string | null | undefined => {
+  if (!fecha) return fecha as null | undefined;
+  
+  try {
+    let fechaString: string;
+    
+    if (typeof fecha === 'string') {
+      // Si ya está en formato YYYY-MM-DD, devolverlo tal cual
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        return fecha;
+      }
+      fechaString = fecha;
+    } else {
+      fechaString = fecha.toISOString();
+    }
+    
+    // Extraer solo la parte de fecha sin conversión de zona horaria
+    const partes = fechaString.split("T");
+    return partes[0] || fechaString.substring(0, 10);
+  } catch (error) {
+    console.error('Error al extraer fecha UTC:', error);
     return null;
   }
 };

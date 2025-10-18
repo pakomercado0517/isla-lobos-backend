@@ -10,15 +10,16 @@ import {
 // Atributos requeridos para crear un bloque
 interface BloqueAttributes {
   id: string;
-  nombre: string;
-  hora_inicio: string;
-  hora_fin: string;
-  capacidad_total: number;
+  nombre?: string;           // NULL cuando es_plantilla=true (datos vienen de PlantillaBloque)
+  hora_inicio?: string;      // NULL cuando es_plantilla=true
+  hora_fin?: string;         // NULL cuando es_plantilla=true  
+  capacidad_total?: number;  // NULL cuando es_plantilla=true
   capacidad_registrada: number;
   estado: EstadoBloque;
-  destino: string;
-  es_plantilla: boolean; // true = plantilla para todos los días, false = bloque específico
-  fecha?: Date; // null si es_plantilla = true, obligatorio si es_plantilla = false
+  destino?: string;          // NULL cuando es_plantilla=true
+  es_plantilla: boolean;     // true = plantilla, false = bloque normal
+  plantilla_id?: string;     // FK a PlantillaBloque cuando es_plantilla=true
+  fecha?: Date;              // null si es_plantilla = true, obligatorio si es_plantilla = false
 }
 
 // Atributos opcionales (para actualizaciones)
@@ -33,29 +34,36 @@ class Bloque
   implements BloqueAttributes
 {
   public id!: string;
-  public nombre!: string;
-  public hora_inicio!: string;
-  public hora_fin!: string;
-  public capacidad_total!: number;
+  public nombre?: string;           // Opcional para plantillas
+  public hora_inicio?: string;      // Opcional para plantillas  
+  public hora_fin?: string;         // Opcional para plantillas
+  public capacidad_total?: number;  // Opcional para plantillas
   public capacidad_registrada!: number;
   public estado!: EstadoBloque;
-  public destino!: string;
+  public destino?: string;          // Opcional para plantillas
   public es_plantilla!: boolean;
+  public plantilla_id?: string;     // FK a PlantillaBloque
   public fecha?: Date;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 
+  // Asociaciones
+  public PlantillaBloque?: any; // Relación con PlantillaBloque
+
   // Métodos de instancia
   public get capacidad_disponible(): number {
-    return this.capacidad_total - this.capacidad_registrada;
+    const capacidadTotal = this.capacidad_total || 0;
+    return capacidadTotal - this.capacidad_registrada;
   }
 
   public get esta_lleno(): boolean {
-    return this.capacidad_registrada >= this.capacidad_total;
+    const capacidadTotal = this.capacidad_total || 0;
+    return this.capacidad_registrada >= capacidadTotal;
   }
 
   public get porcentaje_ocupacion(): number {
-    return Math.round((this.capacidad_registrada / this.capacidad_total) * 100);
+    const capacidadTotal = this.capacidad_total || 0;
+    return capacidadTotal > 0 ? Math.round((this.capacidad_registrada / capacidadTotal) * 100) : 0;
   }
 
   public get es_hoy(): boolean {
@@ -88,29 +96,22 @@ Bloque.init(
     },
     nombre: {
       type: DataTypes.STRING(50),
-      allowNull: false,
+      allowNull: true, // NULL cuando es_plantilla=true
       validate: {
-        notEmpty: true,
         len: [2, 50],
       },
     },
     hora_inicio: {
       type: DataTypes.TIME,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      allowNull: true, // NULL cuando es_plantilla=true
     },
     hora_fin: {
       type: DataTypes.TIME,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      allowNull: true, // NULL cuando es_plantilla=true
     },
     capacidad_total: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true, // NULL cuando es_plantilla=true
       validate: {
         min: 1,
         max: 150,
@@ -131,10 +132,9 @@ Bloque.init(
     },
     destino: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true, // NULL cuando es_plantilla=true
       defaultValue: "Isla de Lobos",
       validate: {
-        notEmpty: true,
         isIn: [
           [
             "Isla de Lobos",
@@ -150,7 +150,16 @@ Bloque.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      comment: "true = plantilla para todos los días, false = bloque específico"
+      comment: "true = plantilla que referencia PlantillaBloque, false = bloque normal con datos propios"
+    },
+    plantilla_id: {
+      type: DataTypes.UUID,
+      allowNull: true, // NULL cuando es_plantilla=false
+      references: {
+        model: 'plantillas_bloque',
+        key: 'id',
+      },
+      comment: "FK a PlantillaBloque cuando es_plantilla=true"
     },
     fecha: {
       type: DataTypes.DATEONLY,
@@ -197,7 +206,9 @@ Bloque.init(
     validate: {
       // Validación personalizada para asegurar que hora_fin > hora_inicio
       horaFinMayorQueInicio(this: Bloque) {
-        if (this.getDataValue("hora_fin") <= this.getDataValue("hora_inicio")) {
+        const horaFin = this.getDataValue("hora_fin");
+        const horaInicio = this.getDataValue("hora_inicio");
+        if (horaFin && horaInicio && horaFin <= horaInicio) {
           throw new Error(
             "La hora de fin debe ser mayor que la hora de inicio"
           );
@@ -205,9 +216,9 @@ Bloque.init(
       },
       // Validación para asegurar que capacidad_registrada <= capacidad_total
       capacidadValida(this: Bloque) {
-        if (
-          this.getDataValue("capacidad_registrada") >
-          this.getDataValue("capacidad_total")
+        const capacidadTotal = this.getDataValue("capacidad_total");
+        if (capacidadTotal && 
+          this.getDataValue("capacidad_registrada") > capacidadTotal
         ) {
           throw new Error(
             "La capacidad registrada no puede ser mayor que la capacidad total"

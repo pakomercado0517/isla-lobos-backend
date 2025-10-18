@@ -5,6 +5,7 @@ import { dbLogger } from "../utils/logger";
 import User from "./User";
 import Embarcacion from "./Embarcacion";
 import Bloque from "./Bloque";
+import PlantillaBloque from "./PlantillaBloque";
 import Salida from "./Salida";
 import CondicionMeteorologica from "./CondicionMeteorologica";
 import Invitacion from "./Invitacion";
@@ -56,6 +57,17 @@ Bloque.hasMany(Salida, {
 Salida.belongsTo(Bloque, {
   foreignKey: "bloque_id",
   as: "bloque",
+});
+
+// Relación PlantillaBloque -> Bloque (1:N) - Plantillas pueden tener muchos bloques derivados
+PlantillaBloque.hasMany(Bloque, {
+  foreignKey: "plantilla_id",
+  as: "bloques_derivados",
+});
+
+Bloque.belongsTo(PlantillaBloque, {
+  foreignKey: "plantilla_id",
+  as: "plantillaBloque",
 });
 
 // Relación User -> Invitacion (1:N) - Usuario que crea la invitación
@@ -130,6 +142,7 @@ export {
   User,
   Embarcacion,
   Bloque,
+  PlantillaBloque,
   Salida,
   CondicionMeteorologica,
   Invitacion,

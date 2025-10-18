@@ -2,6 +2,7 @@ import { Router } from "express";
 import authRoutes from "./authRoutes";
 import userRoutes from "./userRoutes";
 import bloqueRoutes from "./bloqueRoutes";
+import plantillaBloqueRoutes from "./plantillaBloqueRoutes";
 import embarcacionRoutes from "./embarcacionRoutes";
 import salidaRoutes from "./salidaRoutes";
 import climaRoutes from "./climaRoutes";
@@ -32,6 +33,9 @@ router.use("/usuarios", userRoutes);
 
 // Rutas de bloques
 router.use("/bloques", bloqueRoutes);
+
+// Rutas de plantillas de bloques
+router.use("/plantillas-bloque", plantillaBloqueRoutes);
 
 // Rutas de embarcaciones
 router.use("/embarcaciones", embarcacionRoutes);

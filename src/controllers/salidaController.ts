@@ -3,6 +3,7 @@ import Salida from "../models/Salida";
 import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
+import PlantillaBloque from "../models/PlantillaBloque";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
 
@@ -341,20 +342,28 @@ class SalidaController {
       // Verificar si el destino tiene bloques configurados
       const fechaSalida = new Date(fecha);
       fechaSalida.setHours(0, 0, 0, 0);
-      
-      const bloquesDisponiblesParaDestino = await Bloque.count({
+
+      // Verificar si hay plantillas activas para el destino
+      const plantillasDisponibles = await PlantillaBloque.count({
         where: {
           destino,
-          [Op.or]: [
-            { es_plantilla: true }, // Plantillas disponibles
-            { 
-              fecha: fechaSalida,
-              estado: { [Op.ne]: EstadoBloque.INACTIVO }
-            }
-          ]
+          activa: true,
         },
       });
-      
+
+      // Verificar si hay bloques específicos para la fecha
+      const bloquesEspecificos = await Bloque.count({
+        where: {
+          destino,
+          fecha: fechaSalida,
+          es_plantilla: false,
+          estado: { [Op.ne]: EstadoBloque.INACTIVO },
+        },
+      });
+
+      const bloquesDisponiblesParaDestino =
+        plantillasDisponibles + bloquesEspecificos;
+
       if (bloquesDisponiblesParaDestino > 0) {
         // Destino CON bloques configurados - bloque_id es REQUERIDO
         if (!bloque_id) {
@@ -370,14 +379,15 @@ class SalidaController {
         const bloque = await Bloque.findOne({
           where: {
             id: bloque_id,
-            destino: destino
-          }
+            destino: destino,
+          },
         });
-        
+
         if (!bloque) {
           res.status(404).json({
             status: "error",
-            message: "Bloque no encontrado o no corresponde al destino especificado",
+            message:
+              "Bloque no encontrado o no corresponde al destino especificado",
             error: "BLOQUE_NOT_FOUND",
           });
           return;
@@ -405,7 +415,8 @@ class SalidaController {
             },
           })) || 0;
 
-        const capacidad_disponible = bloque.capacidad_total - salidas_en_bloque;
+        const capacidad_disponible =
+          (bloque.capacidad_total || 0) - salidas_en_bloque;
 
         if (capacidad_disponible < numero_pasajeros) {
           res.status(400).json({
@@ -425,7 +436,7 @@ class SalidaController {
           });
           return;
         }
-        
+
         // Validar que no se haya enviado bloque_id
         if (bloque_id) {
           res.status(400).json({
@@ -452,8 +463,8 @@ class SalidaController {
         prestador_id,
         embarcacion_id,
         destino,
-        bloque_id: bloque_id || null,  // Usar bloque_id si existe, null si no
-        hora: hora || null,           // Usar hora si existe, null si no
+        bloque_id: bloque_id || null, // Usar bloque_id si existe, null si no
+        hora: hora || null, // Usar hora si existe, null si no
         fecha: SalidaController.normalizarFechaParaGuardar(fecha),
         numero_pasajeros,
         observaciones,
@@ -630,7 +641,7 @@ class SalidaController {
 
         // Calcular capacidad disponible (restando la capacidad actual de esta salida)
         const capacidadDisponible =
-          bloqueActual.capacidad_total -
+          (bloqueActual.capacidad_total || 0) -
           (bloqueActual.capacidad_registrada - salida.numero_pasajeros);
 
         if (numero_pasajeros > capacidadDisponible) {
