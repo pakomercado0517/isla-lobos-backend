@@ -62,6 +62,12 @@ class EmailService {
         tls: {
           rejectUnauthorized: false, // Permite certificados autofirmados
         },
+        // Configuraciones optimizadas para producción
+        connectionTimeout:
+          process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
+        greetingTimeout:
+          process.env["NODE_ENV"] === "production" ? 30000 : 5000, // 30s en prod, 5s en dev
+        socketTimeout: process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
       });
 
       this.fromEmail = user;
@@ -748,28 +754,69 @@ class EmailService {
   }
 
   /**
-   * Verifica la conexión con el servidor SMTP
+   * Verifica la conexión con el servidor SMTP con manejo optimizado para producción
    */
   public async verificarConexion(): Promise<{
     success: boolean;
     error?: string;
+    codigo?: string;
   }> {
     if (!this.isReady()) {
       return { success: false, error: "Servicio no configurado" };
     }
 
     try {
-      await this.transporter!.verify();
+      // Timeout específico para verificación en producción
+      const timeoutMs =
+        process.env["NODE_ENV"] === "production" ? 30000 : 10000;
+
+      const verifyPromise = this.transporter!.verify();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Timeout de verificación SMTP")),
+          timeoutMs
+        );
+      });
+
+      await Promise.race([verifyPromise, timeoutPromise]);
+
       logger.info("✅ Conexión SMTP verificada correctamente");
       return { success: true };
     } catch (error) {
-      logger.error({ error }, "❌ Error al verificar conexión SMTP");
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      const errorCode =
+        error instanceof Error && "code" in error
+          ? (error as any).code
+          : "UNKNOWN";
+
+      logger.error(
+        {
+          error: errorMessage,
+          code: errorCode,
+          environment: process.env["NODE_ENV"],
+        },
+        "❌ Error al verificar conexión SMTP"
+      );
+
+      // Mensajes de error más específicos para producción
+      let mensajeUsuario = errorMessage;
+
+      if (errorCode === "ECONNECTION") {
+        mensajeUsuario =
+          "Error de conectividad de red. Verificar firewall y DNS.";
+      } else if (errorCode === "ETIMEDOUT") {
+        mensajeUsuario = "Timeout de conexión. El servidor SMTP no responde.";
+      } else if (errorCode === "EAUTH") {
+        mensajeUsuario = "Error de autenticación. Verificar credenciales.";
+      } else if (errorCode === "ENOTFOUND") {
+        mensajeUsuario = "Servidor SMTP no encontrado. Verificar DNS.";
+      }
+
       return {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Error al verificar conexión",
+        error: mensajeUsuario,
+        codigo: errorCode,
       };
     }
   }
