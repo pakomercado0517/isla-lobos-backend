@@ -28,7 +28,7 @@ class EmailController {
       const isReady = emailService.isReady();
 
       if (isReady) {
-        // Verificar conexión SMTP
+        // Verificar conexión OAuth2
         const conexion = await emailService.verificarConexion();
 
         res.status(200).json({
@@ -39,7 +39,7 @@ class EmailController {
           data: {
             configurado: isReady,
             conectado: conexion.success,
-            proveedor: "Nodemailer",
+            proveedor: "Gmail SMTP",
             error: conexion.error,
           },
         });
@@ -50,7 +50,7 @@ class EmailController {
           data: {
             configurado: false,
             conectado: false,
-            proveedor: "Nodemailer",
+            proveedor: "Gmail SMTP",
           },
         });
       }
@@ -179,8 +179,13 @@ class EmailController {
     res: Response
   ): Promise<void> {
     try {
-      const { estado_puerto, oleaje, viento_velocidad, mensaje_adicional, fecha } =
-        req.body;
+      const {
+        estado_puerto,
+        oleaje,
+        viento_velocidad,
+        mensaje_adicional,
+        fecha,
+      } = req.body;
 
       logger.info({ estado_puerto }, "Enviando alerta de clima por email");
 
@@ -453,4 +458,3 @@ class EmailController {
 }
 
 export default EmailController;
-

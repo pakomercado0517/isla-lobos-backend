@@ -580,6 +580,7 @@ export enum TipoEmail {
   REGISTRO_EXITOSO = "registro_exitoso",
   INVITACION = "invitacion",
   NOTIFICACION_GENERAL = "notificacion_general",
+  RECORDATORIO_GENERICO = "recordatorio_generico",
 }
 
 // Configuración de Nodemailer

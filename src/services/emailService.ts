@@ -32,54 +32,98 @@ class EmailService {
   }
 
   /**
-   * Inicializa el transportador de Nodemailer con las credenciales del .env
+   * Inicializa el transportador de Nodemailer con contraseña de aplicación
    */
   private initialize(): void {
     try {
+      // Intentar primero con contraseña de aplicación (más simple)
       const host = process.env["NODEMAILER_HOST"];
       const port = process.env["NODEMAILER_PORT"];
       const user = process.env["NODEMAILER_USER"];
       const pass = process.env["NODEMAILER_PASS"];
 
-      if (!host || !port || !user || !pass) {
-        logger.warn(
-          "Credenciales de Nodemailer no configuradas. El servicio de email estará deshabilitado."
+      if (host && port && user && pass) {
+        // Usar contraseña de aplicación
+        const portNumber = parseInt(port);
+
+        this.transporter = nodemailer.createTransport({
+          host,
+          port: portNumber,
+          secure: portNumber === 465, // true para 465, false para otros puertos
+          auth: {
+            user,
+            pass,
+          },
+          tls: {
+            rejectUnauthorized: process.env["NODE_ENV"] === "production", // false en dev, true en prod
+          },
+          // Configuraciones optimizadas para producción
+          connectionTimeout:
+            process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
+          greetingTimeout:
+            process.env["NODE_ENV"] === "production" ? 30000 : 5000, // 30s en prod, 5s en dev
+          socketTimeout:
+            process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
+        });
+
+        this.fromEmail = user;
+        this.isConfigured = true;
+
+        logger.info(
+          "✅ Servicio de Email (Nodemailer App Password) inicializado correctamente"
         );
-        this.isConfigured = false;
+        logger.debug(
+          { host, port: portNumber, from: user },
+          "Configuración de email con contraseña de aplicación"
+        );
         return;
       }
 
-      const portNumber = parseInt(port);
+      // Fallback a OAuth2 si no hay configuración de contraseña de aplicación
+      const clientId = process.env["GOOGLE_CLIENT_ID"];
+      const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
+      const refreshToken = process.env["GOOGLE_REFRESH_TOKEN"];
+      const gmailUser = process.env["GMAIL_USER"];
 
-      this.transporter = nodemailer.createTransport({
-        host,
-        port: portNumber,
-        secure: portNumber === 465, // true para 465, false para otros puertos
-        auth: {
-          user,
-          pass,
-        },
-        tls: {
-          rejectUnauthorized: false, // Permite certificados autofirmados
-        },
-        // Configuraciones optimizadas para producción
-        connectionTimeout:
-          process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
-        greetingTimeout:
-          process.env["NODE_ENV"] === "production" ? 30000 : 5000, // 30s en prod, 5s en dev
-        socketTimeout: process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
-      });
+      if (clientId && clientSecret && refreshToken && gmailUser) {
+        this.transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            type: "OAuth2",
+            user: gmailUser,
+            clientId,
+            clientSecret,
+            refreshToken,
+          },
+          tls: {
+            rejectUnauthorized: process.env["NODE_ENV"] === "production",
+          },
+          connectionTimeout:
+            process.env["NODE_ENV"] === "production" ? 60000 : 10000,
+          greetingTimeout:
+            process.env["NODE_ENV"] === "production" ? 30000 : 5000,
+          socketTimeout:
+            process.env["NODE_ENV"] === "production" ? 60000 : 10000,
+        });
 
-      this.fromEmail = user;
-      this.isConfigured = true;
+        this.fromEmail = gmailUser;
+        this.isConfigured = true;
 
-      logger.info(
-        "✅ Servicio de Email (Nodemailer) inicializado correctamente"
+        logger.info(
+          "✅ Servicio de Email (Nodemailer OAuth2) inicializado correctamente"
+        );
+        logger.debug(
+          { service: "gmail", from: gmailUser },
+          "Configuración de email con OAuth2"
+        );
+        return;
+      }
+
+      // Si no hay ninguna configuración
+      logger.warn(
+        "Credenciales de email no configuradas. El servicio de email estará deshabilitado."
       );
-      logger.debug(
-        { host, port: portNumber, from: user },
-        "Configuración de email"
-      );
+      this.isConfigured = false;
     } catch (error) {
       logger.error({ error }, "Error al inicializar servicio de email");
       this.isConfigured = false;
@@ -780,7 +824,7 @@ class EmailService {
 
       await Promise.race([verifyPromise, timeoutPromise]);
 
-      logger.info("✅ Conexión SMTP verificada correctamente");
+      logger.info("✅ Conexión SMTP con Gmail verificada correctamente");
       return { success: true };
     } catch (error) {
       const errorMessage =
@@ -796,7 +840,7 @@ class EmailService {
           code: errorCode,
           environment: process.env["NODE_ENV"],
         },
-        "❌ Error al verificar conexión SMTP"
+        "❌ Error al verificar conexión SMTP con Gmail"
       );
 
       // Mensajes de error más específicos para producción
@@ -806,11 +850,16 @@ class EmailService {
         mensajeUsuario =
           "Error de conectividad de red. Verificar firewall y DNS.";
       } else if (errorCode === "ETIMEDOUT") {
-        mensajeUsuario = "Timeout de conexión. El servidor SMTP no responde.";
+        mensajeUsuario = "Timeout de conexión. Gmail no responde.";
       } else if (errorCode === "EAUTH") {
-        mensajeUsuario = "Error de autenticación. Verificar credenciales.";
+        mensajeUsuario =
+          "Error de autenticación. Verificar credenciales y contraseña de aplicación.";
       } else if (errorCode === "ENOTFOUND") {
-        mensajeUsuario = "Servidor SMTP no encontrado. Verificar DNS.";
+        mensajeUsuario = "Servidor Gmail no encontrado. Verificar DNS.";
+      } else if (errorMessage.includes("invalid_grant")) {
+        mensajeUsuario = "Refresh token expirado. Regenerar token OAuth2.";
+      } else if (errorMessage.includes("invalid_client")) {
+        mensajeUsuario = "Client ID o Client Secret inválidos.";
       }
 
       return {
