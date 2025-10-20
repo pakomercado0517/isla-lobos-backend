@@ -478,6 +478,72 @@ class UserController {
   }
 
   /**
+   * Eliminación permanente de usuario (hard delete)
+   */
+  static async hardDeleteUser(req: Request, res: Response): Promise<void> {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        const firstError = errors.array()[0];
+        const response: ApiResponse = {
+          status: "error",
+          message: firstError?.msg || "Errores de validación",
+          error: "VALIDATION_ERROR",
+          data: { errors: errors.array() },
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const { userId } = req.params;
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        const response: ApiResponse = {
+          status: "error",
+          message: "Usuario no encontrado",
+          error: "USER_NOT_FOUND",
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      // Verificar si el usuario tiene registros relacionados
+      // Aquí podrías agregar validaciones adicionales si es necesario
+      // Por ejemplo, verificar si tiene salidas, brazaletes asignados, etc.
+
+      // Eliminación permanente del usuario
+      await user.destroy();
+
+      const response: ApiResponse = {
+        status: "success",
+        message: "Usuario eliminado permanentemente del sistema",
+        data: {
+          deleted_user: {
+            id: userId,
+            nombre: user.nombre,
+            email: user.email,
+            eliminado_en: new Date().toISOString(),
+          },
+        },
+      };
+
+      res.status(200).json(response);
+    } catch (error) {
+      logger.error(
+        { err: error, userId: req.params["userId"] },
+        "Error eliminando usuario permanentemente"
+      );
+      const response: ApiResponse = {
+        status: "error",
+        message: "Error interno del servidor",
+        error: "INTERNAL_SERVER_ERROR",
+      };
+      res.status(500).json(response);
+    }
+  }
+
+  /**
    * Obtener estadísticas de usuarios
    */
   static async getUserStats(_req: Request, res: Response): Promise<void> {

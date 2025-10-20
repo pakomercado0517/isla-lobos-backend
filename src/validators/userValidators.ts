@@ -145,3 +145,17 @@ export const updateProfileValidation = [
 export const getUserStatsValidation = [
   // No se requieren validaciones específicas para estadísticas
 ];
+
+// Validación para eliminación permanente de usuario
+export const hardDeleteUserValidation = [
+  param("userId")
+    .isUUID()
+    .withMessage("El ID del usuario debe ser un UUID válido"),
+  body("confirmacion")
+    .notEmpty()
+    .withMessage("El campo confirmacion es requerido")
+    .equals("ELIMINAR PERMANENTEMENTE")
+    .withMessage(
+      "Debe confirmar la eliminación permanente escribiendo 'ELIMINAR PERMANENTEMENTE'"
+    ),
+];

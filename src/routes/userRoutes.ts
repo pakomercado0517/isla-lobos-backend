@@ -18,6 +18,7 @@ import {
   activateUserValidation,
   updateProfileValidation,
   getUserStatsValidation,
+  hardDeleteUserValidation,
 } from "../validators/userValidators";
 
 const router = Router();
@@ -83,6 +84,14 @@ router.patch(
   activateUserValidation,
   handleValidationErrors,
   UserController.activateUser
+);
+
+router.delete(
+  "/:userId/permanent",
+  requireCONANP,
+  hardDeleteUserValidation,
+  handleValidationErrors,
+  UserController.hardDeleteUser
 );
 
 // Rutas para perfil personal (todos los usuarios autenticados)
