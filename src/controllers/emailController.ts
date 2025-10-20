@@ -28,8 +28,17 @@ class EmailController {
       const isReady = emailService.isReady();
 
       if (isReady) {
-        // Verificar conexión OAuth2
+        // Verificar conexión SMTP
         const conexion = await emailService.verificarConexion();
+
+        // Determinar el proveedor basado en las variables de entorno
+        const host = process.env["NODEMAILER_HOST"];
+        const proveedor = host?.includes("sendgrid")
+          ? "SendGrid SMTP"
+          : "SMTP Configurado";
+
+        // Obtener información del from address
+        const fromInfo = emailService.getFromAddressInfo();
 
         res.status(200).json({
           status: "success",
@@ -39,8 +48,16 @@ class EmailController {
           data: {
             configurado: isReady,
             conectado: conexion.success,
-            proveedor: "Gmail SMTP",
+            proveedor: proveedor,
             error: conexion.error,
+            host: host || "No configurado",
+            fromAddress: {
+              email: fromInfo.fromEmail,
+              requiresVerification: fromInfo.requiresVerification,
+              note: fromInfo.requiresVerification
+                ? "Este email debe estar verificado en SendGrid"
+                : "Usando email de autenticación SMTP",
+            },
           },
         });
       } else {
@@ -50,7 +67,7 @@ class EmailController {
           data: {
             configurado: false,
             conectado: false,
-            proveedor: "Gmail SMTP",
+            proveedor: "SendGrid SMTP",
           },
         });
       }
@@ -71,7 +88,23 @@ class EmailController {
     try {
       const { email, asunto, mensaje, tipo, html } = req.body;
 
-      logger.info({ email, tipo, asunto }, "Enviando email individual");
+      logger.info(
+        { email, tipo, asunto, mensaje: mensaje?.substring(0, 50) },
+        "Enviando email individual"
+      );
+
+      // Debug: Verificar que el servicio esté listo
+      const isReady = emailService.isReady();
+      logger.info({ isReady }, "Estado del servicio de email");
+
+      if (!isReady) {
+        res.status(500).json({
+          status: "error",
+          message: "Servicio de email no está configurado",
+          debug: { isReady },
+        });
+        return;
+      }
 
       const resultado = await emailService.enviarEmail(
         email,
@@ -97,10 +130,23 @@ class EmailController {
         });
       }
     } catch (error) {
-      logger.error({ error }, "Error al enviar email");
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined,
+          body: req.body,
+        },
+        "Error al enviar email"
+      );
+
       res.status(500).json({
         status: "error",
         message: "Error al procesar solicitud de email",
+        error: error instanceof Error ? error.message : "Error desconocido",
+        debug: {
+          isReady: emailService.isReady(),
+          body: req.body,
+        },
       });
     }
   }

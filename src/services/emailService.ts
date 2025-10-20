@@ -24,7 +24,7 @@ const logger = createLogger("EmailService");
  */
 class EmailService {
   private transporter: nodemailer.Transporter | null = null;
-  private fromEmail: string = "";
+  private fromEmail: string | null = null;
   private isConfigured: boolean = false;
 
   constructor() {
@@ -32,18 +32,26 @@ class EmailService {
   }
 
   /**
-   * Inicializa el transportador de Nodemailer con contraseña de aplicación
+   * Inicializa el transportador de Nodemailer con configuración SendGrid
    */
   private initialize(): void {
     try {
-      // Intentar primero con contraseña de aplicación (más simple)
       const host = process.env["NODEMAILER_HOST"];
       const port = process.env["NODEMAILER_PORT"];
       const user = process.env["NODEMAILER_USER"];
       const pass = process.env["NODEMAILER_PASS"];
 
+      logger.info(
+        {
+          host: host ? `${host.substring(0, 10)}...` : "undefined",
+          port: port || "undefined",
+          user: user ? `${user.substring(0, 10)}...` : "undefined",
+          pass: pass ? "***configurado***" : "undefined",
+        },
+        "🔍 Verificando variables de entorno SendGrid SMTP"
+      );
+
       if (host && port && user && pass) {
-        // Usar contraseña de aplicación
         const portNumber = parseInt(port);
 
         this.transporter = nodemailer.createTransport({
@@ -55,73 +63,50 @@ class EmailService {
             pass,
           },
           tls: {
-            rejectUnauthorized: process.env["NODE_ENV"] === "production", // false en dev, true en prod
+            rejectUnauthorized: false, // SendGrid requiere esto
+            ciphers: "SSLv3",
           },
-          // Configuraciones optimizadas para producción
-          connectionTimeout:
-            process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
-          greetingTimeout:
-            process.env["NODE_ENV"] === "production" ? 30000 : 5000, // 30s en prod, 5s en dev
-          socketTimeout:
-            process.env["NODE_ENV"] === "production" ? 60000 : 10000, // 60s en prod, 10s en dev
+          // Configuraciones optimizadas para SendGrid
+          connectionTimeout: 30000, // 30s para SendGrid
+          greetingTimeout: 15000, // 15s para SendGrid
+          socketTimeout: 30000, // 30s para SendGrid
+          pool: true,
+          maxConnections: 5, // SendGrid permite más conexiones
+          maxMessages: 100,
+          rateDelta: 1000, // 1s entre emails (SendGrid es más rápido)
+          rateLimit: 100, // SendGrid permite más emails por minuto
         });
 
-        this.fromEmail = user;
+        // Usar email verificado en SendGrid como remitente
+        // Si NODEMAILER_USER es "apikey", usar SENDGRID_FROM_EMAIL obligatoriamente
+        this.fromEmail =
+          process.env["SENDGRID_FROM_EMAIL"] ||
+          (user === "apikey" ? null : user);
+
+        // Validar que tenemos un from email válido
+        if (!this.fromEmail) {
+          logger.error(
+            "SENDGRID_FROM_EMAIL no configurado. Es requerido cuando NODEMAILER_USER es 'apikey'"
+          );
+          this.isConfigured = false;
+          return;
+        }
+
         this.isConfigured = true;
 
         logger.info(
-          "✅ Servicio de Email (Nodemailer App Password) inicializado correctamente"
+          "✅ Servicio de Email (SendGrid SMTP) inicializado correctamente"
         );
         logger.debug(
-          { host, port: portNumber, from: user },
-          "Configuración de email con contraseña de aplicación"
+          { host, port: portNumber, from: this.fromEmail },
+          "Configuración de email con SendGrid SMTP"
         );
         return;
       }
 
-      // Fallback a OAuth2 si no hay configuración de contraseña de aplicación
-      const clientId = process.env["GOOGLE_CLIENT_ID"];
-      const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-      const refreshToken = process.env["GOOGLE_REFRESH_TOKEN"];
-      const gmailUser = process.env["GMAIL_USER"];
-
-      if (clientId && clientSecret && refreshToken && gmailUser) {
-        this.transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            type: "OAuth2",
-            user: gmailUser,
-            clientId,
-            clientSecret,
-            refreshToken,
-          },
-          tls: {
-            rejectUnauthorized: process.env["NODE_ENV"] === "production",
-          },
-          connectionTimeout:
-            process.env["NODE_ENV"] === "production" ? 60000 : 10000,
-          greetingTimeout:
-            process.env["NODE_ENV"] === "production" ? 30000 : 5000,
-          socketTimeout:
-            process.env["NODE_ENV"] === "production" ? 60000 : 10000,
-        });
-
-        this.fromEmail = gmailUser;
-        this.isConfigured = true;
-
-        logger.info(
-          "✅ Servicio de Email (Nodemailer OAuth2) inicializado correctamente"
-        );
-        logger.debug(
-          { service: "gmail", from: gmailUser },
-          "Configuración de email con OAuth2"
-        );
-        return;
-      }
-
-      // Si no hay ninguna configuración
+      // Si no hay configuración
       logger.warn(
-        "Credenciales de email no configuradas. El servicio de email estará deshabilitado."
+        "Variables NODEMAILER_* no configuradas. El servicio de email estará deshabilitado."
       );
       this.isConfigured = false;
     } catch (error) {
@@ -135,6 +120,21 @@ class EmailService {
    */
   public isReady(): boolean {
     return this.isConfigured && this.transporter !== null;
+  }
+
+  /**
+   * Obtiene información sobre la configuración del from address
+   */
+  public getFromAddressInfo(): {
+    fromEmail: string | null;
+    isConfigured: boolean;
+    requiresVerification: boolean;
+  } {
+    return {
+      fromEmail: this.fromEmail,
+      isConfigured: this.isConfigured,
+      requiresVerification: this.fromEmail !== process.env["NODEMAILER_USER"],
+    };
   }
 
   /**
@@ -187,6 +187,17 @@ class EmailService {
 
     try {
       logger.info({ email, tipo, asunto }, "📧 Enviando email");
+
+      if (!this.fromEmail) {
+        logger.error("From email no configurado");
+        return {
+          success: false,
+          email,
+          estado: EstadoNotificacion.FALLIDO,
+          fecha_envio: new Date(),
+          error: "From email no configurado",
+        };
+      }
 
       const mailOptions = {
         from: `"CONANP - Isla Lobos" <${this.fromEmail}>`,
@@ -824,7 +835,7 @@ class EmailService {
 
       await Promise.race([verifyPromise, timeoutPromise]);
 
-      logger.info("✅ Conexión SMTP con Gmail verificada correctamente");
+      logger.info("✅ Conexión SMTP con SendGrid verificada correctamente");
       return { success: true };
     } catch (error) {
       const errorMessage =
@@ -840,7 +851,7 @@ class EmailService {
           code: errorCode,
           environment: process.env["NODE_ENV"],
         },
-        "❌ Error al verificar conexión SMTP con Gmail"
+        "❌ Error al verificar conexión SMTP con SendGrid"
       );
 
       // Mensajes de error más específicos para producción
@@ -850,16 +861,12 @@ class EmailService {
         mensajeUsuario =
           "Error de conectividad de red. Verificar firewall y DNS.";
       } else if (errorCode === "ETIMEDOUT") {
-        mensajeUsuario = "Timeout de conexión. Gmail no responde.";
+        mensajeUsuario = "Timeout de conexión. SendGrid no responde.";
       } else if (errorCode === "EAUTH") {
         mensajeUsuario =
-          "Error de autenticación. Verificar credenciales y contraseña de aplicación.";
+          "Error de autenticación. Verificar credenciales de SendGrid.";
       } else if (errorCode === "ENOTFOUND") {
-        mensajeUsuario = "Servidor Gmail no encontrado. Verificar DNS.";
-      } else if (errorMessage.includes("invalid_grant")) {
-        mensajeUsuario = "Refresh token expirado. Regenerar token OAuth2.";
-      } else if (errorMessage.includes("invalid_client")) {
-        mensajeUsuario = "Client ID o Client Secret inválidos.";
+        mensajeUsuario = "Servidor SendGrid no encontrado. Verificar DNS.";
       }
 
       return {
