@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import { createLogger } from "../utils/logger";
 import {
   TipoEmail,
@@ -19,11 +19,10 @@ import {
 const logger = createLogger("EmailService");
 
 /**
- * Servicio para gestionar el envío de correos electrónicos a través de Nodemailer
+ * Servicio para gestionar el envío de correos electrónicos a través de SendGrid Web API
  * Maneja notificaciones, alertas y mensajes automáticos del sistema
  */
 class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
   private fromEmail: string | null = null;
   private isConfigured: boolean = false;
 
@@ -32,85 +31,45 @@ class EmailService {
   }
 
   /**
-   * Inicializa el transportador de Nodemailer con configuración SendGrid
+   * Inicializa SendGrid Web API
    */
   private initialize(): void {
     try {
-      const host = process.env["NODEMAILER_HOST"];
-      const port = process.env["NODEMAILER_PORT"];
-      const user = process.env["NODEMAILER_USER"];
-      const pass = process.env["NODEMAILER_PASS"];
+      const apiKey = process.env["SENDGRID_API_KEY"];
+      const fromEmail = process.env["SENDGRID_FROM_EMAIL"];
 
       logger.info(
         {
-          host: host ? `${host.substring(0, 10)}...` : "undefined",
-          port: port || "undefined",
-          user: user ? `${user.substring(0, 10)}...` : "undefined",
-          pass: pass ? "***configurado***" : "undefined",
+          apiKey: apiKey ? "***configurado***" : "undefined",
+          fromEmail: fromEmail || "undefined",
         },
-        "🔍 Verificando variables de entorno SendGrid SMTP"
+        "🔍 Verificando variables de entorno SendGrid Web API"
       );
 
-      if (host && port && user && pass) {
-        const portNumber = parseInt(port);
-
-        this.transporter = nodemailer.createTransport({
-          host,
-          port: portNumber,
-          secure: portNumber === 465, // true para 465, false para otros puertos
-          auth: {
-            user,
-            pass,
-          },
-          tls: {
-            rejectUnauthorized: false, // SendGrid requiere esto
-            ciphers: "SSLv3",
-          },
-          // Configuraciones optimizadas para SendGrid
-          connectionTimeout: 30000, // 30s para SendGrid
-          greetingTimeout: 15000, // 15s para SendGrid
-          socketTimeout: 30000, // 30s para SendGrid
-          pool: true,
-          maxConnections: 5, // SendGrid permite más conexiones
-          maxMessages: 100,
-          rateDelta: 1000, // 1s entre emails (SendGrid es más rápido)
-          rateLimit: 100, // SendGrid permite más emails por minuto
-        });
-
-        // Usar email verificado en SendGrid como remitente
-        // Si NODEMAILER_USER es "apikey", usar SENDGRID_FROM_EMAIL obligatoriamente
-        this.fromEmail =
-          process.env["SENDGRID_FROM_EMAIL"] ||
-          (user === "apikey" ? null : user);
-
-        // Validar que tenemos un from email válido
-        if (!this.fromEmail) {
-          logger.error(
-            "SENDGRID_FROM_EMAIL no configurado. Es requerido cuando NODEMAILER_USER es 'apikey'"
-          );
-          this.isConfigured = false;
-          return;
-        }
-
-        this.isConfigured = true;
-
-        logger.info(
-          "✅ Servicio de Email (SendGrid SMTP) inicializado correctamente"
+      if (!apiKey || !fromEmail) {
+        logger.warn(
+          "SendGrid API Key o From Email no configurados. El servicio de email estará deshabilitado."
         );
-        logger.debug(
-          { host, port: portNumber, from: this.fromEmail },
-          "Configuración de email con SendGrid SMTP"
-        );
+        this.isConfigured = false;
         return;
       }
 
-      // Si no hay configuración
-      logger.warn(
-        "Variables NODEMAILER_* no configuradas. El servicio de email estará deshabilitado."
+      // Configurar SendGrid Web API
+      sgMail.setApiKey(apiKey);
+      this.fromEmail = fromEmail;
+      this.isConfigured = true;
+
+      logger.info("✅ SendGrid Web API inicializado correctamente");
+      logger.info(
+        {
+          from: this.fromEmail,
+          environment: process.env["NODE_ENV"] || "development",
+          provider: "SendGrid Web API",
+        },
+        "Configuración de email con SendGrid Web API"
       );
-      this.isConfigured = false;
     } catch (error) {
-      logger.error({ error }, "Error al inicializar servicio de email");
+      logger.error({ error }, "Error al inicializar SendGrid Web API");
       this.isConfigured = false;
     }
   }
@@ -119,7 +78,7 @@ class EmailService {
    * Verifica si el servicio está configurado y listo para usar
    */
   public isReady(): boolean {
-    return this.isConfigured && this.transporter !== null;
+    return this.isConfigured;
   }
 
   /**
@@ -148,7 +107,7 @@ class EmailService {
   }
 
   /**
-   * Envía un correo electrónico
+   * Envía un correo electrónico usando SendGrid Web API
    * @param email - Email del destinatario
    * @param asunto - Asunto del correo
    * @param mensaje - Contenido del mensaje (texto plano o HTML)
@@ -186,7 +145,10 @@ class EmailService {
     }
 
     try {
-      logger.info({ email, tipo, asunto }, "📧 Enviando email");
+      logger.info(
+        { email, tipo, asunto },
+        "📧 Enviando email via SendGrid API"
+      );
 
       if (!this.fromEmail) {
         logger.error("From email no configurado");
@@ -199,39 +161,43 @@ class EmailService {
         };
       }
 
-      const mailOptions = {
-        from: `"CONANP - Isla Lobos" <${this.fromEmail}>`,
+      const msg = {
         to: email,
+        from: `"CONANP - Isla Lobos" <${this.fromEmail}>`,
         subject: asunto,
         ...(html ? { html: mensaje } : { text: mensaje }),
       };
 
-      const info = await this.transporter!.sendMail(mailOptions);
+      const response = await sgMail.send(msg);
 
       logger.info(
-        { messageId: info.messageId, accepted: info.accepted },
-        "✅ Email enviado exitosamente"
+        {
+          statusCode: response[0].statusCode,
+          messageId: response[0].headers["x-message-id"],
+          email,
+        },
+        "✅ Email enviado exitosamente via SendGrid API"
       );
 
       return {
         success: true,
-        message_id: info.messageId,
+        message_id: response[0].headers["x-message-id"],
         email,
         estado: EstadoNotificacion.ENVIADO,
         fecha_envio: new Date(),
       };
     } catch (error) {
-      logger.error({ error, email, tipo }, "❌ Error al enviar email");
+      logger.error(
+        { error, email, tipo },
+        "❌ Error al enviar email via SendGrid API"
+      );
 
       return {
         success: false,
         email,
         estado: EstadoNotificacion.FALLIDO,
         fecha_envio: new Date(),
-        error:
-          error instanceof Error
-            ? error.message
-            : "Error desconocido al enviar email",
+        error: error instanceof Error ? error.message : "Error desconocido",
       };
     }
   }
@@ -809,7 +775,7 @@ class EmailService {
   }
 
   /**
-   * Verifica la conexión con el servidor SMTP con manejo optimizado para producción
+   * Verifica la conexión con SendGrid Web API
    */
   public async verificarConexion(): Promise<{
     success: boolean;
@@ -821,58 +787,47 @@ class EmailService {
     }
 
     try {
-      // Timeout específico para verificación en producción
-      const timeoutMs =
-        process.env["NODE_ENV"] === "production" ? 30000 : 10000;
+      // Enviar un email de prueba para verificar la conexión
+      const testMsg = {
+        to: "test@example.com", // Email de prueba
+        from: this.fromEmail!,
+        subject: "Test de conexión SendGrid API",
+        text: "Este es un email de prueba para verificar la conexión.",
+      };
 
-      const verifyPromise = this.transporter!.verify();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(
-          () => reject(new Error("Timeout de verificación SMTP")),
-          timeoutMs
-        );
-      });
+      // Solo verificar que la API key es válida sin enviar realmente
+      await sgMail.send(testMsg);
 
-      await Promise.race([verifyPromise, timeoutPromise]);
-
-      logger.info("✅ Conexión SMTP con SendGrid verificada correctamente");
+      logger.info("✅ Conexión con SendGrid Web API verificada correctamente");
       return { success: true };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Error desconocido";
-      const errorCode =
-        error instanceof Error && "code" in error
-          ? (error as any).code
-          : "UNKNOWN";
 
       logger.error(
         {
           error: errorMessage,
-          code: errorCode,
           environment: process.env["NODE_ENV"],
         },
-        "❌ Error al verificar conexión SMTP con SendGrid"
+        "❌ Error al verificar conexión con SendGrid Web API"
       );
 
-      // Mensajes de error más específicos para producción
+      // Mensajes de error específicos para SendGrid API
       let mensajeUsuario = errorMessage;
 
-      if (errorCode === "ECONNECTION") {
+      if (errorMessage.includes("401")) {
         mensajeUsuario =
-          "Error de conectividad de red. Verificar firewall y DNS.";
-      } else if (errorCode === "ETIMEDOUT") {
-        mensajeUsuario = "Timeout de conexión. SendGrid no responde.";
-      } else if (errorCode === "EAUTH") {
-        mensajeUsuario =
-          "Error de autenticación. Verificar credenciales de SendGrid.";
-      } else if (errorCode === "ENOTFOUND") {
-        mensajeUsuario = "Servidor SendGrid no encontrado. Verificar DNS.";
+          "Error de autenticación. Verificar API key de SendGrid.";
+      } else if (errorMessage.includes("403")) {
+        mensajeUsuario = "Acceso denegado. Verificar permisos de la API key.";
+      } else if (errorMessage.includes("timeout")) {
+        mensajeUsuario = "Timeout de conexión. Verificar conectividad de red.";
       }
 
       return {
         success: false,
         error: mensajeUsuario,
-        codigo: errorCode,
+        codigo: "SENDGRID_API_ERROR",
       };
     }
   }
