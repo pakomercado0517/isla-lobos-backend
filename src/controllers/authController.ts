@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import bcrypt from "bcryptjs";
 import { randomUUID, randomBytes } from "crypto";
+import RefreshToken from "../models/RefreshToken";
 import { validationResult } from "express-validator";
 import User from "../models/User";
 import Invitacion from "../models/Invitacion";
@@ -10,6 +12,8 @@ import {
   AuthResponse,
   ApiResponse,
   UserRole,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
 } from "../types";
 import { createLogger } from "../utils/logger";
 
@@ -18,11 +22,26 @@ const jwt = require("jsonwebtoken");
 const logger = createLogger("AuthController");
 
 // Helper function para generar tokens JWT
-const generateJWT = (payload: any): string => {
+const generateAccessToken = (payload: any): string => {
   const secret = process.env["JWT_SECRET"] || "fallback-secret";
-  const expiresIn = process.env["JWT_EXPIRES_IN"] || "24h";
+  const expiresIn = process.env["JWT_EXPIRES_IN"] || "15m"; // Token de acceso de corta duración
 
   return jwt.sign(payload, secret, { expiresIn });
+};
+
+const generateRefreshToken = async (userId: string): Promise<string> => {
+  const token = randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7); // 7 días de validez
+
+  await RefreshToken.create({
+    token,
+    userId,
+    expiresAt,
+    isRevoked: false,
+  });
+
+  return token;
 };
 
 /**
@@ -113,13 +132,15 @@ class AuthController {
         return;
       }
 
-      // Generar token JWT
-      const token = generateJWT({
+      // Generar tokens
+      const accessToken = generateAccessToken({
         id: user.id,
         email: user.email,
         rol: user.rol,
         nombre: user.nombre,
       });
+
+      const refreshToken = await generateRefreshToken(user.id);
 
       // Respuesta exitosa
       const userFormateado = AuthController.formatearUsuarioParaRespuesta(
@@ -130,7 +151,8 @@ class AuthController {
         message: "Inicio de sesión exitoso",
         data: {
           user: userFormateado as any,
-          token,
+          accessToken,
+          refreshToken,
         },
       };
 
@@ -246,13 +268,15 @@ class AuthController {
 
       const newUser = await User.create(userData);
 
-      // Generar token JWT
-      const token = generateJWT({
+      // Generar tokens
+      const accessToken = generateAccessToken({
         id: newUser.id,
         email: newUser.email,
         rol: newUser.rol,
         nombre: newUser.nombre,
       });
+
+      const refreshToken = await generateRefreshToken(newUser.id);
 
       // Respuesta exitosa
       const userFormateado = AuthController.formatearUsuarioParaRespuesta(
@@ -263,7 +287,8 @@ class AuthController {
         message: "Usuario registrado exitosamente",
         data: {
           user: userFormateado as any,
-          token,
+          accessToken,
+          refreshToken,
         },
       };
 
@@ -326,44 +351,59 @@ class AuthController {
   }
 
   /**
-   * Renovar token JWT
+   * Renovar token JWT usando refresh token
    * POST /api/auth/refresh
    */
   public async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user;
+      const { refreshToken } = req.body as RefreshTokenRequest;
 
-      if (!user) {
-        res.status(401).json({
+      if (!refreshToken) {
+        res.status(400).json({
           status: "error",
-          message: "Usuario no autenticado",
+          message: "Refresh token requerido",
         } as ApiResponse);
         return;
       }
 
-      // Verificar que el usuario sigue activo
-      const dbUser = await User.findByPk(user.id);
-      if (!dbUser || !dbUser.activo) {
-        res.status(401).json({
-          status: "error",
-          message: "Usuario no encontrado o inactivo",
-        } as ApiResponse);
-        return;
-      }
-
-      // Generar nuevo token
-      const newToken = generateJWT({
-        id: dbUser.id,
-        email: dbUser.email,
-        rol: dbUser.rol,
-        nombre: dbUser.nombre,
+      // Buscar el refresh token en la base de datos
+      const tokenDoc = await RefreshToken.findOne({
+        where: {
+          token: refreshToken,
+          isRevoked: false,
+          expiresAt: {
+            [Op.gt]: new Date(), // Verificar que no haya expirado
+          },
+        },
+        include: [
+          {
+            model: User,
+            as: "user",
+          },
+        ],
       });
 
-      const response: ApiResponse<{ token: string }> = {
+      if (!tokenDoc || !tokenDoc.user || !tokenDoc.user.activo) {
+        res.status(401).json({
+          status: "error",
+          message: "Refresh token inválido o expirado",
+        } as ApiResponse);
+        return;
+      }
+
+      // Generar nuevo access token
+      const accessToken = generateAccessToken({
+        id: tokenDoc.user.id,
+        email: tokenDoc.user.email,
+        rol: tokenDoc.user.rol,
+        nombre: tokenDoc.user.nombre,
+      });
+
+      const response: ApiResponse<RefreshTokenResponse> = {
         status: "success",
         message: "Token renovado exitosamente",
         data: {
-          token: newToken,
+          accessToken,
         },
       };
 
@@ -378,13 +418,32 @@ class AuthController {
   }
 
   /**
-   * Cerrar sesión (invalidar token)
+   * Cerrar sesión (revocar refresh token)
    * POST /api/auth/logout
    */
-  public async logout(_req: Request, res: Response): Promise<void> {
+  public async logout(req: Request, res: Response): Promise<void> {
     try {
-      // En un sistema más avanzado, aquí podrías agregar el token a una lista negra
-      // Por ahora, simplemente confirmamos que la sesión se cerró
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        res.status(400).json({
+          status: "error",
+          message: "Refresh token requerido",
+        } as ApiResponse);
+        return;
+      }
+
+      // Revocar el refresh token
+      await RefreshToken.update(
+        { isRevoked: true },
+        {
+          where: {
+            token: refreshToken,
+            isRevoked: false,
+          },
+        }
+      );
+
       const response: ApiResponse = {
         status: "success",
         message: "Sesión cerrada exitosamente",
@@ -392,7 +451,7 @@ class AuthController {
 
       res.status(200).json(response);
     } catch (error) {
-      logger.error({ err: error, userId: _req.user?.id }, "Error en logout");
+      logger.error({ err: error, userId: req.user?.id }, "Error en logout");
       res.status(500).json({
         status: "error",
         message: "Error interno del servidor",
