@@ -176,9 +176,37 @@ export interface RegisterRequest {
   codigo_invitacion?: string;
 }
 
+export interface RefreshToken {
+  id: string;
+  token: string;
+  userId: string;
+  expiresAt: Date;
+  isRevoked: boolean;
+  created_at: Date;
+  updated_at: Date;
+  user?: User;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+}
+
 export interface AuthResponse {
   user: Omit<User, "password">;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
 }
 
 // Tipos para dashboard
