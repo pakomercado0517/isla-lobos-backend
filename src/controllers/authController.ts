@@ -14,8 +14,10 @@ import {
   UserRole,
   RefreshTokenRequest,
   RefreshTokenResponse,
+  EmailRecuperacionPasswordData,
 } from "../types";
 import { createLogger } from "../utils/logger";
+import emailService from "../services/emailService";
 
 // Importar jsonwebtoken usando require para evitar problemas de tipos
 const jwt = require("jsonwebtoken");
@@ -640,11 +642,49 @@ class AuthController {
         passwordResetExpires: resetExpires,
       });
 
-      // TODO: Aquí se enviaría el email con el enlace de recuperación
-      // En producción, aquí se enviaría un email con el enlace:
-      // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-      // await sendPasswordResetEmail(user.email, user.nombre, resetUrl);
+      // Construir URL de reset
+      const frontendUrl = process.env["FRONTEND_URL"];
+      if (!frontendUrl) {
+        logger.error(
+          "FRONTEND_URL no está configurado en variables de entorno"
+        );
+        res.status(500).json({
+          status: "error",
+          message: "Error en la configuración del servidor",
+        } as ApiResponse);
+        return;
+      }
 
+      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+      // Preparar datos para el email
+      const emailData: EmailRecuperacionPasswordData = {
+        nombre_usuario: user.nombre,
+        token: resetToken,
+        url_reset: resetUrl,
+        expiracion_minutos: 15,
+      };
+
+      // Enviar email de recuperación
+      const emailResult = await emailService.enviarRecuperacionPassword(
+        user.email,
+        emailData
+      );
+
+      if (!emailResult.success) {
+        logger.error(
+          { error: emailResult.error, email: user.email },
+          "Error al enviar email de recuperación de contraseña"
+        );
+      } else {
+        logger.info(
+          { email: user.email },
+          "Email de recuperación de contraseña enviado exitosamente"
+        );
+      }
+
+      // Por seguridad, siempre devolvemos el mismo mensaje de éxito
+      // independientemente de si el email se envió o no
       res.status(200).json(response);
     } catch (error) {
       logger.error(
