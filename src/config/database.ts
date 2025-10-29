@@ -44,7 +44,7 @@ export const testConnection = async (): Promise<void> => {
 export const syncDatabase = async (): Promise<void> => {
   try {
     if (process.env["NODE_ENV"] === "development") {
-      await sequelize.sync({ force: false });
+      await sequelize.sync({ alter: true, force: false });
       dbLogger.info("🔄 Base de datos sincronizada correctamente");
     }
   } catch (error) {
