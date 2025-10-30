@@ -61,6 +61,7 @@ export const validateUserId = async (
 
 /**
  * Middleware para verificar el token JWT
+ * Lee el token desde cookies (prioridad) o Authorization header (fallback)
  */
 export const authenticateToken = async (
   req: Request,
@@ -68,8 +69,13 @@ export const authenticateToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    // Leer token desde cookies (prioridad) o header Authorization (fallback)
+    let token = req.cookies?.["accessToken"];
+    
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    }
 
     if (!token) {
       res.status(401).json({
@@ -200,6 +206,7 @@ export const authMiddleware = authenticateToken;
 
 /**
  * Middleware opcional para autenticación (no falla si no hay token)
+ * Lee el token desde cookies (prioridad) o Authorization header (fallback)
  */
 export const optionalAuth = async (
   req: Request,
@@ -207,8 +214,13 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1];
+    // Leer token desde cookies (prioridad) o header Authorization (fallback)
+    let token = req.cookies?.["accessToken"];
+    
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      token = authHeader && authHeader.split(" ")[1];
+    }
 
     if (token) {
       const decoded = jwt.verify(

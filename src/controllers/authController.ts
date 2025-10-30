@@ -12,7 +12,6 @@ import {
   AuthResponse,
   ApiResponse,
   UserRole,
-  RefreshTokenRequest,
   RefreshTokenResponse,
   EmailRecuperacionPasswordData,
 } from "../types";
@@ -22,6 +21,21 @@ import emailService from "../services/emailService";
 // Importar jsonwebtoken usando require para evitar problemas de tipos
 const jwt = require("jsonwebtoken");
 const logger = createLogger("AuthController");
+
+// Configuración de cookies
+const COOKIE_OPTIONS = {
+  httpOnly: true, // No accesible desde JavaScript (protección XSS)
+  secure: process.env["NODE_ENV"] === "production", // Solo HTTPS en producción
+  sameSite: "lax" as const, // Protección CSRF
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
+};
+
+const ACCESS_TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env["NODE_ENV"] === "production",
+  sameSite: "lax" as const,
+  maxAge: 15 * 60 * 1000, // 15 minutos
+};
 
 // Helper function para generar tokens JWT
 const generateAccessToken = (payload: any): string => {
@@ -144,7 +158,11 @@ class AuthController {
 
       const refreshToken = await generateRefreshToken(user.id);
 
-      // Respuesta exitosa
+      // Enviar tokens en cookies httpOnly
+      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+
+      // Respuesta exitosa (sin tokens en el body)
       const userFormateado = AuthController.formatearUsuarioParaRespuesta(
         user.toJSON()
       );
@@ -153,8 +171,8 @@ class AuthController {
         message: "Inicio de sesión exitoso",
         data: {
           user: userFormateado as any,
-          accessToken,
-          refreshToken,
+          accessToken, // Mantener en body para compatibilidad temporal
+          refreshToken, // Mantener en body para compatibilidad temporal
         },
       };
 
@@ -280,7 +298,11 @@ class AuthController {
 
       const refreshToken = await generateRefreshToken(newUser.id);
 
-      // Respuesta exitosa
+      // Enviar tokens en cookies httpOnly
+      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+
+      // Respuesta exitosa (sin tokens en el body)
       const userFormateado = AuthController.formatearUsuarioParaRespuesta(
         newUser.toJSON()
       );
@@ -289,8 +311,8 @@ class AuthController {
         message: "Usuario registrado exitosamente",
         data: {
           user: userFormateado as any,
-          accessToken,
-          refreshToken,
+          accessToken, // Mantener en body para compatibilidad temporal
+          refreshToken, // Mantener en body para compatibilidad temporal
         },
       };
 
@@ -358,7 +380,8 @@ class AuthController {
    */
   public async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      const { refreshToken } = req.body as RefreshTokenRequest;
+      // Leer refresh token desde cookies (prioridad) o body (fallback)
+      const refreshToken = req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
       if (!refreshToken) {
         res.status(400).json({
@@ -401,11 +424,14 @@ class AuthController {
         nombre: tokenDoc.user.nombre,
       });
 
+      // Enviar nuevo access token en cookie
+      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+
       const response: ApiResponse<RefreshTokenResponse> = {
         status: "success",
         message: "Token renovado exitosamente",
         data: {
-          accessToken,
+          accessToken, // Mantener en body para compatibilidad temporal
         },
       };
 
@@ -425,26 +451,25 @@ class AuthController {
    */
   public async logout(req: Request, res: Response): Promise<void> {
     try {
-      const { refreshToken } = req.body;
+      // Leer refresh token desde cookies (prioridad) o body (fallback)
+      const refreshToken = req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
-      if (!refreshToken) {
-        res.status(400).json({
-          status: "error",
-          message: "Refresh token requerido",
-        } as ApiResponse);
-        return;
+      if (refreshToken) {
+        // Revocar el refresh token si existe
+        await RefreshToken.update(
+          { isRevoked: true },
+          {
+            where: {
+              token: refreshToken,
+              isRevoked: false,
+            },
+          }
+        );
       }
 
-      // Revocar el refresh token
-      await RefreshToken.update(
-        { isRevoked: true },
-        {
-          where: {
-            token: refreshToken,
-            isRevoked: false,
-          },
-        }
-      );
+      // Limpiar cookies
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
 
       const response: ApiResponse = {
         status: "success",

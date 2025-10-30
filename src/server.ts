@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { testConnection } from "./config/database";
 import { syncModels } from "./models";
@@ -17,7 +18,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: process.env["CORS_ORIGIN"] || "http://localhost:3000",
-    credentials: true,
+    credentials: true, // Necesario para enviar/recibir cookies
   })
 );
 
@@ -36,6 +37,9 @@ app.use(httpLogger);
 // Middleware para parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// Middleware para cookies
+app.use(cookieParser());
 
 // Función para inicializar la base de datos
 const initializeDatabase = async (): Promise<void> => {
