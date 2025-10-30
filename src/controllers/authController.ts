@@ -384,7 +384,7 @@ class AuthController {
       const refreshToken = req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
       if (!refreshToken) {
-        res.status(400).json({
+        res.status(401).json({
           status: "error",
           message: "Refresh token requerido",
         } as ApiResponse);
