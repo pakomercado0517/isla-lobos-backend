@@ -58,6 +58,14 @@ router.post(
   AuthController.resetPassword
 );
 
+// Ruta pública para renovar token (NO requiere authenticateToken porque el access token estará expirado)
+router.post(
+  "/refresh",
+  refreshTokenValidation,
+  handleValidationErrors,
+  AuthController.refreshToken
+);
+
 // Rutas protegidas (requieren autenticación)
 router.get(
   "/verify",
@@ -65,14 +73,6 @@ router.get(
   verifyTokenValidation,
   handleValidationErrors,
   AuthController.verifyToken
-);
-
-router.post(
-  "/refresh",
-  authenticateToken,
-  refreshTokenValidation,
-  handleValidationErrors,
-  AuthController.refreshToken
 );
 
 router.post(
