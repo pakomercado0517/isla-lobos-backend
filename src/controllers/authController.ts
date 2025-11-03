@@ -34,13 +34,18 @@ const ACCESS_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env["NODE_ENV"] === "production",
   sameSite: "lax" as const,
-  maxAge: 15 * 60 * 1000, // 15 minutos
+  maxAge: process.env["NODE_ENV"] === "production"
+    ? 15 * 60 * 1000 // 15 minutos en producción
+    : 10 * 1000, // 10 segundos en desarrollo para pruebas
 };
 
 // Helper function para generar tokens JWT
 const generateAccessToken = (payload: any): string => {
   const secret = process.env["JWT_SECRET"] || "fallback-secret";
-  const expiresIn = process.env["JWT_EXPIRES_IN"] || "15m"; // Token de acceso de corta duración
+  // Configurar tiempo de expiración según el entorno
+  const expiresIn = process.env["NODE_ENV"] === "production"
+    ? process.env["JWT_EXPIRES_IN"] || "15m" // 15 minutos en producción
+    : "10s"; // 10 segundos en desarrollo para pruebas
 
   return jwt.sign(payload, secret, { expiresIn });
 };

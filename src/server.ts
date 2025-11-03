@@ -28,7 +28,15 @@ const limiter = rateLimit({
   max: 100, // límite de 100 requests por ventana
   message: "Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.",
 });
-app.use(limiter);
+app.use(
+  process.env["NODE_ENV"] === "production"
+    ? limiter
+    : (
+        _req: express.Request,
+        _res: express.Response,
+        next: express.NextFunction
+      ) => next()
+);
 
 // Middleware de logging HTTP - Estilo Morgan Dev
 // Formato: METHOD /path STATUS TIME - SIZE
