@@ -14,11 +14,45 @@ dotenv.config();
 const app = express();
 
 // Middleware de seguridad
-app.use(helmet());
+// Configurar Helmet para permitir cookies cross-domain
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false, // Permitir recursos cross-origin
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Permitir recursos cross-origin
+  })
+);
+
+// Configuración de CORS para producción cross-domain
+const corsOrigin = process.env["CORS_ORIGIN"] || "http://localhost:3000";
+const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim()); // Soporte para múltiples orígenes separados por coma
+
 app.use(
   cors({
-    origin: process.env["CORS_ORIGIN"] || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Permitir requests sin origen (mobile apps, Postman, etc.) solo en desarrollo
+      if (!origin && process.env["NODE_ENV"] !== "production") {
+        return callback(null, true);
+      }
+      // Verificar si el origen está en la lista permitida
+      if (origin && corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else if (origin && process.env["NODE_ENV"] !== "production") {
+        // En desarrollo, permitir cualquier origen
+        callback(null, true);
+      } else {
+        callback(new Error("No permitido por CORS"));
+      }
+    },
     credentials: true, // Necesario para enviar/recibir cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+    exposedHeaders: ["Set-Cookie"], // Exponer headers de cookies para debugging
   })
 );
 

@@ -22,22 +22,29 @@ import emailService from "../services/emailService";
 const jwt = require("jsonwebtoken");
 const logger = createLogger("AuthController");
 
-// Configuración de cookies
+// Configuración de cookies para producción cross-domain
+const isProduction = process.env["NODE_ENV"] === "production";
+
 const COOKIE_OPTIONS = {
   httpOnly: true, // No accesible desde JavaScript (protección XSS)
-  secure: process.env["NODE_ENV"] === "production", // Solo HTTPS en producción
-  sameSite: process.env["NODE_ENV"] === "production" && ("none" as const), // Protección CSRF
+  secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
+  sameSite: (isProduction ? ("none" as const) : ("lax" as const)) as
+    | "none"
+    | "lax", // "none" para cross-domain, "lax" para desarrollo
+  path: "/", // Disponible en todas las rutas del backend
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
 };
 
 const ACCESS_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env["NODE_ENV"] === "production",
-  sameSite: process.env["NODE_ENV"] === "production" && ("none" as const),
-  maxAge:
-    process.env["NODE_ENV"] === "production"
-      ? 15 * 60 * 1000 // 15 minutos en producción
-      : 10 * 1000, // 10 segundos en desarrollo para pruebas
+  secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
+  sameSite: (isProduction ? ("none" as const) : ("lax" as const)) as
+    | "none"
+    | "lax", // "none" para cross-domain, "lax" para desarrollo
+  path: "/", // Disponible en todas las rutas del backend
+  maxAge: isProduction
+    ? 15 * 60 * 1000 // 15 minutos en producción
+    : 10 * 1000, // 10 segundos en desarrollo para pruebas
 };
 
 // Helper function para generar tokens JWT
@@ -391,7 +398,24 @@ class AuthController {
       const refreshToken =
         req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
+      // Logging para debugging en producción
+      logger.info(
+        {
+          hasCookie: !!req.cookies?.["refreshToken"],
+          hasBody: !!req.body?.refreshToken,
+          cookiesCount: req.cookies ? Object.keys(req.cookies).length : 0,
+        },
+        "Intento de renovación de token"
+      );
+
       if (!refreshToken) {
+        logger.warn(
+          {
+            cookies: req.cookies,
+            body: req.body,
+          },
+          "Refresh token no encontrado en cookies ni body"
+        );
         res.status(401).json({
           status: "error",
           message: "Refresh token requerido",
@@ -417,6 +441,13 @@ class AuthController {
       });
 
       if (!tokenDoc || !tokenDoc.user || !tokenDoc.user.activo) {
+        logger.warn(
+          {
+            tokenExists: !!tokenDoc,
+            userActive: tokenDoc?.user?.activo,
+          },
+          "Refresh token inválido o expirado"
+        );
         res.status(401).json({
           status: "error",
           message: "Refresh token inválido o expirado",
@@ -432,8 +463,20 @@ class AuthController {
         nombre: tokenDoc.user.nombre,
       });
 
+      // Re-establecer refresh token en cookie para asegurar persistencia
+      // (mantener el mismo refresh token, no generar uno nuevo)
+      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+
       // Enviar nuevo access token en cookie
       res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+
+      logger.info(
+        {
+          userId: tokenDoc.user.id,
+          email: tokenDoc.user.email,
+        },
+        "Token renovado exitosamente"
+      );
 
       const response: ApiResponse<RefreshTokenResponse> = {
         status: "success",
@@ -476,9 +519,19 @@ class AuthController {
         );
       }
 
-      // Limpiar cookies
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+      // Limpiar cookies con las mismas opciones para asegurar que se borren correctamente
+      res.clearCookie("accessToken", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? ("none" as const) : ("lax" as const),
+        path: "/",
+      });
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? ("none" as const) : ("lax" as const),
+        path: "/",
+      });
 
       const response: ApiResponse = {
         status: "success",
