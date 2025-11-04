@@ -34,15 +34,18 @@ app.use(
         return callback(null, true);
       }
 
+      // Requests sin origen (mismo dominio, herramientas, etc.) - permitir
+      if (!origin) {
+        return callback(null, true);
+      }
+
       // En producción, verificar que el origen esté permitido
-      if (!origin || !allowedOrigins.includes(origin)) {
+      if (!allowedOrigins.includes(origin)) {
         serverLogger.warn(
-          { origin: origin || "sin origen", allowedOrigins },
+          { origin, allowedOrigins },
           "Origen rechazado por CORS"
         );
-        return callback(
-          new Error(`Origen no permitido: ${origin || "sin origen"}`)
-        );
+        return callback(new Error(`Origen no permitido: ${origin}`));
       }
 
       callback(null, true);
