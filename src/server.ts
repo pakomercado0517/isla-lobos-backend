@@ -22,6 +22,11 @@ app.use(
   })
 );
 
+// Configuración de trust proxy para proxies reversos (nginx, load balancers, etc.)
+// Necesario para que express-rate-limit identifique correctamente las IPs de los clientes
+// cuando la aplicación está detrás de un proxy que envía el header X-Forwarded-For
+app.set("trust proxy", true);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
