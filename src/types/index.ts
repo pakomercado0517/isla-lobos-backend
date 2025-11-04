@@ -51,6 +51,7 @@ export enum EstadoEmbarcacion {
   DISPONIBLE = "disponible",
   EN_USO = "en_uso",
   MANTENIMIENTO = "mantenimiento",
+  PENDIENTE_AUTORIZACION = "pendiente_autorizacion",
 }
 
 export interface Bloque {
