@@ -26,26 +26,28 @@ const logger = createLogger("AuthController");
 const COOKIE_OPTIONS = {
   httpOnly: true, // No accesible desde JavaScript (protección XSS)
   secure: process.env["NODE_ENV"] === "production", // Solo HTTPS en producción
-  sameSite: "lax" as const, // Protección CSRF
+  sameSite: process.env["NODE_ENV"] === "production" && ("none" as const), // Protección CSRF
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
 };
 
 const ACCESS_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env["NODE_ENV"] === "production",
-  sameSite: "lax" as const,
-  maxAge: process.env["NODE_ENV"] === "production"
-    ? 15 * 60 * 1000 // 15 minutos en producción
-    : 10 * 1000, // 10 segundos en desarrollo para pruebas
+  sameSite: process.env["NODE_ENV"] === "production" && ("none" as const),
+  maxAge:
+    process.env["NODE_ENV"] === "production"
+      ? 15 * 60 * 1000 // 15 minutos en producción
+      : 10 * 1000, // 10 segundos en desarrollo para pruebas
 };
 
 // Helper function para generar tokens JWT
 const generateAccessToken = (payload: any): string => {
   const secret = process.env["JWT_SECRET"] || "fallback-secret";
   // Configurar tiempo de expiración según el entorno
-  const expiresIn = process.env["NODE_ENV"] === "production"
-    ? process.env["JWT_EXPIRES_IN"] || "15m" // 15 minutos en producción
-    : "10s"; // 10 segundos en desarrollo para pruebas
+  const expiresIn =
+    process.env["NODE_ENV"] === "production"
+      ? process.env["JWT_EXPIRES_IN"] || "15m" // 15 minutos en producción
+      : "10s"; // 10 segundos en desarrollo para pruebas
 
   return jwt.sign(payload, secret, { expiresIn });
 };
@@ -386,7 +388,8 @@ class AuthController {
   public async refreshToken(req: Request, res: Response): Promise<void> {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
-      const refreshToken = req.cookies?.["refreshToken"] || req.body?.refreshToken;
+      const refreshToken =
+        req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
       if (!refreshToken) {
         res.status(401).json({
@@ -457,7 +460,8 @@ class AuthController {
   public async logout(req: Request, res: Response): Promise<void> {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
-      const refreshToken = req.cookies?.["refreshToken"] || req.body?.refreshToken;
+      const refreshToken =
+        req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
       if (refreshToken) {
         // Revocar el refresh token si existe
