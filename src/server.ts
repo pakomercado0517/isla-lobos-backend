@@ -22,28 +22,32 @@ app.use(
   })
 );
 
-// Configuración de CORS para producción cross-domain
+// Configuración de CORS
 const corsOrigin = process.env["CORS_ORIGIN"] || "http://localhost:3000";
-const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim()); // Soporte para múltiples orígenes separados por coma
+const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir requests sin origen (mobile apps, Postman, etc.) solo en desarrollo
-      if (!origin && process.env["NODE_ENV"] !== "production") {
+      // En desarrollo, permitir cualquier origen
+      if (process.env["NODE_ENV"] !== "production") {
         return callback(null, true);
       }
-      // Verificar si el origen está en la lista permitida
-      if (origin && corsOrigins.includes(origin)) {
-        callback(null, true);
-      } else if (origin && process.env["NODE_ENV"] !== "production") {
-        // En desarrollo, permitir cualquier origen
-        callback(null, true);
-      } else {
-        callback(new Error("No permitido por CORS"));
+
+      // En producción, verificar que el origen esté permitido
+      if (!origin || !allowedOrigins.includes(origin)) {
+        serverLogger.warn(
+          { origin: origin || "sin origen", allowedOrigins },
+          "Origen rechazado por CORS"
+        );
+        return callback(
+          new Error(`Origen no permitido: ${origin || "sin origen"}`)
+        );
       }
+
+      callback(null, true);
     },
-    credentials: true, // Necesario para enviar/recibir cookies
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
@@ -52,7 +56,6 @@ app.use(
       "Accept",
       "Origin",
     ],
-    exposedHeaders: ["Set-Cookie"], // Exponer headers de cookies para debugging
   })
 );
 
