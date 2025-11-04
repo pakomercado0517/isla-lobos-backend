@@ -28,9 +28,7 @@ const isProduction = process.env["NODE_ENV"] === "production";
 const COOKIE_OPTIONS = {
   httpOnly: true, // No accesible desde JavaScript (protección XSS)
   secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
-  sameSite: (isProduction ? ("none" as const) : ("lax" as const)) as
-    | "none"
-    | "lax", // "none" para cross-domain, "lax" para desarrollo
+  sameSite: "lax" as const, // "none" para cross-domain, "lax" para desarrollo
   path: "/", // Disponible en todas las rutas del backend
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
 };
@@ -38,9 +36,7 @@ const COOKIE_OPTIONS = {
 const ACCESS_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
-  sameSite: (isProduction ? ("none" as const) : ("lax" as const)) as
-    | "none"
-    | "lax", // "none" para cross-domain, "lax" para desarrollo
+  sameSite: "lax" as const, // "none" para cross-domain, "lax" para desarrollo
   path: "/", // Disponible en todas las rutas del backend
   maxAge: isProduction
     ? 15 * 60 * 1000 // 15 minutos en producción
