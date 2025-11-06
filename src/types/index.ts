@@ -723,3 +723,67 @@ export interface EmailInvitacionData {
   url_invitacion: string;
   expiracion_dias: number;
 }
+
+// ============================================================================
+// TIPOS PARA SISTEMA DE NOTIFICACIONES DEL DASHBOARD (WEBSOCKETS + BD)
+// ============================================================================
+
+// Tipos de notificaciones del dashboard
+export enum TipoNotificacionDashboard {
+  NUEVA_EMBARCACION = "nueva_embarcacion",
+  EMBARCACION_AUTORIZADA = "embarcacion_autorizada",
+  EMBARCACION_RECHAZADA = "embarcacion_rechazada",
+  PERMISO_POR_VENCER = "permiso_por_vencer",
+  PERMISO_VENCIDO = "permiso_vencido",
+  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
+  NUEVA_SALIDA_REGISTRADA = "nueva_salida_registrada",
+  ALERTA_CLIMA = "alerta_clima",
+  OTRO = "otro",
+}
+
+// Prioridad de notificaciones del dashboard
+export enum PrioridadNotificacionDashboard {
+  ALTA = "alta",
+  MEDIA = "media",
+  BAJA = "baja",
+}
+
+// Interfaz para notificación del dashboard
+export interface NotificacionDashboard {
+  id: string;
+  tipo: TipoNotificacionDashboard;
+  titulo: string;
+  mensaje: string;
+  usuario_id: string | null;
+  enlace: string | null;
+  leida: boolean;
+  prioridad: PrioridadNotificacionDashboard;
+  metadata: Record<string, string | number | boolean | null>;
+  read_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Request para crear notificación
+export interface CrearNotificacionDashboardRequest {
+  tipo: TipoNotificacionDashboard;
+  titulo: string;
+  mensaje: string;
+  usuario_id?: string | null;
+  enlace?: string | null;
+  prioridad?: PrioridadNotificacionDashboard;
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+// Respuesta con notificaciones
+export interface NotificacionesDashboardResponse {
+  notificaciones: NotificacionDashboard[];
+  total: number;
+  no_leidas: number;
+}
+
+// Respuesta con contador de notificaciones
+export interface ContadorNotificacionesResponse {
+  total: number;
+  no_leidas: number;
+}

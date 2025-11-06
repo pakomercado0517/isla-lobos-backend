@@ -96,11 +96,47 @@ module.exports = {
       },
     });
 
-    // Crear índices para optimización
-    await queryInterface.addIndex("lotes_brazaletes", ["tipo"]);
-    await queryInterface.addIndex("lotes_brazaletes", ["estado"]);
-    await queryInterface.addIndex("lotes_brazaletes", ["fecha_compra"]);
-    await queryInterface.addIndex("lotes_brazaletes", ["numero_lote"]);
+    // Crear índices para optimización (con verificación de existencia)
+    try {
+      await queryInterface.addIndex("lotes_brazaletes", ["tipo"], {
+        name: "idx_lotes_brazaletes_tipo",
+      });
+    } catch (error) {
+      // Ignorar si el índice ya existe
+      if (!error.message.includes("already exists")) {
+        throw error;
+      }
+    }
+
+    try {
+      await queryInterface.addIndex("lotes_brazaletes", ["estado"], {
+        name: "idx_lotes_brazaletes_estado",
+      });
+    } catch (error) {
+      if (!error.message.includes("already exists")) {
+        throw error;
+      }
+    }
+
+    try {
+      await queryInterface.addIndex("lotes_brazaletes", ["fecha_compra"], {
+        name: "idx_lotes_brazaletes_fecha_compra",
+      });
+    } catch (error) {
+      if (!error.message.includes("already exists")) {
+        throw error;
+      }
+    }
+
+    try {
+      await queryInterface.addIndex("lotes_brazaletes", ["numero_lote"], {
+        name: "idx_lotes_brazaletes_numero_lote",
+      });
+    } catch (error) {
+      if (!error.message.includes("already exists")) {
+        throw error;
+      }
+    }
   },
 
   async down(queryInterface, Sequelize) {

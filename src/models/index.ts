@@ -12,6 +12,7 @@ import Invitacion from "./Invitacion";
 import LoteBrazalete from "./LoteBrazalete";
 import Brazalete from "./Brazalete";
 import VentaBrazalete from "./VentaBrazalete";
+import NotificacionDashboard from "./NotificacionDashboard";
 
 // Configurar las relaciones entre modelos
 
@@ -136,6 +137,17 @@ VentaBrazalete.belongsTo(LoteBrazalete, {
   as: "lote",
 });
 
+// Relación User -> NotificacionDashboard (1:N)
+User.hasMany(NotificacionDashboard, {
+  foreignKey: "usuario_id",
+  as: "notificaciones",
+});
+
+NotificacionDashboard.belongsTo(User, {
+  foreignKey: "usuario_id",
+  as: "usuario",
+});
+
 // Exportar todos los modelos y la instancia de sequelize
 export {
   sequelize,
@@ -149,6 +161,7 @@ export {
   LoteBrazalete,
   Brazalete,
   VentaBrazalete,
+  NotificacionDashboard,
 };
 
 // Función para sincronizar todos los modelos

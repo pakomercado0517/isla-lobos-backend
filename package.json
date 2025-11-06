@@ -59,6 +59,7 @@
     "resend": "^6.2.0",
     "sequelize": "^6.37.7",
     "sharp": "^0.34.4",
+    "socket.io": "^4.8.1",
     "twilio": "^5.10.2",
     "uuid": "^13.0.0"
   },
@@ -74,6 +75,7 @@
     "@types/nodemailer": "^7.0.2",
     "@types/pg": "^8.15.5",
     "@types/sequelize": "^6.12.0",
+    "@types/socket.io": "^3.0.1",
     "@types/twilio": "^3.19.3",
     "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.3",

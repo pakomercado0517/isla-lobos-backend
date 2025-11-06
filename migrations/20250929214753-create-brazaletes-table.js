@@ -98,14 +98,29 @@ module.exports = {
       },
     });
 
-    // Crear índices para optimización
-    await queryInterface.addIndex("brazaletes", ["estado"]);
-    await queryInterface.addIndex("brazaletes", ["prestador_id"]);
-    await queryInterface.addIndex("brazaletes", ["salida_id"]);
-    await queryInterface.addIndex("brazaletes", ["tipo"]);
-    await queryInterface.addIndex("brazaletes", ["fecha_uso"]);
-    await queryInterface.addIndex("brazaletes", ["lote_id"]);
-    await queryInterface.addIndex("brazaletes", ["codigo"]);
+    // Crear índices para optimización (con verificación de existencia)
+    const indices = [
+      { campos: ["estado"], nombre: "idx_brazaletes_estado" },
+      { campos: ["prestador_id"], nombre: "idx_brazaletes_prestador_id" },
+      { campos: ["salida_id"], nombre: "idx_brazaletes_salida_id" },
+      { campos: ["tipo"], nombre: "idx_brazaletes_tipo" },
+      { campos: ["fecha_uso"], nombre: "idx_brazaletes_fecha_uso" },
+      { campos: ["lote_id"], nombre: "idx_brazaletes_lote_id" },
+      { campos: ["codigo"], nombre: "idx_brazaletes_codigo" },
+    ];
+
+    for (const indice of indices) {
+      try {
+        await queryInterface.addIndex("brazaletes", indice.campos, {
+          name: indice.nombre,
+        });
+      } catch (error) {
+        // Ignorar si el índice ya existe
+        if (!error.message.includes("already exists")) {
+          throw error;
+        }
+      }
+    }
   },
 
   async down(queryInterface, Sequelize) {
