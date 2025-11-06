@@ -163,8 +163,14 @@ class PlantillaBloqueController {
         const BloqueController = (await import("./bloqueController")).default;
 
         // Recrear bloques para hoy y mañana
-        await BloqueController["crearBloquesParaFecha"](hoy, destino, true);
-        await BloqueController["crearBloquesParaFecha"](manana, destino, true);
+        const hoyStr = hoy.toISOString().split('T')[0];
+        const mananaStr = manana.toISOString().split('T')[0];
+        if (hoyStr && destino) {
+          await BloqueController["crearBloquesParaFecha"](hoyStr, destino, true);
+        }
+        if (mananaStr && destino) {
+          await BloqueController["crearBloquesParaFecha"](mananaStr, destino, true);
+        }
 
         logger.info(
           `Bloques recreados para hoy y mañana después de crear plantilla: ${nuevaPlantilla.nombre}`

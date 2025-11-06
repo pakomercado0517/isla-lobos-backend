@@ -64,11 +64,26 @@ export const createInvitacionValidation = [
     .withMessage("La descripción no puede exceder 255 caracteres"),
   body("fecha_expiracion")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de expiración debe estar en formato ISO 8601")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de expiración debe tener formato YYYY-MM-DD")
     .custom((value) => {
-      if (value && new Date(value) <= new Date()) {
-        throw new Error("La fecha de expiración debe ser futura");
+      if (value) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value <= hoy) {
+          throw new Error("La fecha de expiración debe ser futura");
+        }
       }
       return true;
     }),
@@ -83,11 +98,26 @@ export const updateInvitacionValidation = [
     .withMessage("La descripción no puede exceder 255 caracteres"),
   body("fecha_expiracion")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de expiración debe estar en formato ISO 8601")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de expiración debe tener formato YYYY-MM-DD")
     .custom((value) => {
-      if (value && new Date(value) <= new Date()) {
-        throw new Error("La fecha de expiración debe ser futura");
+      if (value) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value <= hoy) {
+          throw new Error("La fecha de expiración debe ser futura");
+        }
       }
       return true;
     }),

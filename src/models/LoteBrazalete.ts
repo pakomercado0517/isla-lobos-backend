@@ -10,8 +10,8 @@ interface LoteBrazaleteAttributes {
   cantidad_vendidos: number;
   cantidad_utilizados: number;
   tipo: "universal";
-  fecha_compra: Date;
-  fecha_vencimiento?: Date;
+  fecha_compra: string;
+  fecha_vencimiento?: string;
   costo_unitario: number;
   precio_venta: number;
   proveedor?: string;
@@ -46,8 +46,8 @@ class LoteBrazalete
   public cantidad_vendidos!: number;
   public cantidad_utilizados!: number;
   public tipo!: "universal";
-  public fecha_compra!: Date;
-  public fecha_vencimiento?: Date;
+  public fecha_compra!: string;
+  public fecha_vencimiento?: string;
   public costo_unitario!: number;
   public precio_venta!: number;
   public proveedor?: string;
@@ -74,13 +74,23 @@ class LoteBrazalete
 
   public estaVencido(): boolean {
     if (!this.fecha_vencimiento) return false;
-    return new Date() > this.fecha_vencimiento;
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaVenc = typeof this.fecha_vencimiento === 'string' 
+      ? this.fecha_vencimiento 
+      : (this.fecha_vencimiento as Date).toISOString().split('T')[0];
+    return !!(hoy && fechaVenc && fechaVenc < hoy); // Comparación de strings
   }
 
   public diasParaVencimiento(): number | null {
     if (!this.fecha_vencimiento) return null;
-    const hoy = new Date();
-    const diferencia = this.fecha_vencimiento.getTime() - hoy.getTime();
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaVenc = typeof this.fecha_vencimiento === 'string' 
+      ? this.fecha_vencimiento 
+      : (this.fecha_vencimiento as Date).toISOString().split('T')[0];
+    
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    const fechaVencDate = new Date(fechaVenc + 'T12:00:00');
+    const diferencia = fechaVencDate.getTime() - hoyDate.getTime();
     return Math.ceil(diferencia / (1000 * 3600 * 24));
   }
 
@@ -172,7 +182,7 @@ LoteBrazalete.init(
       defaultValue: "universal",
     },
     fecha_compra: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
       validate: {
         isDate: true,
@@ -180,19 +190,46 @@ LoteBrazalete.init(
           msg: "La fecha de compra es obligatoria",
         },
       },
+      get() {
+        const value = this.getDataValue('fecha_compra');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
     },
     fecha_vencimiento: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true,
       validate: {
         isDate: true,
-        isAfterCompra(value: Date) {
-          if (value && this["fecha_compra"] && value <= this["fecha_compra"]) {
-            throw new Error(
-              "La fecha de vencimiento debe ser posterior a la fecha de compra"
-            );
+        isAfterCompra(value: string | Date) {
+          if (value && this["fecha_compra"]) {
+            const fechaVencStr = typeof value === 'string' ? value : value.toISOString().split('T')[0];
+            const fechaCompraStr = typeof this["fecha_compra"] === 'string' 
+              ? this["fecha_compra"] 
+              : (this["fecha_compra"] as Date).toISOString().split('T')[0];
+            
+            if (fechaVencStr && fechaCompraStr && fechaVencStr <= fechaCompraStr) {
+              throw new Error(
+                "La fecha de vencimiento debe ser posterior a la fecha de compra"
+              );
+            }
           }
         },
+      },
+      get() {
+        const value = this.getDataValue('fecha_vencimiento');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
       },
     },
     costo_unitario: {

@@ -4,9 +4,10 @@ import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
 import PlantillaBloque from "../models/PlantillaBloque";
+import Brazalete from "../models/Brazalete";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
-import { extraerSoloFechaUTC } from "../utils/dateUtils";
+// Import removido: extraerSoloFechaUTC ya no es necesario
 
 const logger = createLogger("SalidaController");
 import sequelize from "../config/database";
@@ -44,19 +45,19 @@ class SalidaController {
       const where: any = {};
 
       // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha) {
         const fechaComparar = SalidaController.extraerSoloFecha(
           fecha as string
         );
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          SalidaController.compararFechaUTC("Salida.fecha", fechaComparar)
+          { fecha: fechaComparar } // Comparación directa de string
         );
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -312,13 +313,13 @@ class SalidaController {
 
       // Verificar si hay conflicto específico para esta fecha Y bloque
       // Usar comparación solo por fecha (YYYY-MM-DD) sin horas
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       const fechaComparar = SalidaController.extraerSoloFecha(fecha);
 
       // Construir condiciones de búsqueda de conflicto
       const whereConflicto: any = {
         embarcacion_id: embarcacion_id,
-        [Op.and]: [SalidaController.compararFechaUTC("fecha", fechaComparar)],
+        [Op.and]: [{ fecha: fechaComparar }], // Comparación directa de string
         estado: {
           [Op.notIn]: [
             EstadoSalida.CANCELADA,
@@ -362,8 +363,15 @@ class SalidaController {
 
       // VALIDACIÓN CONDICIONAL DINÁMICA según configuración de bloques del destino
       // Verificar si el destino tiene bloques configurados
-      const fechaSalida = new Date(fecha);
-      fechaSalida.setHours(0, 0, 0, 0);
+      // Validar formato de fecha
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        res.status(400).json({
+          status: "error",
+          message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+          error: "INVALID_DATE_FORMAT",
+        });
+        return;
+      }
 
       // Verificar si hay plantillas activas para el destino
       const plantillasDisponibles = await PlantillaBloque.count({
@@ -373,11 +381,11 @@ class SalidaController {
         },
       });
 
-      // Verificar si hay bloques específicos para la fecha
+      // Verificar si hay bloques específicos para la fecha (usar string directo)
       const bloquesEspecificos = await Bloque.count({
         where: {
           destino,
-          fecha: fechaSalida,
+          fecha: fecha, // String YYYY-MM-DD directo
           es_plantilla: false,
           estado: { [Op.ne]: EstadoBloque.INACTIVO },
         },
@@ -436,16 +444,14 @@ class SalidaController {
         }
 
         // Calcular capacidad ocupada para esa fecha (usando comparación solo de fecha)
-        // IMPORTANTE: Usar extraerSoloFechaUTC para coincidir con actualizarCapacidadRegistradaBloque
-        const fechaComparar =
-          extraerSoloFechaUTC(fecha) ||
-          SalidaController.extraerSoloFecha(fecha);
+        // Extraer solo fecha YYYY-MM-DD
+        const fechaComparar = SalidaController.extraerSoloFecha(fecha);
         const salidas_en_bloque =
           (await Salida.sum("numero_pasajeros", {
             where: {
               bloque_id: bloque_id,
               [Op.and]: [
-                SalidaController.compararFechaUTC("fecha", fechaComparar),
+                { fecha: fechaComparar }, // Comparación directa de string
               ],
               estado: {
                 [Op.notIn]: [
@@ -508,7 +514,7 @@ class SalidaController {
         destino,
         bloque_id: bloque_id || null, // Usar bloque_id si existe, null si no
         hora: hora || null, // Usar hora si existe, null si no
-        fecha: SalidaController.normalizarFechaParaGuardar(fecha),
+        fecha: fecha, // Guardar string YYYY-MM-DD directo
         numero_pasajeros,
         observaciones,
         estado: EstadoSalida.PROGRAMADA,
@@ -763,8 +769,7 @@ class SalidaController {
       if (bloque_id) datosActualizacion.bloque_id = bloque_id;
       if (hora) datosActualizacion.hora = hora;
       if (fecha)
-        datosActualizacion.fecha =
-          SalidaController.normalizarFechaParaGuardar(fecha);
+        datosActualizacion.fecha = fecha; // Guardar string YYYY-MM-DD directo
       if (numero_pasajeros)
         datosActualizacion.numero_pasajeros = numero_pasajeros;
       if (observaciones !== undefined)
@@ -980,6 +985,33 @@ class SalidaController {
         );
       }
 
+      // Liberar los brazaletes asignados a esta salida
+      const brazaletesAsignados = await Brazalete.findAll({
+        where: {
+          salida_id: id,
+          estado: "asignado",
+        },
+      });
+
+      if (brazaletesAsignados.length > 0) {
+        await Brazalete.update(
+          {
+            estado: "disponible",
+            salida_id: null as any,
+          },
+          {
+            where: {
+              salida_id: id,
+              estado: "asignado",
+            },
+          }
+        );
+
+        logger.info(
+          `Liberados ${brazaletesAsignados.length} brazaletes de la salida ${id}`
+        );
+      }
+
       // Liberar la embarcación si no tiene otras salidas activas
       const otrasSalidasActivas = await Salida.count({
         where: {
@@ -1033,19 +1065,19 @@ class SalidaController {
       };
 
       // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha) {
         const fechaComparar = SalidaController.extraerSoloFecha(
           fecha as string
         );
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          SalidaController.compararFechaUTC("Salida.fecha", fechaComparar)
+          { fecha: fechaComparar } // Comparación directa de string
         );
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -1169,7 +1201,7 @@ class SalidaController {
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -1253,42 +1285,7 @@ class SalidaController {
     return partes[0] || fechaString.substring(0, 10);
   }
 
-  /**
-   * Normaliza una fecha YYYY-MM-DD a Date sin problemas de zona horaria
-   * Siempre guarda como YYYY-MM-DDT00:00:00.000Z en UTC
-   * Ejemplo: "2025-10-10" -> Date("2025-10-10T00:00:00.000Z")
-   */
-  private static normalizarFechaParaGuardar(fecha: string): Date {
-    // Asegurar que solo tenemos YYYY-MM-DD
-    const fechaLimpia = fecha.split("T")[0];
-    // Crear fecha en UTC con horas en cero
-    return new Date(fechaLimpia + "T00:00:00.000Z");
-  }
-
-  /**
-   * Crea una expresión Sequelize para comparar fechas por DATE en UTC
-   * Evita problemas de zona horaria al forzar la comparación en UTC
-   * @param columna - Nombre de la columna (ej: "fecha" o "Salida.fecha")
-   * @param fechaComparar - Fecha en formato YYYY-MM-DD para comparar
-   * @returns Expresión Sequelize para usar en where
-   */
-  private static compararFechaUTC(columna: string, fechaComparar: string): any {
-    // Si la columna tiene punto (ej: "Salida.fecha"), usar el formato correcto
-    const columnaLiteral = columna.includes(".")
-      ? columna
-          .split(".")
-          .map((p) => `"${p}"`)
-          .join(".")
-      : `"${columna}"`;
-
-    return sequelize.where(
-      sequelize.fn(
-        "DATE",
-        sequelize.literal(`${columnaLiteral} AT TIME ZONE 'UTC'`)
-      ),
-      fechaComparar
-    );
-  }
+  // Método removido: validarFormatoFecha - no se usa actualmente
 
   /**
    * Actualiza capacidad_registrada y estado de un bloque basado en las salidas activas
@@ -1301,9 +1298,8 @@ class SalidaController {
   ): Promise<void> {
     try {
       // Calcular capacidad_registrada actualizada sumando todas las salidas activas
-      // IMPORTANTE: Usar extraerSoloFechaUTC para coincidir con el formato usado en obtenerBloquesConCapacidad
-      const fechaComparar =
-        extraerSoloFechaUTC(fecha) || SalidaController.extraerSoloFecha(fecha);
+      // Extraer solo fecha YYYY-MM-DD
+      const fechaComparar = SalidaController.extraerSoloFecha(fecha);
 
       // DEBUG: Log para verificar que se está ejecutando
       logger.info(
@@ -1311,11 +1307,11 @@ class SalidaController {
       );
 
       // DEBUG: Primero verificar cuántas salidas existen para este bloque y fecha
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
       const salidasEncontradas = await Salida.findAll({
         where: {
           bloque_id: bloqueId,
-          [Op.and]: [SalidaController.compararFechaUTC("fecha", fechaComparar)],
+          [Op.and]: [{ fecha: fechaComparar }], // Comparación directa de string
           estado: {
             [Op.notIn]: [
               EstadoSalida.CANCELADA,
@@ -1339,7 +1335,7 @@ class SalidaController {
           where: {
             bloque_id: bloqueId,
             [Op.and]: [
-              SalidaController.compararFechaUTC("fecha", fechaComparar),
+              { fecha: fechaComparar }, // Comparación directa de string
             ],
             estado: {
               [Op.notIn]: [

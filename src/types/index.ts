@@ -9,10 +9,10 @@ export interface User {
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
-  fechaVencimientoPermiso?: Date;
+  fechaVencimientoPermiso?: string; // YYYY-MM-DD
   estadoPermiso: EstadoPermiso;
   diasNotificacion: number;
-  ultimaNotificacion?: Date;
+  ultimaNotificacion?: string; // YYYY-MM-DD
   motivoSuspension?: string;
   created_at: Date;
   updated_at: Date;
@@ -64,7 +64,7 @@ export interface Bloque {
   estado: EstadoBloque;
   destino: DestinoType;
   es_plantilla: boolean; // true = plantilla para todos los días, false = bloque específico
-  fecha?: Date; // null si es_plantilla = true, obligatorio si es_plantilla = false
+  fecha?: string; // null si es_plantilla = true, obligatorio si es_plantilla = false (YYYY-MM-DD)
   created_at: Date;
   updated_at: Date;
 }
@@ -138,7 +138,7 @@ export interface Invitacion {
   codigo: string;
   email: string;
   rol: UserRole;
-  expira_en: Date;
+  expira_en: string; // YYYY-MM-DD
   usada: boolean;
   creada_por: string;
   created_at: Date;
@@ -242,8 +242,8 @@ export interface LoteBrazalete {
   cantidad_vendidos: number;
   cantidad_utilizados: number;
   tipo: TipoBrazalete;
-  fecha_compra: Date;
-  fecha_vencimiento?: Date;
+  fecha_compra: string; // YYYY-MM-DD
+  fecha_vencimiento?: string; // YYYY-MM-DD
   costo_unitario: number;
   precio_venta: number;
   proveedor?: string;
@@ -272,8 +272,8 @@ export interface Brazalete {
   estado: EstadoBrazalete;
   precio: number;
   fecha_creacion: Date;
-  fecha_asignacion?: Date;
-  fecha_uso?: Date;
+  fecha_asignacion?: string; // YYYY-MM-DD
+  fecha_uso?: string; // YYYY-MM-DD
   prestador_id?: string;
   salida_id?: string;
   turista_nacionalidad?: string;
@@ -298,7 +298,7 @@ export interface VentaBrazalete {
   cantidad: number;
   precio_unitario: number;
   total: number;
-  fecha_venta: Date;
+  fecha_venta: string; // YYYY-MM-DD
   metodo_pago?: string;
   estado_pago: EstadoPago;
   observaciones?: string;
@@ -345,7 +345,7 @@ export interface UsarBrazaleteRequest {
 export interface AsignarBrazaletesRequest {
   salida_id: string;
   cantidad: number;
-  fecha_asignacion: Date;
+  fecha_asignacion: string; // YYYY-MM-DD
 }
 
 // Tipos para estadísticas de brazaletes

@@ -208,28 +208,23 @@ export const searchValidation = [
 export const dateFilterValidation = [
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe ser una fecha válida en formato ISO 8601"
-    )
-    .toDate(),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de fin debe ser una fecha válida en formato ISO 8601"
-    )
-    .toDate()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
     .custom((value, { req }) => {
-      if (
-        req.query &&
-        req.query["fecha_inicio"] &&
-        value < req.query["fecha_inicio"]
-      ) {
-        throw new Error(
-          "La fecha de fin debe ser posterior a la fecha de inicio"
-        );
+      if (req.query && req.query["fecha_inicio"] && value) {
+        const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+        const fechaFin = String(value).split('T')[0];
+        // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+        if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+          throw new Error(
+            "La fecha de fin debe ser posterior a la fecha de inicio"
+          );
+        }
       }
       return true;
     }),

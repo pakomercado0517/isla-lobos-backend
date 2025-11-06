@@ -25,8 +25,8 @@ export const getAllBloquesValidation = [
 
   query("fecha")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha debe tener formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD"),
 
   query("estado")
     .optional()
@@ -60,14 +60,14 @@ export const getAllBloquesValidation = [
   // Validación personalizada para rango de fechas
   query("fecha_fin").custom((value, { req }) => {
     const fechaInicio = req.query?.["fecha_inicio"];
-    if (
-      fechaInicio &&
-      value &&
-      new Date(value) < new Date(fechaInicio as string)
-    ) {
-      throw new Error(
-        "La fecha de fin debe ser posterior a la fecha de inicio"
-      );
+    if (fechaInicio && value) {
+      const fechaInicioStr = String(fechaInicio).split('T')[0];
+      const fechaFinStr = String(value).split('T')[0];
+      if (fechaInicioStr && fechaFinStr && fechaFinStr < fechaInicioStr) {
+        throw new Error(
+          "La fecha de fin debe ser posterior a la fecha de inicio"
+        );
+      }
     }
     return true;
   }),
@@ -129,15 +129,24 @@ export const createBloqueValidation = [
 
   body("fecha")
     .optional() // 🆕 Hacer fecha opcional
-    .isISO8601()
-    .withMessage("La fecha debe tener formato ISO 8601 (YYYY-MM-DD)")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD")
     .custom((value) => {
       if (value) { // Solo validar si se proporciona
-        const fecha = new Date(value);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-
-        if (fecha < hoy) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value < hoy) {
           throw new Error("No se puede crear un bloque para una fecha pasada");
         }
       }
@@ -247,15 +256,24 @@ export const updateBloqueValidation = [
 
   body("fecha")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha debe tener formato ISO 8601 (YYYY-MM-DD)")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD")
     .custom((value) => {
       if (value) {
-        const fecha = new Date(value);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-
-        if (fecha < hoy) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value < hoy) {
           throw new Error("No se puede cambiar un bloque a una fecha pasada");
         }
       }
@@ -307,14 +325,14 @@ export const getBloqueStatsValidation = [
   // Validación personalizada para rango de fechas
   query("fecha_fin").custom((value, { req }) => {
     const fechaInicio = req.query?.["fecha_inicio"];
-    if (
-      fechaInicio &&
-      value &&
-      new Date(value) < new Date(fechaInicio as string)
-    ) {
-      throw new Error(
-        "La fecha de fin debe ser posterior a la fecha de inicio"
-      );
+    if (fechaInicio && value) {
+      const fechaInicioStr = String(fechaInicio).split('T')[0];
+      const fechaFinStr = String(value).split('T')[0];
+      if (fechaInicioStr && fechaFinStr && fechaFinStr < fechaInicioStr) {
+        throw new Error(
+          "La fecha de fin debe ser posterior a la fecha de inicio"
+        );
+      }
     }
     return true;
   }),

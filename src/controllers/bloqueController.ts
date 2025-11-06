@@ -7,7 +7,6 @@ import { Op } from "sequelize";
 import sequelize from "../config/database";
 import {
   getTodayMexico,
-  extraerSoloFechaUTC,
   extraerSoloFecha,
 } from "../utils/dateUtils";
 import { EstadoBloque, EstadoSalida } from "../types";
@@ -44,14 +43,21 @@ class BloqueController {
         return;
       }
 
-      // Crear fecha sin problemas de zona horaria
-      const fechaSolicitada = new Date((fecha as string) + "T00:00:00");
+      // Validar formato de fecha
+      const fechaStr = extraerSoloFecha(fecha as string);
+      if (!fechaStr || !/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+        res.status(400).json({
+          status: "error",
+          message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+          error: "INVALID_DATE_FORMAT",
+        });
+        return;
+      }
 
       // Validar que la fecha no sea en el pasado
-      const fechaFormateada = extraerSoloFechaUTC(fechaSolicitada);
       const fechaHoy = getTodayMexico();
 
-      if (fechaFormateada && fechaFormateada < fechaHoy) {
+      if (fechaStr < fechaHoy) {
         res.status(400).json({
           status: "error",
           message: "No se pueden consultar bloques para fechas pasadas",
@@ -61,9 +67,10 @@ class BloqueController {
       }
 
       // Validar que la fecha no sea más de 7 días en el futuro
-      const hoyDate = new Date(fechaHoy + "T00:00:00");
+      const hoyDate = new Date(fechaHoy + "T12:00:00");
+      const fechaSolicitadaDate = new Date(fechaStr + "T12:00:00");
       const diferenciaDias = Math.ceil(
-        (fechaSolicitada.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
+        (fechaSolicitadaDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
       if (diferenciaDias > 7) {
@@ -78,7 +85,7 @@ class BloqueController {
 
       // Crear bloques para la fecha si no existen (para todos los destinos que tienen plantillas)
       await BloqueController.crearBloquesParaFecha(
-        fechaSolicitada,
+        fechaStr,
         destino as string,
         false // No forzar recreación por defecto
       );
@@ -87,7 +94,7 @@ class BloqueController {
       const prestadorId = (req as any).user?.id;
       const bloquesConCapacidad =
         await BloqueController.obtenerBloquesConCapacidad(
-          fechaSolicitada,
+          fechaStr,
           destino as string
         );
 
@@ -98,7 +105,7 @@ class BloqueController {
             await BloqueController.obtenerEmbarcacionesOcupadasEnBloque(
               prestadorId,
               bloque.id,
-              fechaSolicitada
+              fechaStr
             );
 
           return {
@@ -120,7 +127,7 @@ class BloqueController {
         data: {
           bloques: bloquesConEmbarcaciones,
           total: bloquesConEmbarcaciones.length,
-          fecha_consultada: extraerSoloFecha(fechaSolicitada),
+          fecha_consultada: fechaStr,
           destino: destino || "todos",
         },
       });
@@ -166,19 +173,19 @@ class BloqueController {
 
       // Calcular capacidad registrada dinámicamente si el bloque tiene fecha
       if (bloqueFormateado.fecha) {
-        const fechaComparar = extraerSoloFechaUTC(bloque.fecha!);
+        const fechaComparar = extraerSoloFecha(bloque.fecha!);
 
         if (!fechaComparar) {
           throw new Error("No se pudo extraer la fecha del bloque");
         }
 
-        // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+        // Comparar fecha directamente con string YYYY-MM-DD
         const capacidad_registrada =
           (await Salida.sum("numero_pasajeros", {
             where: {
               bloque_id: bloque.id,
               [Op.and]: [
-                BloqueController.compararFechaUTC("fecha", fechaComparar),
+                { fecha: fechaComparar }, // Comparación directa de string
               ],
               estado: {
                 [Op.notIn]: [
@@ -242,13 +249,22 @@ class BloqueController {
       } = req.body;
 
       // Validar fecha solo si se proporciona (bloques con fecha vs plantillas)
-      let fechaBloque = null;
+      let fechaBloque: string | null = null;
       if (fecha) {
-        fechaBloque = new Date(fecha);
-        const fechaSolicitada = extraerSoloFechaUTC(fechaBloque);
+        // Validar formato
+        const fechaExtraida = extraerSoloFecha(fecha);
+        if (!fechaExtraida || !/^\d{4}-\d{2}-\d{2}$/.test(fechaExtraida)) {
+          res.status(400).json({
+            status: "error",
+            message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+            error: "INVALID_DATE_FORMAT",
+          });
+          return;
+        }
+        fechaBloque = fechaExtraida;
+        
         const fechaHoy = getTodayMexico();
-
-        if (fechaSolicitada && fechaSolicitada < fechaHoy) {
+        if (fechaBloque < fechaHoy) {
           res.status(400).json({
             status: "error",
             message: "No se puede crear un bloque para una fecha pasada",
@@ -374,11 +390,19 @@ class BloqueController {
 
       // Validar que la fecha no sea en el pasado (solo si se está cambiando)
       if (fecha) {
-        const fechaBloque = new Date(fecha);
-        const fechaSolicitada = extraerSoloFechaUTC(fechaBloque);
+        // Validar formato de fecha
+        const fechaBloque = extraerSoloFecha(fecha);
+        if (!fechaBloque || !/^\d{4}-\d{2}-\d{2}$/.test(fechaBloque)) {
+          res.status(400).json({
+            status: "error",
+            message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+            error: "INVALID_DATE_FORMAT",
+          });
+          return;
+        }
         const fechaHoy = getTodayMexico();
 
-        if (fechaSolicitada && fechaSolicitada < fechaHoy) {
+        if (fechaBloque && fechaBloque < fechaHoy) {
           res.status(400).json({
             status: "error",
             message: "No se puede cambiar un bloque a una fecha pasada",
@@ -393,10 +417,19 @@ class BloqueController {
       if ((nombre || destino) && fecha) {
         const nombreValidar = nombre || bloqueFormateadoActual.nombre;
         const destinoValidar = destino || bloqueFormateadoActual.destino;
+        const fechaComparar = extraerSoloFecha(fecha);
+        if (!fechaComparar) {
+          res.status(400).json({
+            status: "error",
+            message: "Formato de fecha inválido",
+            error: "INVALID_DATE_FORMAT",
+          });
+          return;
+        }
 
         const bloqueExistente = await Bloque.findOne({
           where: {
-            fecha: new Date(fecha),
+            fecha: fechaComparar,
             id: { [Op.ne]: id },
           },
           include: [
@@ -435,7 +468,10 @@ class BloqueController {
         ...(capacidad_total && { capacidad_total }),
         ...(estado && { estado }),
         ...(destino && { destino }),
-        ...(fecha && { fecha: new Date(fecha) }),
+        ...(fecha && (() => {
+          const fechaNormalizada = extraerSoloFecha(fecha);
+          return fechaNormalizada ? { fecha: fechaNormalizada } : {};
+        })()),
       });
 
       // Recargar el bloque con la relación para formatear correctamente
@@ -500,7 +536,7 @@ class BloqueController {
       // Verificar que la fecha no sea en el pasado
       // Solo bloquear fechas que sean estrictamente pasadas (no incluye hoy)
       if (bloque.fecha) {
-        const fechaBloque = extraerSoloFechaUTC(bloque.fecha);
+        const fechaBloque = extraerSoloFecha(bloque.fecha);
         const fechaHoy = getTodayMexico(); // Obtiene fecha actual en formato YYYY-MM-DD
 
         if (fechaBloque && fechaBloque < fechaHoy) {
@@ -540,12 +576,19 @@ class BloqueController {
       // Construir filtros de fecha
       const where: any = {};
       if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio as string);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin as string);
-        fin.setHours(23, 59, 59, 999);
+        const inicio = extraerSoloFecha(fecha_inicio as string);
+        const fin = extraerSoloFecha(fecha_fin as string);
+        // Validar formatos
+        if (!inicio || !fin || !/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fin)) {
+          res.status(400).json({
+            status: "error",
+            message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+            error: "INVALID_DATE_FORMAT",
+          });
+          return;
+        }
         where.fecha = {
-          [Op.between]: [inicio, fin],
+          [Op.between]: [inicio, fin], // Comparación directa de strings
         };
       }
 
@@ -621,43 +664,7 @@ class BloqueController {
     }
   }
 
-  /**
-   * Método auxiliar: Normalizar fecha para evitar problemas de zona horaria
-   * @param fecha - Fecha a normalizar
-   * @returns Fecha normalizada sin problemas de zona horaria
-   */
-  private static normalizarFecha(fecha: Date): Date {
-    // Crear fecha en UTC para evitar problemas de zona horaria
-    const year = fecha.getUTCFullYear();
-    const month = fecha.getUTCMonth();
-    const day = fecha.getUTCDate();
-    return new Date(Date.UTC(year, month, day));
-  }
-
-  /**
-   * Crea una expresión Sequelize para comparar fechas por DATE en UTC
-   * Evita problemas de zona horaria al forzar la comparación en UTC
-   * @param columna - Nombre de la columna (ej: "fecha" o "Salida.fecha")
-   * @param fechaComparar - Fecha en formato YYYY-MM-DD para comparar
-   * @returns Expresión Sequelize para usar en where
-   */
-  private static compararFechaUTC(columna: string, fechaComparar: string): any {
-    // Si la columna tiene punto (ej: "Salida.fecha"), usar el formato correcto
-    const columnaLiteral = columna.includes(".")
-      ? columna
-          .split(".")
-          .map((p) => `"${p}"`)
-          .join(".")
-      : `"${columna}"`;
-
-    return sequelize.where(
-      sequelize.fn(
-        "DATE",
-        sequelize.literal(`${columnaLiteral} AT TIME ZONE 'UTC'`)
-      ),
-      fechaComparar
-    );
-  }
+  // Método removido: validarFormatoFecha - no se usa actualmente
 
   /**
    * Formatea un bloque para respuesta, convirtiendo fechas a YYYY-MM-DD
@@ -729,13 +736,16 @@ class BloqueController {
    * @param destino - Destino específico (opcional, si no se proporciona crea para todos)
    */
   public static async crearBloquesParaFecha(
-    fecha: Date,
+    fecha: string,
     destino?: string,
     forzarRecreacion: boolean = false
   ): Promise<void> {
     try {
-      // Normalizar la fecha para evitar problemas de zona horaria
-      const fechaNormalizada = BloqueController.normalizarFecha(fecha);
+      // Extraer solo fecha YYYY-MM-DD
+      const fechaNormalizada = extraerSoloFecha(fecha);
+      if (!fechaNormalizada || !/^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada)) {
+        throw new Error("Formato de fecha inválido");
+      }
 
       // Construir filtros de búsqueda
       const whereExistentes: any = { fecha: fechaNormalizada };
@@ -756,9 +766,7 @@ class BloqueController {
             where: whereExistentes,
           });
           logger.info(
-            `Bloques existentes eliminados para fecha ${
-              fechaNormalizada.toISOString().split("T")[0]
-            }`
+            `Bloques existentes eliminados para fecha ${fechaNormalizada}`
           );
         }
         const wherePlantillas: any = {
@@ -812,12 +820,15 @@ class BloqueController {
    * @returns Array de bloques con capacidad calculada
    */
   private static async obtenerBloquesConCapacidad(
-    fecha: Date,
+    fecha: string,
     destino?: string
   ): Promise<any[]> {
     try {
       // Normalizar la fecha para evitar problemas de zona horaria
-      const fechaNormalizada = BloqueController.normalizarFecha(fecha);
+      const fechaNormalizada = extraerSoloFecha(fecha);
+      if (!fechaNormalizada || !/^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada)) {
+        throw new Error("Formato de fecha inválido");
+      }
 
       // Construir filtros de búsqueda (busca todos los bloques para la fecha)
       const whereBloquesExistentes: any = {
@@ -859,7 +870,7 @@ class BloqueController {
             BloqueController.formatearBloqueHibrido(bloque);
 
           // Extraer solo la fecha YYYY-MM-DD para comparación sin problemas de zona horaria
-          const fechaComparar = extraerSoloFechaUTC(fecha);
+          const fechaComparar = extraerSoloFecha(fecha);
 
           // Calcular capacidad registrada sumando pasajeros de salidas activas
           // Usamos sequelize.where con sequelize.fn para comparar solo fechas
@@ -900,7 +911,7 @@ class BloqueController {
             capacidad_disponible: capacidadTotal - capacidad_registrada,
             estado: estado_actual,
             destino: bloqueFormateado.destino,
-            fecha: fecha.toISOString().split("T")[0], // Formato YYYY-MM-DD
+            fecha: bloqueFormateado.fecha || fecha, // Formato YYYY-MM-DD
             es_plantilla: bloqueFormateado.es_plantilla,
             plantilla_id: bloqueFormateado.plantilla_id || null,
             created_at: bloqueFormateado.created_at,
@@ -937,7 +948,7 @@ class BloqueController {
   private static async obtenerEmbarcacionesOcupadasEnBloque(
     prestadorId: string,
     bloqueId: string,
-    fecha: Date
+    fecha: string
   ): Promise<any[]> {
     try {
       if (!prestadorId) {
@@ -945,18 +956,20 @@ class BloqueController {
       }
 
       // Extraer solo la fecha YYYY-MM-DD para comparación sin problemas de zona horaria
-      const fechaComparar = extraerSoloFechaUTC(fecha);
+      const fechaComparar = extraerSoloFecha(fecha);
 
       if (!fechaComparar) {
         return [];
       }
 
       // Buscar salidas del prestador en este bloque específico
-      // IMPORTANTE: Usar compararFechaUTC para evitar problemas de zona horaria
+      // Comparar fecha directamente con string YYYY-MM-DD
+      // Filtrar por prestador_id en la salida Y en la embarcación para mayor precisión
       const salidasEnBloque = await Salida.findAll({
         where: {
           bloque_id: bloqueId,
-          [Op.and]: [BloqueController.compararFechaUTC("fecha", fechaComparar)],
+          prestador_id: prestadorId, // Filtrar por prestador_id de la salida también
+          [Op.and]: [{ fecha: fechaComparar }], // Comparación directa de string
           estado: {
             [Op.notIn]: [
               EstadoSalida.CANCELADA,
@@ -970,8 +983,9 @@ class BloqueController {
             model: Embarcacion,
             as: "embarcacion",
             where: {
-              prestador_id: prestadorId,
+              prestador_id: prestadorId, // También verificar que la embarcación pertenece al prestador
             },
+            required: true, // INNER JOIN para asegurar que la embarcación existe
             attributes: ["id", "nombre", "tipo", "capacidad", "estado"],
           },
         ],
@@ -981,8 +995,13 @@ class BloqueController {
           "numero_pasajeros",
           "destino",
           "observaciones",
+          "prestador_id", // Incluir para debugging
         ],
       });
+
+      logger.debug(
+        `Encontradas ${salidasEnBloque.length} salidas para prestador ${prestadorId} en bloque ${bloqueId} para fecha ${fechaComparar}`
+      );
 
       // Formatear la respuesta
       const embarcacionesOcupadas = salidasEnBloque.map((salida: any) => ({

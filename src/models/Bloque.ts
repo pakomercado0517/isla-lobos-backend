@@ -19,7 +19,7 @@ interface BloqueAttributes {
   destino?: string;          // NULL cuando es_plantilla=true
   es_plantilla: boolean;     // true = plantilla, false = bloque normal
   plantilla_id?: string;     // FK a PlantillaBloque cuando es_plantilla=true
-  fecha?: Date;              // null si es_plantilla = true, obligatorio si es_plantilla = false
+  fecha?: string;              // null si es_plantilla = true, obligatorio si es_plantilla = false (YYYY-MM-DD)
 }
 
 // Atributos opcionales (para actualizaciones)
@@ -43,7 +43,7 @@ class Bloque
   public destino?: string;          // Opcional para plantillas
   public es_plantilla!: boolean;
   public plantilla_id?: string;     // FK a PlantillaBloque
-  public fecha?: Date;
+  public fecha?: string;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 
@@ -167,8 +167,18 @@ Bloque.init(
       validate: {
         notEmpty: true,
       },
+      get() {
+        const value = this.getDataValue('fecha');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
       comment:
-        "Fecha del bloque en zona horaria de México (America/Mexico_City). NULL cuando es_plantilla = true",
+        "Fecha del bloque en formato YYYY-MM-DD. NULL cuando es_plantilla = true",
     },
   },
   {

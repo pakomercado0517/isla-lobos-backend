@@ -27,8 +27,9 @@ export const getCurrentMexicoTime = (): Date => {
  * Convierte una fecha a zona horaria de México
  * MEJORADO: Usa date-fns-tz para manejo preciso de zona horaria
  */
-export const toMexicoTime = (date: Date): Date => {
-  return toZonedTime(date, MEXICO_TIMEZONE);
+export const toMexicoTime = (date: Date | string): Date => {
+  const dateObj = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
+  return toZonedTime(dateObj, MEXICO_TIMEZONE);
 };
 
 /**
@@ -142,7 +143,7 @@ export const getHoursDifference = (date1: Date, date2: Date): number => {
 /**
  * Verifica si una fecha es hoy en zona horaria de México
  */
-export const isTodayMexico = (date: Date): boolean => {
+export const isTodayMexico = (date: Date | string): boolean => {
   const today = getCurrentMexicoTime();
   const mexicoDate = toMexicoTime(date);
 
@@ -156,7 +157,7 @@ export const isTodayMexico = (date: Date): boolean => {
 /**
  * Verifica si una fecha es mañana en zona horaria de México
  */
-export const isTomorrowMexico = (date: Date): boolean => {
+export const isTomorrowMexico = (date: Date | string): boolean => {
   const tomorrow = new Date(getCurrentMexicoTime());
   tomorrow.setDate(tomorrow.getDate() + 1);
   const mexicoDate = toMexicoTime(date);
@@ -171,7 +172,7 @@ export const isTomorrowMexico = (date: Date): boolean => {
 /**
  * Obtiene el nombre del día de la semana en español
  */
-export const getDayNameMexico = (date: Date): string => {
+export const getDayNameMexico = (date: Date | string): string => {
   const mexicoTime = toMexicoTime(date);
   const days = [
     "Domingo",
