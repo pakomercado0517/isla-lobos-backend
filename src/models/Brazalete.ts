@@ -8,9 +8,9 @@ interface BrazaleteAttributes {
   tipo: "universal";
   estado: "disponible" | "asignado" | "utilizado" | "perdido";
   precio: number;
-  fecha_creacion: Date;
-  fecha_asignacion?: Date;
-  fecha_uso?: Date;
+  fecha_creacion: Date; // Mantener Date para timestamp de auditoría
+  fecha_asignacion?: string;
+  fecha_uso?: string;
   prestador_id?: string | undefined;
   salida_id?: string | undefined;
   turista_nacionalidad?: string | undefined;
@@ -46,8 +46,8 @@ class Brazalete
   public estado!: "disponible" | "asignado" | "utilizado" | "perdido";
   public precio!: number;
   public fecha_creacion!: Date;
-  public fecha_asignacion?: Date;
-  public fecha_uso?: Date;
+  public fecha_asignacion?: string;
+  public fecha_uso?: string;
   public prestador_id?: string | undefined;
   public salida_id?: string | undefined;
   public turista_nacionalidad?: string | undefined;
@@ -85,7 +85,7 @@ class Brazalete
 
     // Al vender, mantener estado "disponible" para que pueda ser asignado a salidas
     this.prestador_id = prestadorId;
-    this.fecha_asignacion = new Date();
+    this.fecha_asignacion = new Date().toISOString().split('T')[0] as string; // "YYYY-MM-DD"
     await this.save();
   }
 
@@ -97,7 +97,7 @@ class Brazalete
 
     this.estado = "asignado";
     this.prestador_id = prestadorId;
-    this.fecha_asignacion = new Date();
+    this.fecha_asignacion = new Date().toISOString().split('T')[0] as string; // "YYYY-MM-DD"
     await this.save();
   }
 
@@ -106,7 +106,7 @@ class Brazalete
     salidaId: string,
     turistaNacionalidad?: string,
     turistaEdad?: number,
-    fechaUso?: Date
+    fechaUso?: string
   ): Promise<void> {
     if (!this.puedeSerUtilizado()) {
       throw new Error(
@@ -114,8 +114,10 @@ class Brazalete
       );
     }
 
+    const fechaUsoStr = fechaUso || new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
     // Validar que la fecha de uso sea posterior a la fecha de asignación
-    if (fechaUso && this.fecha_asignacion && fechaUso < this.fecha_asignacion) {
+    if (this.fecha_asignacion && fechaUsoStr && fechaUsoStr < this.fecha_asignacion) {
       throw new Error(
         "La fecha de uso debe ser posterior a la fecha de asignación"
       );
@@ -123,7 +125,7 @@ class Brazalete
 
     this.estado = "utilizado";
     this.salida_id = salidaId;
-    this.fecha_uso = fechaUso || new Date(); // Usar fecha proporcionada o fecha actual
+    this.fecha_uso = fechaUsoStr as string;
     this.turista_nacionalidad = turistaNacionalidad;
     this.turista_edad = turistaEdad;
     await this.save();
@@ -151,16 +153,28 @@ class Brazalete
   // Método para obtener días desde asignación
   public diasDesdeAsignacion(): number | null {
     if (!this.fecha_asignacion) return null;
-    const hoy = new Date();
-    const diferencia = hoy.getTime() - this.fecha_asignacion.getTime();
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaAsign = typeof this.fecha_asignacion === 'string' 
+      ? this.fecha_asignacion 
+      : (this.fecha_asignacion as Date).toISOString().split('T')[0];
+    
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    const fechaAsignDate = new Date(fechaAsign + 'T12:00:00');
+    const diferencia = hoyDate.getTime() - fechaAsignDate.getTime();
     return Math.floor(diferencia / (1000 * 3600 * 24));
   }
 
   // Método para obtener días desde uso
   public diasDesdeUso(): number | null {
     if (!this.fecha_uso) return null;
-    const hoy = new Date();
-    const diferencia = hoy.getTime() - this.fecha_uso.getTime();
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaUso = typeof this.fecha_uso === 'string' 
+      ? this.fecha_uso 
+      : (this.fecha_uso as Date).toISOString().split('T')[0];
+    
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    const fechaUsoDate = new Date(fechaUso + 'T12:00:00');
+    const diferencia = hoyDate.getTime() - fechaUsoDate.getTime();
     return Math.floor(diferencia / (1000 * 3600 * 24));
   }
 }
@@ -214,25 +228,27 @@ Brazalete.init(
       defaultValue: DataTypes.NOW,
     },
     fecha_asignacion: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true,
       validate: {
         isDate: true,
-        isWithinReasonableRange(value: Date) {
+        isWithinReasonableRange(value: string | Date) {
           if (value) {
-            // const hoy = new Date();
+            const fechaStr = typeof value === 'string' ? value : value.toISOString().split('T')[0];
             const fechaMinima = new Date();
             fechaMinima.setDate(fechaMinima.getDate() - 30);
+            const fechaMinimaStr = fechaMinima.toISOString().split('T')[0];
             const fechaMaxima = new Date();
             fechaMaxima.setDate(fechaMaxima.getDate() + 7);
+            const fechaMaximaStr = fechaMaxima.toISOString().split('T')[0];
 
-            if (value < fechaMinima) {
+            if (fechaMinimaStr && fechaStr && fechaStr < fechaMinimaStr) {
               throw new Error(
                 "La fecha de asignación no puede ser anterior a 30 días"
               );
             }
 
-            if (value > fechaMaxima) {
+            if (fechaMaximaStr && fechaStr && fechaStr > fechaMaximaStr) {
               throw new Error(
                 "La fecha de asignación no puede ser más de 7 días en el futuro"
               );
@@ -240,23 +256,46 @@ Brazalete.init(
           }
         },
       },
+      get() {
+        const value = this.getDataValue('fecha_asignacion');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
     },
     fecha_uso: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true,
       validate: {
         isDate: true,
-        isAfterAssignment(value: Date) {
-          if (
-            value &&
-            this["fecha_asignacion"] &&
-            value < this["fecha_asignacion"]
-          ) {
-            throw new Error(
-              "La fecha de uso debe ser posterior a la fecha de asignación"
-            );
+        isAfterAssignment(value: string | Date) {
+          if (value && this["fecha_asignacion"]) {
+            const fechaUsoStr = typeof value === 'string' ? value : value.toISOString().split('T')[0];
+            const fechaAsignStr = typeof this["fecha_asignacion"] === 'string' 
+              ? this["fecha_asignacion"] 
+              : (this["fecha_asignacion"] as Date).toISOString().split('T')[0];
+            
+            if (fechaUsoStr && fechaAsignStr && fechaUsoStr < fechaAsignStr) {
+              throw new Error(
+                "La fecha de uso debe ser posterior a la fecha de asignación"
+              );
+            }
           }
         },
+      },
+      get() {
+        const value = this.getDataValue('fecha_uso');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
       },
     },
     prestador_id: {

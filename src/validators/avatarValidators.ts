@@ -180,24 +180,23 @@ export const avatarStatsValidation = [
   // Validaciones específicas para filtros de estadísticas si se necesitan
   body("date_from")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe ser una fecha válida en formato ISO 8601"
-    )
-    .toDate(),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   body("date_to")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de fin debe ser una fecha válida en formato ISO 8601"
-    )
-    .toDate()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
     .custom((value, { req }) => {
-      if (req.body.date_from && value < req.body.date_from) {
-        throw new Error(
-          "La fecha de fin debe ser posterior a la fecha de inicio"
-        );
+      if (req.body.date_from && value) {
+        const fechaInicio = String(req.body.date_from).split('T')[0];
+        const fechaFin = String(value).split('T')[0];
+        // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+        if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+          throw new Error(
+            "La fecha de fin debe ser posterior a la fecha de inicio"
+          );
+        }
       }
       return true;
     }),

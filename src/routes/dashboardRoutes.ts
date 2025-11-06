@@ -1,5 +1,6 @@
 import { Router } from "express";
 import DashboardController from "../controllers/dashboardController";
+import DashboardNotificationController from "../controllers/dashboardNotificationController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import {
   handleValidationErrors,
@@ -43,6 +44,22 @@ router.get(
 );
 
 router.get("/alertas", DashboardController.getAlertasSistema);
+
+// Rutas de notificaciones del dashboard
+router.get(
+  "/notificaciones",
+  DashboardNotificationController.obtenerNotificaciones
+);
+
+router.get(
+  "/notificaciones/contador",
+  DashboardNotificationController.obtenerContador
+);
+
+router.put(
+  "/notificaciones/:id/leer",
+  DashboardNotificationController.marcarComoLeida
+);
 
 export default router;
 

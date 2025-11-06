@@ -21,10 +21,10 @@ interface UserAttributes {
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
-  fechaVencimientoPermiso?: Date;
+  fechaVencimientoPermiso?: string;
   estadoPermiso: EstadoPermiso;
   diasNotificacion: number;
-  ultimaNotificacion?: Date;
+  ultimaNotificacion?: string;
   motivoSuspension?: string;
   // Campos de recuperación de contraseña
   passwordResetToken?: string | null;
@@ -61,10 +61,10 @@ class User
   public rol!: UserRole;
   public activo!: boolean;
   // Campos de vigencia de permisos
-  public fechaVencimientoPermiso?: Date;
+  public fechaVencimientoPermiso?: string;
   public estadoPermiso!: EstadoPermiso;
   public diasNotificacion!: number;
-  public ultimaNotificacion?: Date;
+  public ultimaNotificacion?: string;
   public motivoSuspension?: string;
   // Campos de recuperación de contraseña
   public passwordResetToken?: string | null;
@@ -84,27 +84,47 @@ class User
   // Método para verificar si el permiso está próximo a vencer
   public isPermisoPorVencer(): boolean {
     if (!this.fechaVencimientoPermiso) return false;
-    const hoy = new Date();
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const fechaVenc = typeof this.fechaVencimientoPermiso === 'string' 
+      ? this.fechaVencimientoPermiso 
+      : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
+    
+    // Comparar strings YYYY-MM-DD (son comparables lexicográficamente)
+    if (hoy && fechaVenc && fechaVenc <= hoy) return false; // Ya venció o vence hoy
+    
+    // Calcular días restantes
+    const fechaVencDate = new Date(fechaVenc + 'T12:00:00');
+    const hoyDate = new Date(hoy + 'T12:00:00');
     const diasRestantes = Math.ceil(
-      (this.fechaVencimientoPermiso.getTime() - hoy.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (fechaVencDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
     );
+    
     return diasRestantes <= this.diasNotificacion && diasRestantes > 0;
   }
 
   // Método para verificar si el permiso está vencido
   public isPermisoVencido(): boolean {
     if (!this.fechaVencimientoPermiso) return false;
-    return new Date() > this.fechaVencimientoPermiso;
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const fechaVenc = typeof this.fechaVencimientoPermiso === 'string' 
+      ? this.fechaVencimientoPermiso 
+      : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
+    return !!(hoy && fechaVenc && fechaVenc < hoy); // Comparación de strings
   }
 
   // Método para obtener días restantes del permiso
   public getDiasRestantesPermiso(): number | null {
     if (!this.fechaVencimientoPermiso) return null;
-    const hoy = new Date();
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const fechaVenc = typeof this.fechaVencimientoPermiso === 'string' 
+      ? this.fechaVencimientoPermiso 
+      : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
+    
+    // Calcular diferencia usando Date objects para precisión
+    const fechaVencDate = new Date(fechaVenc + 'T12:00:00');
+    const hoyDate = new Date(hoy + 'T12:00:00');
     return Math.ceil(
-      (this.fechaVencimientoPermiso.getTime() - hoy.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (fechaVencDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
     );
   }
 
@@ -207,9 +227,19 @@ User.init(
     },
     // Campos de vigencia de permisos
     fechaVencimientoPermiso: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true,
-      comment: "Fecha de vencimiento del permiso de operación",
+      get() {
+        const value = this.getDataValue('fechaVencimientoPermiso');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
+      comment: "Fecha de vencimiento del permiso de operación (YYYY-MM-DD)",
     },
     estadoPermiso: {
       type: DataTypes.ENUM(...Object.values(EstadoPermiso)),
@@ -228,9 +258,19 @@ User.init(
       comment: "Días antes del vencimiento para enviar notificaciones",
     },
     ultimaNotificacion: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true,
-      comment: "Última fecha en que se envió notificación de vencimiento",
+      get() {
+        const value = this.getDataValue('ultimaNotificacion');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
+      comment: "Última fecha en que se envió notificación de vencimiento (YYYY-MM-DD)",
     },
     motivoSuspension: {
       type: DataTypes.TEXT,

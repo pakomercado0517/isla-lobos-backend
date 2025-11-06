@@ -232,8 +232,15 @@ export class EstadisticasBrazaleteController {
       });
 
       for (const lote of lotesPorVencer) {
+        if (!lote.fecha_vencimiento) continue;
+        const fechaVencStr = typeof lote.fecha_vencimiento === 'string' 
+          ? lote.fecha_vencimiento 
+          : (lote.fecha_vencimiento as Date).toISOString().split('T')[0];
+        const hoyStr = new Date().toISOString().split('T')[0];
+        const fechaVencDate = new Date(fechaVencStr + 'T12:00:00');
+        const hoyDate = new Date(hoyStr + 'T12:00:00');
         const diasRestantes = Math.ceil(
-          (lote.fecha_vencimiento!.getTime() - new Date().getTime()) /
+          (fechaVencDate.getTime() - hoyDate.getTime()) /
             (1000 * 3600 * 24)
         );
 
@@ -568,7 +575,9 @@ export class EstadisticasBrazaleteController {
     } = {};
 
     for (const venta of ventas) {
-      const mes = venta.fecha_venta.toISOString().slice(0, 7); // YYYY-MM
+      const fechaVentaStr = typeof venta.fecha_venta === 'string' ? venta.fecha_venta : (venta.fecha_venta as Date).toISOString().split('T')[0];
+      if (!fechaVentaStr) continue;
+      const mes = fechaVentaStr.slice(0, 7); // YYYY-MM
       if (!ingresosPorMes[mes]) {
         ingresosPorMes[mes] = { cantidad: 0, monto: 0 };
       }

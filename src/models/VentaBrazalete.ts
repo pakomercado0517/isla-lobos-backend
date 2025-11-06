@@ -9,7 +9,7 @@ interface VentaBrazaleteAttributes {
   cantidad: number;
   precio_unitario: number;
   total: number;
-  fecha_venta: Date;
+  fecha_venta: string;
   metodo_pago?: string;
   estado_pago: "pendiente" | "pagado" | "cancelado";
   observaciones?: string;
@@ -37,7 +37,7 @@ class VentaBrazalete
   public cantidad!: number;
   public precio_unitario!: number;
   public total!: number;
-  public fecha_venta!: Date;
+  public fecha_venta!: string;
   public metodo_pago?: string;
   public estado_pago!: "pendiente" | "pagado" | "cancelado";
   public observaciones?: string;
@@ -96,8 +96,14 @@ class VentaBrazalete
 
   // Método para obtener días desde la venta
   public diasDesdeVenta(): number {
-    const hoy = new Date();
-    const diferencia = hoy.getTime() - this.fecha_venta.getTime();
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaVenta = typeof this.fecha_venta === 'string' 
+      ? this.fecha_venta 
+      : (this.fecha_venta as Date).toISOString().split('T')[0];
+    
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    const fechaVentaDate = new Date(fechaVenta + 'T12:00:00');
+    const diferencia = hoyDate.getTime() - fechaVentaDate.getTime();
     return Math.floor(diferencia / (1000 * 3600 * 24));
   }
 
@@ -113,7 +119,7 @@ class VentaBrazalete
     cantidad: number;
     precio_unitario: number;
     total: number;
-    fecha_venta: Date;
+    fecha_venta: string;
     estado: string;
     dias_desde_venta: number;
   } {
@@ -214,7 +220,7 @@ VentaBrazalete.init(
       },
     },
     fecha_venta: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
       defaultValue: DataTypes.NOW,
       validate: {
@@ -222,11 +228,23 @@ VentaBrazalete.init(
           msg: "Debe ser una fecha válida",
           args: true,
         },
-        notInFuture(value: Date) {
-          if (value > new Date()) {
+        notInFuture(value: string | Date) {
+          const hoy = new Date().toISOString().split('T')[0];
+          const fechaVentaStr = typeof value === 'string' ? value : value.toISOString().split('T')[0];
+          if (hoy && fechaVentaStr && fechaVentaStr > hoy) {
             throw new Error("La fecha de venta no puede ser futura");
           }
         },
+      },
+      get() {
+        const value = this.getDataValue('fecha_venta');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
       },
     },
     metodo_pago: {

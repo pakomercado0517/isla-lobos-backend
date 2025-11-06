@@ -1,7 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { UserRole } from "../types";
-import { getCurrentMexicoTime } from "../utils/dateUtils";
 
 // Atributos requeridos para crear una invitación
 interface InvitacionAttributes {
@@ -9,7 +8,7 @@ interface InvitacionAttributes {
   codigo: string;
   email: string | null;
   rol: UserRole;
-  expira_en: Date;
+  expira_en: string;
   usada: boolean;
   creada_por: string;
 }
@@ -26,7 +25,7 @@ class Invitacion
   public codigo!: string;
   public email!: string | null;
   public rol!: UserRole;
-  public expira_en!: Date;
+  public expira_en!: string;
   public usada!: boolean;
   public creada_por!: string;
   public readonly created_at!: Date;
@@ -34,7 +33,11 @@ class Invitacion
 
   // Métodos de instancia
   public get esta_expirada(): boolean {
-    return getCurrentMexicoTime() > this.expira_en;
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaExp = typeof this.expira_en === 'string' 
+      ? this.expira_en 
+      : (this.expira_en as Date).toISOString().split('T')[0];
+    return !!(hoy && fechaExp && fechaExp < hoy); // Comparación de strings
   }
 
   public get es_valida(): boolean {
@@ -42,8 +45,14 @@ class Invitacion
   }
 
   public get dias_restantes(): number {
-    const now = getCurrentMexicoTime();
-    const diffMs = this.expira_en.getTime() - now.getTime();
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaExp = typeof this.expira_en === 'string' 
+      ? this.expira_en 
+      : (this.expira_en as Date).toISOString().split('T')[0];
+    
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    const fechaExpDate = new Date(fechaExp + 'T12:00:00');
+    const diffMs = fechaExpDate.getTime() - hoyDate.getTime();
     return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   }
 
@@ -86,13 +95,22 @@ Invitacion.init(
       allowNull: false,
     },
     expira_en: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
       validate: {
         notEmpty: true,
       },
-      comment:
-        "Fecha de expiración en zona horaria de México (America/Mexico_City)",
+      get() {
+        const value = this.getDataValue('expira_en');
+        if (!value) return null;
+        if (typeof value === 'string') return value.split('T')[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return String(value).split('T')[0];
+      },
+      comment: "Fecha de expiración en formato YYYY-MM-DD (solo fecha, sin hora)",
     },
     usada: {
       type: DataTypes.BOOLEAN,

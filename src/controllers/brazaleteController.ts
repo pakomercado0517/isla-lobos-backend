@@ -1136,7 +1136,9 @@ export class BrazaleteController {
       }
 
       // Asignar los brazaletes a la salida
-      const fechaAsignacion = new Date(fecha_asignacion);
+      const fechaAsignacion = typeof fecha_asignacion === 'string' 
+        ? fecha_asignacion 
+        : fecha_asignacion.toISOString().split('T')[0];
       const brazaletesAsignados = [];
 
       for (const brazalete of brazaletesDisponibles) {
@@ -1258,7 +1260,7 @@ export class BrazaleteController {
             brazaleteData.turista_nacionalidad,
             brazaleteData.turista_edad,
             brazaleteData.fecha_uso
-              ? new Date(brazaleteData.fecha_uso)
+              ? (typeof brazaleteData.fecha_uso === 'string' ? brazaleteData.fecha_uso : brazaleteData.fecha_uso.toISOString().split('T')[0])
               : undefined
           );
 
@@ -1462,12 +1464,16 @@ export class BrazaleteController {
       }
 
       // Validar que la fecha de uso sea posterior a la fecha de asignación
-      const fechaUso = new Date(fecha_uso);
+      const fechaUso = typeof fecha_uso === 'string' 
+        ? fecha_uso 
+        : fecha_uso.toISOString().split('T')[0];
       const brazaletesConFechaInvalida = brazaletesAsignados.filter(
         (brazalete) => {
           if (brazalete.fecha_asignacion) {
-            const fechaAsignacion = new Date(brazalete.fecha_asignacion);
-            return fechaUso < fechaAsignacion;
+            const fechaAsignacionStr = typeof brazalete.fecha_asignacion === 'string' 
+              ? brazalete.fecha_asignacion 
+              : (brazalete.fecha_asignacion as Date).toISOString().split('T')[0];
+            return fechaAsignacionStr ? fechaUso < fechaAsignacionStr : false;
           }
           return false;
         }

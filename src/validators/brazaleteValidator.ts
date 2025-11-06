@@ -70,14 +70,23 @@ export class BrazaleteValidator {
       .default("universal"),
 
     body("fecha_compra")
-      .isISO8601()
-      .withMessage(
-        "La fecha de compra debe ser una fecha válida en formato ISO8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de compra debe tener formato YYYY-MM-DD")
       .custom((value) => {
-        const fecha = new Date(value);
-        const hoy = new Date();
-        if (fecha > hoy) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value > hoy) {
           throw new Error("La fecha de compra no puede ser futura");
         }
         return true;
@@ -91,23 +100,32 @@ export class BrazaleteValidator {
           !value ||
           value === null ||
           value === undefined ||
-          value.trim() === ""
+          (typeof value === 'string' && value.trim() === "")
         ) {
           return true;
         }
 
-        // Si hay valor, validar que sea una fecha ISO8601 válida
-        const fechaRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
-        if (!fechaRegex.test(value)) {
+        // Si hay valor, validar formato YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
           throw new Error(
-            "La fecha de vencimiento debe ser una fecha válida en formato ISO8601"
+            "La fecha de vencimiento debe tener formato YYYY-MM-DD"
           );
         }
 
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+
         // Validar que la fecha de vencimiento sea posterior a la fecha de compra
-        const fechaVencimiento = new Date(value);
-        const fechaCompra = new Date(req.body.fecha_compra);
-        if (fechaVencimiento <= fechaCompra) {
+        const fechaCompra = req.body.fecha_compra;
+        if (fechaCompra && value <= fechaCompra) {
           throw new Error(
             "La fecha de vencimiento debe ser posterior a la fecha de compra"
           );
@@ -287,21 +305,26 @@ export class BrazaleteValidator {
     body("fecha_asignacion")
       .notEmpty()
       .withMessage("La fecha de asignación es obligatoria")
-      .isISO8601()
-      .withMessage(
-        "La fecha de asignación debe ser una fecha válida en formato ISO 8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de asignación debe tener formato YYYY-MM-DD")
       .custom((value) => {
-        const fechaAsignacion = new Date(value);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
 
         // Permitir fechas anteriores pero con límite de 30 días
         const fechaMinima = new Date();
         fechaMinima.setDate(fechaMinima.getDate() - 30);
-        fechaMinima.setHours(0, 0, 0, 0);
+        const fechaMinimaStr = fechaMinima.toISOString().split('T')[0];
 
-        if (fechaAsignacion < fechaMinima) {
+        if (fechaMinimaStr && value < fechaMinimaStr) {
           throw new Error(
             "La fecha de asignación no puede ser anterior a 30 días"
           );
@@ -310,7 +333,9 @@ export class BrazaleteValidator {
         // Verificar que no sea más de 7 días en el futuro
         const maxFecha = new Date();
         maxFecha.setDate(maxFecha.getDate() + 7);
-        if (fechaAsignacion > maxFecha) {
+        const maxFechaStr = maxFecha.toISOString().split('T')[0];
+        
+        if (maxFechaStr && value > maxFechaStr) {
           throw new Error(
             "La fecha de asignación no puede ser más de 7 días en el futuro"
           );
@@ -355,25 +380,33 @@ export class BrazaleteValidator {
 
     body("brazaletes.*.fecha_uso")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de uso debe ser una fecha válida en formato ISO 8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de uso debe tener formato YYYY-MM-DD")
       .custom((value) => {
         if (value) {
-          const fechaUso = new Date(value);
-          const hoy = new Date();
-          hoy.setHours(23, 59, 59, 999); // Fin del día actual
+          // Validar que sea una fecha válida
+          const [year, month, day] = value.split('-').map(Number);
+          const date = new Date(year, month - 1, day);
+          if (
+            date.getFullYear() !== year ||
+            date.getMonth() + 1 !== month ||
+            date.getDate() !== day
+          ) {
+            throw new Error("Fecha inválida");
+          }
 
-          if (fechaUso > hoy) {
+          const hoy = new Date().toISOString().split('T')[0];
+
+          if (hoy && value > hoy) {
             throw new Error("La fecha de uso no puede ser futura");
           }
 
           // Verificar que no sea muy antigua (más de 1 año)
           const unAnoAtras = new Date();
           unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
+          const unAnoAtrasStr = unAnoAtras.toISOString().split('T')[0];
 
-          if (fechaUso < unAnoAtras) {
+          if (unAnoAtrasStr && value < unAnoAtrasStr) {
             throw new Error("La fecha de uso no puede ser anterior a un año");
           }
         }
@@ -397,25 +430,33 @@ export class BrazaleteValidator {
     body("fecha_uso")
       .notEmpty()
       .withMessage("La fecha de uso es obligatoria")
-      .isISO8601()
-      .withMessage(
-        "La fecha de uso debe ser una fecha válida en formato ISO 8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de uso debe tener formato YYYY-MM-DD")
       .custom((value) => {
         if (value) {
-          const fechaUso = new Date(value);
-          const hoy = new Date();
-          hoy.setHours(23, 59, 59, 999); // Fin del día actual
+          // Validar que sea una fecha válida
+          const [year, month, day] = value.split('-').map(Number);
+          const date = new Date(year, month - 1, day);
+          if (
+            date.getFullYear() !== year ||
+            date.getMonth() + 1 !== month ||
+            date.getDate() !== day
+          ) {
+            throw new Error("Fecha inválida");
+          }
 
-          if (fechaUso > hoy) {
+          const hoy = new Date().toISOString().split('T')[0];
+
+          if (hoy && value > hoy) {
             throw new Error("La fecha de uso no puede ser futura");
           }
 
           // Verificar que no sea muy antigua (más de 1 año)
           const unAnoAtras = new Date();
           unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
+          const unAnoAtrasStr = unAnoAtras.toISOString().split('T')[0];
 
-          if (fechaUso < unAnoAtras) {
+          if (unAnoAtrasStr && value < unAnoAtrasStr) {
             throw new Error("La fecha de uso no puede ser anterior a un año");
           }
         }
@@ -435,22 +476,19 @@ export class BrazaleteValidator {
   static estadisticas: ValidationChain[] = [
     query("fecha_inicio")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de inicio debe ser una fecha válida en formato ISO8601"
-      ),
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
     query("fecha_fin")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de fin debe ser una fecha válida en formato ISO8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
       .custom((value, { req }) => {
         if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
-          const fechaFin = new Date(value);
-          if (fechaFin <= fechaInicio) {
+          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+          const fechaFin = String(value).split('T')[0];
+          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
             throw new Error(
               "La fecha de fin debe ser posterior a la fecha de inicio"
             );
@@ -463,22 +501,19 @@ export class BrazaleteValidator {
   static reporteVentas: ValidationChain[] = [
     query("fecha_inicio")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de inicio debe ser una fecha válida en formato ISO8601"
-      ),
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
     query("fecha_fin")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de fin debe ser una fecha válida en formato ISO8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
       .custom((value, { req }) => {
         if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
-          const fechaFin = new Date(value);
-          if (fechaFin <= fechaInicio) {
+          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+          const fechaFin = String(value).split('T')[0];
+          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
             throw new Error(
               "La fecha de fin debe ser posterior a la fecha de inicio"
             );
@@ -496,22 +531,19 @@ export class BrazaleteValidator {
   static reporteUtilizacion: ValidationChain[] = [
     query("fecha_inicio")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de inicio debe ser una fecha válida en formato ISO8601"
-      ),
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
     query("fecha_fin")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de fin debe ser una fecha válida en formato ISO8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
       .custom((value, { req }) => {
         if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
-          const fechaFin = new Date(value);
-          if (fechaFin <= fechaInicio) {
+          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+          const fechaFin = String(value).split('T')[0];
+          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
             throw new Error(
               "La fecha de fin debe ser posterior a la fecha de inicio"
             );
@@ -553,26 +585,31 @@ export class BrazaleteValidator {
   static filtrosFecha: ValidationChain[] = [
     query("fecha_inicio")
       .optional()
-      .isISO8601()
-      .withMessage("La fecha de inicio debe ser una fecha válida"),
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
     query("fecha_fin")
       .optional()
-      .isISO8601()
-      .withMessage("La fecha de fin debe ser una fecha válida")
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
       .custom((value, { req }) => {
         if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
-          const fechaFin = new Date(value);
-          const diferenciaDias = Math.ceil(
-            (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 3600 * 24)
-          );
-
-          if (fechaFin <= fechaInicio) {
+          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+          const fechaFin = String(value).split('T')[0];
+          
+          // Comparar strings YYYY-MM-DD directamente
+          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
             throw new Error(
               "La fecha de fin debe ser posterior a la fecha de inicio"
             );
           }
+
+          // Calcular diferencia de días usando Date objects para precisión
+          const fechaInicioDate = new Date(fechaInicio + 'T12:00:00');
+          const fechaFinDate = new Date(fechaFin + 'T12:00:00');
+          const diferenciaDias = Math.ceil(
+            (fechaFinDate.getTime() - fechaInicioDate.getTime()) / (1000 * 3600 * 24)
+          );
 
           if (diferenciaDias > 365) {
             throw new Error("El rango de fechas no puede ser mayor a 365 días");
@@ -639,22 +676,19 @@ export class BrazaleteValidator {
 
     query("fecha_inicio")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de inicio debe ser una fecha válida en formato ISO8601"
-      ),
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
     query("fecha_fin")
       .optional()
-      .isISO8601()
-      .withMessage(
-        "La fecha de fin debe ser una fecha válida en formato ISO8601"
-      )
+      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
       .custom((value, { req }) => {
         if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = new Date(req.query["fecha_inicio"] as string);
-          const fechaFin = new Date(value);
-          if (fechaFin <= fechaInicio) {
+          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
+          const fechaFin = String(value).split('T')[0];
+          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
+          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
             throw new Error(
               "La fecha de fin debe ser posterior a la fecha de inicio"
             );

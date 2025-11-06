@@ -208,8 +208,8 @@ class InvitacionController {
         email: email || null, // Email del destinatario (opcional)
         rol: (rol as UserRole) || UserRole.PRESTADOR, // Rol del invitado
         expira_en: fecha_expiracion
-          ? new Date(fecha_expiracion)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días por defecto
+          ? (typeof fecha_expiracion === 'string' ? fecha_expiracion : fecha_expiracion.toISOString().split('T')[0])
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días por defecto
         creada_por,
         usada: false,
       });
@@ -236,8 +236,16 @@ class InvitacionController {
       if (email && nombre) {
         try {
           const fechaExpiracion = invitacion.expira_en;
+          const fechaExpiracionStr = typeof fechaExpiracion === 'string' 
+            ? fechaExpiracion 
+            : (typeof fechaExpiracion === 'object' && fechaExpiracion !== null && 'toISOString' in fechaExpiracion)
+            ? (fechaExpiracion as Date).toISOString().split('T')[0]
+            : String(fechaExpiracion).split('T')[0];
+          const hoyStr = new Date().toISOString().split('T')[0];
+          const fechaExpiracionDate = new Date(fechaExpiracionStr + 'T12:00:00');
+          const hoyDate = new Date(hoyStr + 'T12:00:00');
           const diasExpiracion = Math.ceil(
-            (fechaExpiracion.getTime() - new Date().getTime()) /
+            (fechaExpiracionDate.getTime() - hoyDate.getTime()) /
               (1000 * 60 * 60 * 24)
           );
 
@@ -329,7 +337,7 @@ class InvitacionController {
       // Actualizar campos permitidos
       await invitacion.update({
         expira_en: fecha_expiracion
-          ? new Date(fecha_expiracion)
+          ? (typeof fecha_expiracion === 'string' ? fecha_expiracion : fecha_expiracion.toISOString().split('T')[0])
           : invitacion.expira_en,
       });
 
@@ -450,7 +458,11 @@ class InvitacionController {
 
       // Verificar si ha expirado
       const ahora = getCurrentMexicoTime();
-      if (invitacion.expira_en && invitacion.expira_en < ahora) {
+      const ahoraStr = ahora.toISOString().split('T')[0];
+      const expiraEnStr = typeof invitacion.expira_en === 'string' 
+        ? invitacion.expira_en 
+        : (invitacion.expira_en as Date).toISOString().split('T')[0];
+      if (invitacion.expira_en && expiraEnStr && ahoraStr && expiraEnStr < ahoraStr) {
         res.status(400).json({
           status: "error",
           message: "El código de invitación ha expirado",
@@ -517,7 +529,11 @@ class InvitacionController {
 
       // Verificar si ha expirado
       const ahora = getCurrentMexicoTime();
-      if (invitacion.expira_en && invitacion.expira_en < ahora) {
+      const ahoraStr = ahora.toISOString().split('T')[0];
+      const expiraEnStr = typeof invitacion.expira_en === 'string' 
+        ? invitacion.expira_en 
+        : (invitacion.expira_en as Date).toISOString().split('T')[0];
+      if (invitacion.expira_en && expiraEnStr && ahoraStr && expiraEnStr < ahoraStr) {
         res.status(400).json({
           status: "error",
           message: "La invitación ha expirado",
@@ -726,7 +742,11 @@ class InvitacionController {
 
       // Verificar si ha expirado
       const ahora = getCurrentMexicoTime();
-      if (invitacion.expira_en && invitacion.expira_en < ahora) {
+      const ahoraStr = ahora.toISOString().split('T')[0];
+      const expiraEnStr = typeof invitacion.expira_en === 'string' 
+        ? invitacion.expira_en 
+        : (invitacion.expira_en as Date).toISOString().split('T')[0];
+      if (invitacion.expira_en && expiraEnStr && ahoraStr && expiraEnStr < ahoraStr) {
         res.status(200).json({
           status: "error",
           message: "El código de invitación ha expirado",

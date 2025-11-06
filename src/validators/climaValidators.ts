@@ -24,15 +24,13 @@ export const getAllCondicionesValidation = [
 
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
-    ),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
 
   query("estado_puerto")
     .optional()
@@ -205,13 +203,11 @@ export const getPrediccionValidation = [
 export const getEstadisticasValidation = [
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
-    ),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
 ];

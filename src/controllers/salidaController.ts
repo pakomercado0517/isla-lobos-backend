@@ -4,8 +4,10 @@ import User from "../models/User";
 import Embarcacion from "../models/Embarcacion";
 import Bloque from "../models/Bloque";
 import PlantillaBloque from "../models/PlantillaBloque";
+import Brazalete from "../models/Brazalete";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
+// Import removido: extraerSoloFechaUTC ya no es necesario
 
 const logger = createLogger("SalidaController");
 import sequelize from "../config/database";
@@ -43,20 +45,19 @@ class SalidaController {
       const where: any = {};
 
       // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha) {
         const fechaComparar = SalidaController.extraerSoloFecha(
           fecha as string
         );
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          sequelize.where(
-            sequelize.fn("DATE", sequelize.col("Salida.fecha")),
-            fechaComparar
-          )
+          { fecha: fechaComparar } // Comparación directa de string
         );
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -64,9 +65,13 @@ class SalidaController {
         const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
-            [Op.between]: [inicio, fin],
-          })
+          sequelize.where(
+            sequelize.fn(
+              "DATE",
+              sequelize.literal(`"Salida"."fecha" AT TIME ZONE 'UTC'`)
+            ),
+            { [Op.between]: [inicio, fin] }
+          )
         );
       }
 
@@ -113,12 +118,23 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
             attributes: [
               "id",
               "nombre",
               "hora_inicio",
               "hora_fin",
               "capacidad_total",
+              "destino",
+              "es_plantilla",
+              "plantilla_id",
+              "fecha",
             ],
           },
         ],
@@ -194,12 +210,23 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
             attributes: [
               "id",
               "nombre",
               "hora_inicio",
               "hora_fin",
               "capacidad_total",
+              "destino",
+              "es_plantilla",
+              "plantilla_id",
+              "fecha",
             ],
           },
         ],
@@ -286,17 +313,13 @@ class SalidaController {
 
       // Verificar si hay conflicto específico para esta fecha Y bloque
       // Usar comparación solo por fecha (YYYY-MM-DD) sin horas
+      // Comparar fecha directamente con string YYYY-MM-DD
       const fechaComparar = SalidaController.extraerSoloFecha(fecha);
 
       // Construir condiciones de búsqueda de conflicto
       const whereConflicto: any = {
         embarcacion_id: embarcacion_id,
-        [Op.and]: [
-          sequelize.where(
-            sequelize.fn("DATE", sequelize.col("fecha")),
-            fechaComparar
-          ),
-        ],
+        [Op.and]: [{ fecha: fechaComparar }], // Comparación directa de string
         estado: {
           [Op.notIn]: [
             EstadoSalida.CANCELADA,
@@ -340,8 +363,15 @@ class SalidaController {
 
       // VALIDACIÓN CONDICIONAL DINÁMICA según configuración de bloques del destino
       // Verificar si el destino tiene bloques configurados
-      const fechaSalida = new Date(fecha);
-      fechaSalida.setHours(0, 0, 0, 0);
+      // Validar formato de fecha
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        res.status(400).json({
+          status: "error",
+          message: "Formato de fecha inválido. Debe ser YYYY-MM-DD",
+          error: "INVALID_DATE_FORMAT",
+        });
+        return;
+      }
 
       // Verificar si hay plantillas activas para el destino
       const plantillasDisponibles = await PlantillaBloque.count({
@@ -351,11 +381,11 @@ class SalidaController {
         },
       });
 
-      // Verificar si hay bloques específicos para la fecha
+      // Verificar si hay bloques específicos para la fecha (usar string directo)
       const bloquesEspecificos = await Bloque.count({
         where: {
           destino,
-          fecha: fechaSalida,
+          fecha: fecha, // String YYYY-MM-DD directo
           es_plantilla: false,
           estado: { [Op.ne]: EstadoBloque.INACTIVO },
         },
@@ -376,47 +406,66 @@ class SalidaController {
         }
 
         // Verificar que el bloque existe y corresponde al destino
+        // Incluir relación con PlantillaBloque para bloques plantilla
         const bloque = await Bloque.findOne({
           where: {
             id: bloque_id,
-            destino: destino,
           },
+          include: [
+            {
+              model: PlantillaBloque,
+              as: "plantillaBloque",
+              required: false, // Left join para incluir bloques sin plantilla
+            },
+          ],
         });
 
         if (!bloque) {
           res.status(404).json({
             status: "error",
-            message:
-              "Bloque no encontrado o no corresponde al destino especificado",
+            message: "Bloque no encontrado",
             error: "BLOQUE_NOT_FOUND",
           });
           return;
         }
 
+        // Formatear bloque usando sistema híbrido para obtener datos correctos
+        const bloqueFormateado =
+          SalidaController.formatearBloqueParaValidacion(bloque);
+
+        // Verificar que el bloque corresponde al destino especificado
+        if (bloqueFormateado.destino !== destino) {
+          res.status(404).json({
+            status: "error",
+            message: "Bloque no corresponde al destino especificado",
+            error: "BLOQUE_DESTINO_MISMATCH",
+          });
+          return;
+        }
+
         // Calcular capacidad ocupada para esa fecha (usando comparación solo de fecha)
+        // Extraer solo fecha YYYY-MM-DD
         const fechaComparar = SalidaController.extraerSoloFecha(fecha);
         const salidas_en_bloque =
           (await Salida.sum("numero_pasajeros", {
             where: {
               bloque_id: bloque_id,
               [Op.and]: [
-                sequelize.where(
-                  sequelize.fn("DATE", sequelize.col("fecha")),
-                  fechaComparar
-                ),
+                { fecha: fechaComparar }, // Comparación directa de string
               ],
               estado: {
                 [Op.notIn]: [
-                  "cancelada",
-                  "cancelada_por_clima",
-                  "cancelada_capitaria",
+                  EstadoSalida.CANCELADA,
+                  EstadoSalida.CANCELADA_POR_CLIMA,
+                  EstadoSalida.CANCELADA_CAPITARIA,
                 ],
               },
             },
           })) || 0;
 
+        // Usar capacidad_total del bloque formateado (viene de plantilla si aplica)
         const capacidad_disponible =
-          (bloque.capacidad_total || 0) - salidas_en_bloque;
+          (bloqueFormateado.capacidad_total || 0) - salidas_en_bloque;
 
         if (capacidad_disponible < numero_pasajeros) {
           res.status(400).json({
@@ -465,7 +514,7 @@ class SalidaController {
         destino,
         bloque_id: bloque_id || null, // Usar bloque_id si existe, null si no
         hora: hora || null, // Usar hora si existe, null si no
-        fecha: SalidaController.normalizarFechaParaGuardar(fecha),
+        fecha: fecha, // Guardar string YYYY-MM-DD directo
         numero_pasajeros,
         observaciones,
         estado: EstadoSalida.PROGRAMADA,
@@ -473,9 +522,41 @@ class SalidaController {
 
       const nuevaSalida = await Salida.create(datosSalida);
 
+      // Actualizar capacidad_registrada del bloque si tiene bloque_id
+      // IMPORTANTE: Esto debe ejecutarse después de crear la salida para incluirla en el cálculo
+      // Usar la fecha de la salida creada (normalizada) en lugar de la fecha del request para asegurar consistencia
+      if (bloque_id) {
+        try {
+          // Recargar la salida para asegurar que tiene los datos actualizados de la BD
+          await nuevaSalida.reload();
+
+          // Usar la fecha de la salida creada para asegurar consistencia
+          const fechaSalida = nuevaSalida.fecha;
+
+          logger.info(
+            `Actualizando bloque ${bloque_id} después de crear salida ${nuevaSalida.id} con fecha: ${fechaSalida}`
+          );
+
+          await SalidaController.actualizarCapacidadRegistradaBloque(
+            bloque_id,
+            fechaSalida
+          );
+          logger.info(
+            `Capacidad actualizada para bloque ${bloque_id} después de crear salida ${nuevaSalida.id}`
+          );
+        } catch (error) {
+          logger.error(
+            { err: error },
+            `Error al actualizar capacidad del bloque ${bloque_id} después de crear salida:`,
+            error
+          );
+        }
+      }
+
       // Nota: La embarcación permanece "disponible" hasta que la salida se inicie (en_progreso)
 
       // Obtener la salida completa con información relacionada
+      // Incluir relación con PlantillaBloque para bloques plantilla
       const salidaCompleta = await Salida.findByPk(nuevaSalida.id, {
         include: [
           {
@@ -492,12 +573,23 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // IMPORTANTE: required: false para destinos sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
             attributes: [
               "id",
               "nombre",
               "hora_inicio",
               "hora_fin",
               "capacidad_total",
+              "destino",
+              "es_plantilla",
+              "plantilla_id",
+              "fecha",
             ],
           },
         ],
@@ -547,6 +639,13 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
           },
           {
             model: Embarcacion,
@@ -670,17 +769,53 @@ class SalidaController {
       if (bloque_id) datosActualizacion.bloque_id = bloque_id;
       if (hora) datosActualizacion.hora = hora;
       if (fecha)
-        datosActualizacion.fecha =
-          SalidaController.normalizarFechaParaGuardar(fecha);
+        datosActualizacion.fecha = fecha; // Guardar string YYYY-MM-DD directo
       if (numero_pasajeros)
         datosActualizacion.numero_pasajeros = numero_pasajeros;
       if (observaciones !== undefined)
         datosActualizacion.observaciones = observaciones;
       if (estado) datosActualizacion.estado = estado;
 
+      // Guardar bloque_id y fecha originales antes de actualizar
+      const bloque_id_original = salida.bloque_id;
+      const fecha_original = salida.fecha;
+
       await salida.update(datosActualizacion);
 
-      // Nota: La capacidad del bloque se calcula dinámicamente en obtenerBloquesConCapacidad()
+      // Actualizar capacidad_registrada si cambió numero_pasajeros o bloque_id
+      const bloque_id_nuevo =
+        datosActualizacion.bloque_id !== undefined
+          ? datosActualizacion.bloque_id
+          : bloque_id_original;
+      const fecha_nuevo = datosActualizacion.fecha
+        ? datosActualizacion.fecha
+        : fecha_original;
+
+      // Si cambió el bloque_id, actualizar ambos bloques
+      if (bloque_id_original !== bloque_id_nuevo) {
+        if (bloque_id_original) {
+          await SalidaController.actualizarCapacidadRegistradaBloque(
+            bloque_id_original,
+            fecha_original
+          );
+        }
+        if (bloque_id_nuevo) {
+          await SalidaController.actualizarCapacidadRegistradaBloque(
+            bloque_id_nuevo,
+            fecha_nuevo
+          );
+        }
+      } else if (
+        bloque_id_nuevo &&
+        (datosActualizacion.numero_pasajeros !== undefined ||
+          datosActualizacion.estado !== undefined)
+      ) {
+        // Si cambió numero_pasajeros o estado, actualizar el bloque
+        await SalidaController.actualizarCapacidadRegistradaBloque(
+          bloque_id_nuevo,
+          fecha_nuevo
+        );
+      }
 
       // Si se está marcando como en_curso, ocupar embarcación
       if (estado === EstadoSalida.EN_CURSO) {
@@ -731,12 +866,23 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
             attributes: [
               "id",
               "nombre",
               "hora_inicio",
               "hora_fin",
               "capacidad_total",
+              "destino",
+              "es_plantilla",
+              "plantilla_id",
+              "fecha",
             ],
           },
         ],
@@ -777,6 +923,13 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
           },
           {
             model: Embarcacion,
@@ -814,13 +967,50 @@ class SalidaController {
         return;
       }
 
+      // Guardar bloque_id antes de actualizar
+      const bloque_id_salida = salida.bloque_id;
+      const fecha_salida = salida.fecha;
+
       // Actualizar la salida
       await salida.update({
         estado: EstadoSalida.CANCELADA,
         motivo_cancelacion,
       });
 
-      // Nota: La capacidad del bloque se calcula dinámicamente en obtenerBloquesConCapacidad()
+      // Actualizar capacidad_registrada del bloque si tiene bloque_id
+      if (bloque_id_salida) {
+        await SalidaController.actualizarCapacidadRegistradaBloque(
+          bloque_id_salida,
+          fecha_salida
+        );
+      }
+
+      // Liberar los brazaletes asignados a esta salida
+      const brazaletesAsignados = await Brazalete.findAll({
+        where: {
+          salida_id: id,
+          estado: "asignado",
+        },
+      });
+
+      if (brazaletesAsignados.length > 0) {
+        await Brazalete.update(
+          {
+            estado: "disponible",
+            salida_id: null as any,
+          },
+          {
+            where: {
+              salida_id: id,
+              estado: "asignado",
+            },
+          }
+        );
+
+        logger.info(
+          `Liberados ${brazaletesAsignados.length} brazaletes de la salida ${id}`
+        );
+      }
 
       // Liberar la embarcación si no tiene otras salidas activas
       const otrasSalidasActivas = await Salida.count({
@@ -875,20 +1065,19 @@ class SalidaController {
       };
 
       // Filtro por fecha específica (solo YYYY-MM-DD, sin horas)
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha) {
         const fechaComparar = SalidaController.extraerSoloFecha(
           fecha as string
         );
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          sequelize.where(
-            sequelize.fn("DATE", sequelize.col("Salida.fecha")),
-            fechaComparar
-          )
+          { fecha: fechaComparar } // Comparación directa de string
         );
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -896,9 +1085,13 @@ class SalidaController {
         const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
-            [Op.between]: [inicio, fin],
-          })
+          sequelize.where(
+            sequelize.fn(
+              "DATE",
+              sequelize.literal(`"Salida"."fecha" AT TIME ZONE 'UTC'`)
+            ),
+            { [Op.between]: [inicio, fin] }
+          )
         );
       }
 
@@ -925,12 +1118,23 @@ class SalidaController {
             model: Bloque,
             as: "bloque",
             required: false, // Permitir salidas sin bloque
+            include: [
+              {
+                model: PlantillaBloque,
+                as: "plantillaBloque",
+                required: false, // Left join para incluir bloques sin plantilla
+              },
+            ],
             attributes: [
               "id",
               "nombre",
               "hora_inicio",
               "hora_fin",
               "capacidad_total",
+              "destino",
+              "es_plantilla",
+              "plantilla_id",
+              "fecha",
             ],
           },
         ],
@@ -997,6 +1201,7 @@ class SalidaController {
       }
 
       // Filtro por rango de fechas (solo YYYY-MM-DD, sin horas)
+      // Comparar fecha directamente con string YYYY-MM-DD
       if (fecha_inicio && fecha_fin) {
         const inicio = SalidaController.extraerSoloFecha(
           fecha_inicio as string
@@ -1004,9 +1209,13 @@ class SalidaController {
         const fin = SalidaController.extraerSoloFecha(fecha_fin as string);
         where[Op.and] = where[Op.and] || [];
         where[Op.and].push(
-          sequelize.where(sequelize.fn("DATE", sequelize.col("Salida.fecha")), {
-            [Op.between]: [inicio, fin],
-          })
+          sequelize.where(
+            sequelize.fn(
+              "DATE",
+              sequelize.literal(`"Salida"."fecha" AT TIME ZONE 'UTC'`)
+            ),
+            { [Op.between]: [inicio, fin] }
+          )
         );
       }
 
@@ -1076,20 +1285,173 @@ class SalidaController {
     return partes[0] || fechaString.substring(0, 10);
   }
 
+  // Método removido: validarFormatoFecha - no se usa actualmente
+
   /**
-   * Normaliza una fecha YYYY-MM-DD a Date sin problemas de zona horaria
-   * Siempre guarda como YYYY-MM-DDT00:00:00.000Z en UTC
-   * Ejemplo: "2025-10-10" -> Date("2025-10-10T00:00:00.000Z")
+   * Actualiza capacidad_registrada y estado de un bloque basado en las salidas activas
+   * @param bloqueId - ID del bloque a actualizar
+   * @param fecha - Fecha de la salida (para filtrar por fecha)
    */
-  private static normalizarFechaParaGuardar(fecha: string): Date {
-    // Asegurar que solo tenemos YYYY-MM-DD
-    const fechaLimpia = fecha.split("T")[0];
-    // Crear fecha en UTC con horas en cero
-    return new Date(fechaLimpia + "T00:00:00.000Z");
+  private static async actualizarCapacidadRegistradaBloque(
+    bloqueId: string,
+    fecha: Date | string
+  ): Promise<void> {
+    try {
+      // Calcular capacidad_registrada actualizada sumando todas las salidas activas
+      // Extraer solo fecha YYYY-MM-DD
+      const fechaComparar = SalidaController.extraerSoloFecha(fecha);
+
+      // DEBUG: Log para verificar que se está ejecutando
+      logger.info(
+        `Actualizando capacidad_registrada para bloque ${bloqueId} en fecha ${fechaComparar}`
+      );
+
+      // DEBUG: Primero verificar cuántas salidas existen para este bloque y fecha
+      // Comparar fecha directamente con string YYYY-MM-DD
+      const salidasEncontradas = await Salida.findAll({
+        where: {
+          bloque_id: bloqueId,
+          [Op.and]: [{ fecha: fechaComparar }], // Comparación directa de string
+          estado: {
+            [Op.notIn]: [
+              EstadoSalida.CANCELADA,
+              EstadoSalida.CANCELADA_POR_CLIMA,
+              EstadoSalida.CANCELADA_CAPITARIA,
+            ],
+          },
+        },
+        attributes: ["id", "fecha", "numero_pasajeros", "estado", "bloque_id"],
+        raw: true,
+      });
+
+      logger.info(
+        `Salidas encontradas para bloque ${bloqueId} en fecha ${fechaComparar}: ${
+          salidasEncontradas.length
+        }. IDs: ${salidasEncontradas.map((s) => s.id).join(", ")}`
+      );
+
+      const capacidad_registrada_actualizada =
+        (await Salida.sum("numero_pasajeros", {
+          where: {
+            bloque_id: bloqueId,
+            [Op.and]: [
+              { fecha: fechaComparar }, // Comparación directa de string
+            ],
+            estado: {
+              [Op.notIn]: [
+                EstadoSalida.CANCELADA,
+                EstadoSalida.CANCELADA_POR_CLIMA,
+                EstadoSalida.CANCELADA_CAPITARIA,
+              ],
+            },
+          },
+        })) || 0;
+
+      logger.info(
+        `Capacidad registrada calculada: ${capacidad_registrada_actualizada} para bloque ${bloqueId} (suma de ${salidasEncontradas.length} salidas)`
+      );
+
+      // Obtener datos del bloque usando sistema híbrido para obtener capacidad_total correcta
+      const bloqueConPlantilla = await Bloque.findByPk(bloqueId, {
+        include: [
+          {
+            model: PlantillaBloque,
+            as: "plantillaBloque",
+            required: false,
+          },
+        ],
+      });
+
+      if (!bloqueConPlantilla) {
+        return;
+      }
+
+      const bloqueFormateado =
+        SalidaController.formatearBloqueParaValidacion(bloqueConPlantilla);
+      const capacidad_total = bloqueFormateado.capacidad_total || 0;
+
+      // Determinar nuevo estado del bloque
+      let nuevoEstado = bloqueConPlantilla.estado;
+      if (
+        capacidad_registrada_actualizada >= capacidad_total &&
+        capacidad_total > 0
+      ) {
+        nuevoEstado = EstadoBloque.LLENO;
+      } else if (
+        bloqueConPlantilla.estado === EstadoBloque.LLENO &&
+        capacidad_registrada_actualizada < capacidad_total
+      ) {
+        nuevoEstado = EstadoBloque.ACTIVO;
+      }
+
+      // Actualizar capacidad_registrada y estado del bloque en una sola operación
+      await bloqueConPlantilla.update({
+        capacidad_registrada: capacidad_registrada_actualizada,
+        estado: nuevoEstado,
+      });
+
+      // Recargar el bloque para asegurar que tiene los datos actualizados
+      await bloqueConPlantilla.reload();
+
+      logger.info(
+        `Bloque ${bloqueId} actualizado: capacidad_registrada=${capacidad_registrada_actualizada}, capacidad_total=${capacidad_total}, estado=${nuevoEstado}`
+      );
+    } catch (error) {
+      // Log error pero no fallar la operación principal
+      logger.error(
+        { err: error },
+        "Error al actualizar capacidad_registrada del bloque:",
+        error
+      );
+    }
+  }
+
+  /**
+   * Formatea un bloque usando sistema híbrido para validaciones
+   * - Si es_plantilla=true: usa datos de PlantillaBloque
+   * - Si es_plantilla=false: usa datos propios del bloque
+   */
+  private static formatearBloqueParaValidacion(bloque: any): any {
+    const bloqueData = bloque.toJSON ? bloque.toJSON() : bloque;
+
+    if (bloqueData.es_plantilla && bloqueData.plantillaBloque) {
+      // Bloque basado en plantilla: usar datos de PlantillaBloque
+      return {
+        id: bloqueData.id,
+        nombre: bloqueData.plantillaBloque.nombre,
+        hora_inicio: bloqueData.plantillaBloque.hora_inicio,
+        hora_fin: bloqueData.plantillaBloque.hora_fin,
+        capacidad_total: bloqueData.plantillaBloque.capacidad_total,
+        destino: bloqueData.plantillaBloque.destino,
+        estado: bloqueData.estado,
+        es_plantilla: true,
+        plantilla_id: bloqueData.plantilla_id,
+        fecha: bloqueData.fecha
+          ? SalidaController.extraerSoloFecha(bloqueData.fecha)
+          : null,
+      };
+    } else {
+      // Bloque normal: usar datos propios
+      return {
+        id: bloqueData.id,
+        nombre: bloqueData.nombre,
+        hora_inicio: bloqueData.hora_inicio,
+        hora_fin: bloqueData.hora_fin,
+        capacidad_total: bloqueData.capacidad_total,
+        destino: bloqueData.destino,
+        estado: bloqueData.estado,
+        es_plantilla: false,
+        plantilla_id: null,
+        fecha: bloqueData.fecha
+          ? SalidaController.extraerSoloFecha(bloqueData.fecha)
+          : null,
+      };
+    }
   }
 
   /**
    * Formatea una salida para respuesta, convirtiendo fechas a YYYY-MM-DD
+   * Formatea el bloque usando sistema híbrido si es plantilla
    */
   private static formatearSalidaParaRespuesta(salida: any): any {
     const salidaFormateada = { ...salida };
@@ -1098,11 +1460,22 @@ class SalidaController {
         salidaFormateada.fecha
       );
     }
-    // Formatear fecha del bloque si existe
-    if (salidaFormateada.bloque?.fecha) {
-      salidaFormateada.bloque.fecha = SalidaController.extraerSoloFecha(
-        salidaFormateada.bloque.fecha
+    // Formatear bloque usando sistema híbrido si existe
+    if (salidaFormateada.bloque) {
+      const bloqueFormateado = SalidaController.formatearBloqueParaValidacion(
+        salidaFormateada.bloque
       );
+      salidaFormateada.bloque = {
+        id: bloqueFormateado.id,
+        nombre: bloqueFormateado.nombre,
+        hora_inicio: bloqueFormateado.hora_inicio,
+        hora_fin: bloqueFormateado.hora_fin,
+        capacidad_total: bloqueFormateado.capacidad_total,
+        destino: bloqueFormateado.destino,
+        fecha: bloqueFormateado.fecha,
+        es_plantilla: bloqueFormateado.es_plantilla,
+        plantilla_id: bloqueFormateado.plantilla_id,
+      };
     }
     return salidaFormateada;
   }

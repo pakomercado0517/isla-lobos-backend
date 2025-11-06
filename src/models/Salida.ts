@@ -15,7 +15,7 @@ interface SalidaAttributes {
   destino: string;
   bloque_id?: string; // Opcional - solo para Isla de Lobos
   hora?: string; // Opcional - solo para otros destinos
-  fecha: Date;
+  fecha: string;
   numero_pasajeros: number;
   observaciones?: string;
   estado: EstadoSalida;
@@ -44,7 +44,7 @@ class Salida
   public destino!: string;
   public bloque_id?: string;
   public hora?: string;
-  public fecha!: Date;
+  public fecha!: string;
   public numero_pasajeros!: number;
   public observaciones?: string;
   public estado!: EstadoSalida;
@@ -149,13 +149,24 @@ Salida.init(
       },
     },
     fecha: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
       validate: {
         notEmpty: true,
       },
+      get() {
+        // Asegurar que siempre devuelva YYYY-MM-DD
+        const value = this.getDataValue("fecha");
+        if (!value) return null;
+        if (typeof value === "string") return value.split("T")[0];
+        const dateValue = value as Date;
+        if (dateValue && typeof dateValue.toISOString === "function") {
+          return dateValue.toISOString().split("T")[0];
+        }
+        return String(value).split("T")[0];
+      },
       comment:
-        "Fecha y hora de la salida en zona horaria de México (America/Mexico_City)",
+        "Fecha de la salida en formato YYYY-MM-DD (solo fecha, sin hora)",
     },
     numero_pasajeros: {
       type: DataTypes.INTEGER,

@@ -76,11 +76,26 @@ module.exports = {
       },
     });
 
-    // Crear índices para optimización
-    await queryInterface.addIndex("ventas_brazaletes", ["prestador_id"]);
-    await queryInterface.addIndex("ventas_brazaletes", ["fecha_venta"]);
-    await queryInterface.addIndex("ventas_brazaletes", ["lote_id"]);
-    await queryInterface.addIndex("ventas_brazaletes", ["estado_pago"]);
+    // Crear índices para optimización (con verificación de existencia)
+    const indices = [
+      { campos: ["prestador_id"], nombre: "idx_ventas_brazaletes_prestador_id" },
+      { campos: ["fecha_venta"], nombre: "idx_ventas_brazaletes_fecha_venta" },
+      { campos: ["lote_id"], nombre: "idx_ventas_brazaletes_lote_id" },
+      { campos: ["estado_pago"], nombre: "idx_ventas_brazaletes_estado_pago" },
+    ];
+
+    for (const indice of indices) {
+      try {
+        await queryInterface.addIndex("ventas_brazaletes", indice.campos, {
+          name: indice.nombre,
+        });
+      } catch (error) {
+        // Ignorar si el índice ya existe
+        if (!error.message.includes("already exists")) {
+          throw error;
+        }
+      }
+    }
   },
 
   async down(queryInterface, Sequelize) {

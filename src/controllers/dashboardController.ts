@@ -327,7 +327,9 @@ class DashboardController {
         const fecha =
           typeof bloque.fecha === "string"
             ? bloque.fecha
-            : bloque.fecha?.toISOString().split("T")[0] || "plantilla";
+            : bloque.fecha && typeof (bloque.fecha as Date).toISOString === 'function'
+            ? (bloque.fecha as Date).toISOString().split("T")[0]
+            : "plantilla";
         if (!ocupacionPorDia.has(fecha)) {
           ocupacionPorDia.set(fecha, {
             fecha,
@@ -523,6 +525,7 @@ class DashboardController {
       const ahora = getCurrentMexicoTime();
       const proximos30Dias = new Date(ahora);
       proximos30Dias.setDate(ahora.getDate() + 30);
+      const proximos30DiasStr = proximos30Dias.toISOString().split('T')[0];
 
       // Obtener usuarios con información de permisos
       const usuarios = await User.findAll({
@@ -558,7 +561,9 @@ class DashboardController {
         vencen_proximos_30_dias: usuarios.filter(
           (u) =>
             u.fechaVencimientoPermiso &&
-            u.fechaVencimientoPermiso <= proximos30Dias &&
+            typeof u.fechaVencimientoPermiso === 'string' &&
+            proximos30DiasStr &&
+            u.fechaVencimientoPermiso <= proximos30DiasStr &&
             u.estadoPermiso === EstadoPermiso.VIGENTE
         ).length,
       };
@@ -573,7 +578,9 @@ class DashboardController {
       const usuariosVencenProximos = usuarios.filter(
         (u) =>
           u.fechaVencimientoPermiso &&
-          u.fechaVencimientoPermiso <= proximos30Dias &&
+          typeof u.fechaVencimientoPermiso === 'string' &&
+          proximos30DiasStr &&
+          u.fechaVencimientoPermiso <= proximos30DiasStr &&
           u.estadoPermiso === EstadoPermiso.VIGENTE
       );
 

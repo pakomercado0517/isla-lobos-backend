@@ -24,8 +24,8 @@ export const getAllSalidasValidation = [
 
   query("fecha")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD"),
 
   query("estado")
     .optional()
@@ -51,15 +51,13 @@ export const getAllSalidasValidation = [
 
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
-    ),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
 ];
 
 // Validaciones para obtener salida por ID
@@ -87,14 +85,23 @@ export const createSalidaValidation = [
     .withMessage("El ID de la embarcación debe ser un UUID válido"),
 
   body("fecha")
-    .isISO8601()
-    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD")
     .custom((value) => {
-      const fechaSalida = new Date(value);
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-
-      if (fechaSalida < hoy) {
+      // Validar que sea una fecha válida
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      if (
+        date.getFullYear() !== year ||
+        date.getMonth() + 1 !== month ||
+        date.getDate() !== day
+      ) {
+        throw new Error("Fecha inválida");
+      }
+      
+      // Comparar con hoy (como string YYYY-MM-DD)
+      const hoy = new Date().toISOString().split('T')[0];
+      if (hoy && value < hoy) {
         throw new Error("La fecha no puede ser en el pasado");
       }
       return true;
@@ -206,15 +213,24 @@ export const updateSalidaValidation = [
 
   body("fecha")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)")
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD")
     .custom((value) => {
       if (value) {
-        const fechaSalida = new Date(value);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-
-        if (fechaSalida < hoy) {
+        // Validar que sea una fecha válida
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          throw new Error("Fecha inválida");
+        }
+        
+        // Comparar con hoy (como string YYYY-MM-DD)
+        const hoy = new Date().toISOString().split('T')[0];
+        if (hoy && value < hoy) {
           throw new Error("La fecha no puede ser en el pasado");
         }
       }
@@ -272,8 +288,8 @@ export const getMisSalidasValidation = [
 
   query("fecha")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha debe tener formato YYYY-MM-DD"),
 
   query("estado")
     .optional()
@@ -284,15 +300,13 @@ export const getMisSalidasValidation = [
 
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
-    ),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
 ];
 
 // Validaciones para estadísticas de salidas
@@ -304,13 +318,11 @@ export const getSalidaStatsValidation = [
 
   query("fecha_inicio")
     .optional()
-    .isISO8601()
-    .withMessage(
-      "La fecha de inicio debe estar en formato ISO 8601 (YYYY-MM-DD)"
-    ),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
 
   query("fecha_fin")
     .optional()
-    .isISO8601()
-    .withMessage("La fecha de fin debe estar en formato ISO 8601 (YYYY-MM-DD)"),
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
 ];

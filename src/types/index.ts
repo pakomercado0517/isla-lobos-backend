@@ -9,10 +9,10 @@ export interface User {
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
-  fechaVencimientoPermiso?: Date;
+  fechaVencimientoPermiso?: string; // YYYY-MM-DD
   estadoPermiso: EstadoPermiso;
   diasNotificacion: number;
-  ultimaNotificacion?: Date;
+  ultimaNotificacion?: string; // YYYY-MM-DD
   motivoSuspension?: string;
   created_at: Date;
   updated_at: Date;
@@ -64,7 +64,7 @@ export interface Bloque {
   estado: EstadoBloque;
   destino: DestinoType;
   es_plantilla: boolean; // true = plantilla para todos los días, false = bloque específico
-  fecha?: Date; // null si es_plantilla = true, obligatorio si es_plantilla = false
+  fecha?: string; // null si es_plantilla = true, obligatorio si es_plantilla = false (YYYY-MM-DD)
   created_at: Date;
   updated_at: Date;
 }
@@ -138,7 +138,7 @@ export interface Invitacion {
   codigo: string;
   email: string;
   rol: UserRole;
-  expira_en: Date;
+  expira_en: string; // YYYY-MM-DD
   usada: boolean;
   creada_por: string;
   created_at: Date;
@@ -242,8 +242,8 @@ export interface LoteBrazalete {
   cantidad_vendidos: number;
   cantidad_utilizados: number;
   tipo: TipoBrazalete;
-  fecha_compra: Date;
-  fecha_vencimiento?: Date;
+  fecha_compra: string; // YYYY-MM-DD
+  fecha_vencimiento?: string; // YYYY-MM-DD
   costo_unitario: number;
   precio_venta: number;
   proveedor?: string;
@@ -272,8 +272,8 @@ export interface Brazalete {
   estado: EstadoBrazalete;
   precio: number;
   fecha_creacion: Date;
-  fecha_asignacion?: Date;
-  fecha_uso?: Date;
+  fecha_asignacion?: string; // YYYY-MM-DD
+  fecha_uso?: string; // YYYY-MM-DD
   prestador_id?: string;
   salida_id?: string;
   turista_nacionalidad?: string;
@@ -298,7 +298,7 @@ export interface VentaBrazalete {
   cantidad: number;
   precio_unitario: number;
   total: number;
-  fecha_venta: Date;
+  fecha_venta: string; // YYYY-MM-DD
   metodo_pago?: string;
   estado_pago: EstadoPago;
   observaciones?: string;
@@ -345,7 +345,7 @@ export interface UsarBrazaleteRequest {
 export interface AsignarBrazaletesRequest {
   salida_id: string;
   cantidad: number;
-  fecha_asignacion: Date;
+  fecha_asignacion: string; // YYYY-MM-DD
 }
 
 // Tipos para estadísticas de brazaletes
@@ -722,4 +722,68 @@ export interface EmailInvitacionData {
   rol: UserRole;
   url_invitacion: string;
   expiracion_dias: number;
+}
+
+// ============================================================================
+// TIPOS PARA SISTEMA DE NOTIFICACIONES DEL DASHBOARD (WEBSOCKETS + BD)
+// ============================================================================
+
+// Tipos de notificaciones del dashboard
+export enum TipoNotificacionDashboard {
+  NUEVA_EMBARCACION = "nueva_embarcacion",
+  EMBARCACION_AUTORIZADA = "embarcacion_autorizada",
+  EMBARCACION_RECHAZADA = "embarcacion_rechazada",
+  PERMISO_POR_VENCER = "permiso_por_vencer",
+  PERMISO_VENCIDO = "permiso_vencido",
+  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
+  NUEVA_SALIDA_REGISTRADA = "nueva_salida_registrada",
+  ALERTA_CLIMA = "alerta_clima",
+  OTRO = "otro",
+}
+
+// Prioridad de notificaciones del dashboard
+export enum PrioridadNotificacionDashboard {
+  ALTA = "alta",
+  MEDIA = "media",
+  BAJA = "baja",
+}
+
+// Interfaz para notificación del dashboard
+export interface NotificacionDashboard {
+  id: string;
+  tipo: TipoNotificacionDashboard;
+  titulo: string;
+  mensaje: string;
+  usuario_id: string | null;
+  enlace: string | null;
+  leida: boolean;
+  prioridad: PrioridadNotificacionDashboard;
+  metadata: Record<string, string | number | boolean | null>;
+  read_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Request para crear notificación
+export interface CrearNotificacionDashboardRequest {
+  tipo: TipoNotificacionDashboard;
+  titulo: string;
+  mensaje: string;
+  usuario_id?: string | null;
+  enlace?: string | null;
+  prioridad?: PrioridadNotificacionDashboard;
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+// Respuesta con notificaciones
+export interface NotificacionesDashboardResponse {
+  notificaciones: NotificacionDashboard[];
+  total: number;
+  no_leidas: number;
+}
+
+// Respuesta con contador de notificaciones
+export interface ContadorNotificacionesResponse {
+  total: number;
+  no_leidas: number;
 }

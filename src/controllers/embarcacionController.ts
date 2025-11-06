@@ -3,6 +3,13 @@ import Embarcacion from "../models/Embarcacion";
 import User from "../models/User";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
+import dashboardNotificationService from "../services/dashboardNotificationService";
+import {
+  TipoNotificacionDashboard,
+  PrioridadNotificacionDashboard,
+  EstadoEmbarcacion,
+} from "../types";
+import { AuthRequest } from "../middleware/auth";
 
 const logger = createLogger("EmbarcacionController");
 
@@ -148,14 +155,14 @@ class EmbarcacionController {
    * Crear una nueva embarcación
    * POST /api/embarcaciones
    */
-  static async createEmbarcacion(req: Request, res: Response): Promise<void> {
+  static async createEmbarcacion(req: AuthRequest, res: Response): Promise<void> {
     try {
       const {
         nombre,
         matricula,
         capacidad,
         tipo,
-        estado = "disponible",
+        estado,
         prestador_id,
       } = req.body;
 
@@ -179,6 +186,15 @@ class EmbarcacionController {
         return;
       }
 
+      // Determinar el estado: si no viene estado, o si el usuario autenticado es prestador,
+      // la embarcación debe crearse como pendiente_autorizacion
+      const usuarioAutenticado = req.user;
+      const estadoFinal =
+        estado ||
+        (usuarioAutenticado?.rol === "prestador"
+          ? EstadoEmbarcacion.PENDIENTE_AUTORIZACION
+          : EstadoEmbarcacion.DISPONIBLE);
+
       // Verificar que la matrícula no esté duplicada
       const embarcacionExistente = await Embarcacion.findOne({
         where: { matricula },
@@ -199,7 +215,7 @@ class EmbarcacionController {
         matricula,
         capacidad,
         tipo,
-        estado,
+        estado: estadoFinal,
         prestador_id,
       });
 
@@ -216,6 +232,42 @@ class EmbarcacionController {
           ],
         }
       );
+
+      // Crear notificación para usuarios CONANP si la embarcación está pendiente de autorización
+      if (nuevaEmbarcacion.estado === EstadoEmbarcacion.PENDIENTE_AUTORIZACION) {
+        try {
+          await dashboardNotificationService.crearNotificacion({
+            tipo: TipoNotificacionDashboard.NUEVA_EMBARCACION,
+            titulo: "Nueva embarcación pendiente de autorización",
+            mensaje: `El prestador ${prestador.nombre} ha registrado una nueva embarcación: ${nombre} (${matricula}) con capacidad para ${capacidad} pasajeros.`,
+            usuario_id: null, // Para todos los usuarios CONANP
+            enlace: `/embarcaciones/${nuevaEmbarcacion.id}`,
+            prioridad: PrioridadNotificacionDashboard.ALTA,
+            metadata: {
+              embarcacion_id: nuevaEmbarcacion.id,
+              prestador_id: prestador.id,
+              prestador_nombre: prestador.nombre,
+              matricula: matricula,
+              capacidad: capacidad,
+              tipo: tipo,
+            },
+          });
+
+          logger.info(
+            {
+              embarcacion_id: nuevaEmbarcacion.id,
+              prestador_id: prestador.id,
+            },
+            "Notificación creada para nueva embarcación pendiente"
+          );
+        } catch (notifError) {
+          // No fallar la creación de embarcación si falla la notificación
+          logger.error(
+            { error: notifError, embarcacion_id: nuevaEmbarcacion.id },
+            "Error al crear notificación de nueva embarcación"
+          );
+        }
+      }
 
       res.status(201).json({
         status: "success",
