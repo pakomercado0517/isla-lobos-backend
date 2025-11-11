@@ -476,12 +476,20 @@ export enum EstadoNotificacion {
 }
 
 // Request para enviar notificación individual
+export type TemplateVariables =
+  | Array<string | number | boolean>
+  | Record<string, string | number | boolean>;
+
 export interface EnviarNotificacionRequest {
   telefono: string;
-  mensaje: string;
+  mensaje?: string;
   tipo: TipoNotificacion;
   prioridad: PrioridadNotificacion;
   datos_adicionales?: Record<string, string | number | boolean>;
+  template?: string;
+  contentSid?: string;
+  variables?: TemplateVariables;
+  idioma?: string;
 }
 
 // Request para enviar notificación masiva

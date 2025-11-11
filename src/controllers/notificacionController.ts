@@ -55,18 +55,37 @@ class NotificacionController {
     res: Response
   ): Promise<void> {
     try {
-      const { telefono, mensaje, tipo, prioridad } = req.body;
+      const {
+        telefono,
+        mensaje,
+        tipo,
+        prioridad,
+        template,
+        contentSid,
+        variables,
+        idioma,
+      } = req.body;
+
+      const resolvedContentSid: string | undefined =
+        contentSid || template || undefined;
 
       logger.info(
-        { telefono, tipo, prioridad },
+        { telefono, tipo, prioridad, template: resolvedContentSid },
         "Enviando notificación individual"
       );
 
-      const resultado = await whatsappService.enviarMensaje(
-        telefono,
-        mensaje,
-        tipo || TipoNotificacion.RECORDATORIO_GENERICO
-      );
+      const resultado = resolvedContentSid
+        ? await whatsappService.enviarMensajeConTemplate(
+            telefono,
+            resolvedContentSid,
+            variables,
+            idioma
+          )
+        : await whatsappService.enviarMensaje(
+            telefono,
+            mensaje,
+            tipo || TipoNotificacion.RECORDATORIO_GENERICO
+          );
 
       if (resultado.success) {
         res.status(200).json({
