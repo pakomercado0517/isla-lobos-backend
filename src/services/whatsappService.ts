@@ -12,6 +12,7 @@ import {
   NotificacionResumenDiarioData,
   EstadoPuerto,
   User,
+  TemplateVariables,
 } from "../types";
 
 const logger = createLogger("WhatsAppService");
@@ -24,6 +25,10 @@ class WhatsAppService {
   private client: twilio.Twilio | null = null;
   private whatsappNumber: string = "";
   private isConfigured: boolean = false;
+  private readonly defaultTemplateLanguage =
+    process.env["TWILIO_WHATSAPP_TEMPLATE_LANGUAGE"] || "es";
+  private readonly messagingServiceSid =
+    process.env["TWILIO_MESSAGE_SERVICE_SID"] || null;
 
   constructor() {
     this.initialize();
@@ -173,6 +178,91 @@ class WhatsAppService {
           error instanceof Error
             ? error.message
             : "Error desconocido al enviar mensaje",
+      };
+    }
+  }
+
+  /**
+   * Envía un mensaje utilizando un contenido aprobado (WhatsApp Template)
+   * @param telefono - Número de teléfono del destinatario
+   * @param contentSid - SID del contenido (HX...) configurado en Twilio Content API
+   * @param variables - Variables a sustituir dentro del contenido
+   * @param languageCode - Código de idioma (por defecto "es")
+   */
+  public async enviarMensajeConTemplate(
+    telefono: string,
+    contentSid: string,
+    variables?: TemplateVariables,
+    languageCode?: string
+  ): Promise<NotificacionResponse> {
+    // Nota: El parámetro `contentSid` puede provenir tanto del campo `contentSid`
+    // como de `template` en el request. Debe ser un SID válido generado por Twilio
+    // Content API (formato HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx). Twilio no acepta
+    // nombres descriptivos; si se envía un alias como "wheater_alert" responderá 20422.
+    if (!this.isReady()) {
+      logger.error("Servicio de WhatsApp no configurado");
+      return {
+        success: false,
+        telefono,
+        estado: EstadoNotificacion.FALLIDO,
+        fecha_envio: new Date(),
+        error: "Servicio de WhatsApp no configurado",
+      };
+    }
+    try {
+      const telefonoFormateado = this.formatearTelefono(telefono);
+      const contentVariables = this.buildContentVariables(variables);
+      const language = languageCode || this.defaultTemplateLanguage;
+
+      const messagePayload: Record<string, unknown> = {
+        to: telefonoFormateado,
+        contentSid,
+      };
+
+      if (contentVariables) {
+        messagePayload["contentVariables"] = contentVariables;
+      }
+
+      if (this.messagingServiceSid) {
+        messagePayload["messagingServiceSid"] = this.messagingServiceSid;
+      } else {
+        messagePayload["from"] = this.whatsappNumber;
+      }
+
+      const message = await this.client!.messages.create(messagePayload as any);
+
+      logger.info(
+        {
+          messageId: message.sid,
+          status: message.status,
+          contentSid,
+          language,
+        },
+        "✅ Mensaje con plantilla enviado exitosamente"
+      );
+
+      return {
+        success: true,
+        message_id: message.sid,
+        telefono: telefonoFormateado,
+        estado: EstadoNotificacion.ENVIADO,
+        fecha_envio: new Date(),
+      };
+    } catch (error) {
+      logger.error(
+        { error, contentSid, telefono },
+        "❌ Error al enviar mensaje con plantilla"
+      );
+
+      return {
+        success: false,
+        telefono,
+        estado: EstadoNotificacion.FALLIDO,
+        fecha_envio: new Date(),
+        error:
+          error instanceof Error
+            ? error.message
+            : "Error desconocido al enviar mensaje con plantilla",
       };
     }
   }
@@ -515,6 +605,34 @@ class WhatsAppService {
           error instanceof Error ? error.message : "Error al verificar estado",
       };
     }
+  }
+
+  private buildContentVariables(
+    variables?: TemplateVariables
+  ): string | undefined {
+    if (!variables) {
+      return undefined;
+    }
+
+    const valores: Record<string, string> = Array.isArray(variables)
+      ? variables.reduce((acc, value, index) => {
+          if (value !== undefined && value !== null) {
+            acc[String(index + 1)] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      : Object.entries(variables).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null) {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>);
+
+    if (Object.keys(valores).length === 0) {
+      return undefined;
+    }
+
+    return JSON.stringify(valores);
   }
 }
 

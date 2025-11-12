@@ -23,13 +23,91 @@ export const enviarNotificacionValidation = [
     ),
 
   body("mensaje")
+    .if((_, { req }) => !(req.body.template || req.body.contentSid))
     .notEmpty()
-    .withMessage("El mensaje es requerido")
+    .withMessage("El mensaje es requerido cuando no se especifica una plantilla")
+    .bail()
     .isString()
     .withMessage("El mensaje debe ser un string")
     .trim()
     .isLength({ min: 10, max: 1600 })
     .withMessage("El mensaje debe tener entre 10 y 1600 caracteres"),
+  body("mensaje")
+    .optional({ nullable: true })
+    .isString()
+    .withMessage("El mensaje debe ser un string")
+    .trim()
+    .isLength({ max: 1600 })
+    .withMessage("El mensaje no puede exceder 1600 caracteres"),
+
+  body("template")
+    .optional()
+    .isString()
+    .withMessage("La plantilla debe ser un string")
+    .trim()
+    .isLength({ min: 1, max: 128 })
+    .withMessage("El nombre de plantilla debe tener entre 1 y 128 caracteres"),
+
+  body("contentSid")
+    .optional()
+    .isString()
+    .withMessage("El content SID debe ser un string")
+    .trim()
+    .matches(/^HX[0-9a-fA-F]{32}$/)
+    .withMessage(
+      "El content SID debe tener el formato correcto (comienza con HX y 32 caracteres hexadecimales)"
+    ),
+
+  body("variables")
+    .if((_, { req }) => !!(req.body.template || req.body.contentSid))
+    .notEmpty()
+    .withMessage("Las variables son requeridas cuando se utiliza una plantilla")
+    .bail()
+    .custom((value) => {
+      if (Array.isArray(value)) {
+        const isValid = value.every((item) => {
+          const tipo = typeof item;
+          return (
+            tipo === "string" ||
+            tipo === "number" ||
+            tipo === "boolean"
+          );
+        });
+        if (!isValid) {
+          throw new Error(
+            "Las variables deben ser un arreglo de strings, números o booleanos"
+          );
+        }
+        return true;
+      }
+      if (value && typeof value === "object") {
+        const isValid = Object.values(value).every((item) => {
+          const tipo = typeof item;
+          return (
+            tipo === "string" ||
+            tipo === "number" ||
+            tipo === "boolean"
+          );
+        });
+        if (!isValid) {
+          throw new Error(
+            "Las variables deben ser un objeto con valores string, number o boolean"
+          );
+        }
+        return true;
+      }
+      throw new Error(
+        "Las variables deben ser un arreglo o un objeto con valores válidos"
+      );
+    }),
+
+  body("idioma")
+    .optional()
+    .isString()
+    .withMessage("El idioma debe ser un string")
+    .trim()
+    .isLength({ min: 2, max: 10 })
+    .withMessage("El código de idioma debe tener entre 2 y 10 caracteres"),
 
   body("tipo")
     .optional()
