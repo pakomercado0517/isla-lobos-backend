@@ -64,6 +64,15 @@ export const createUserValidation = [
     .optional()
     .isBoolean()
     .withMessage("El campo activo debe ser true o false"),
+  body("fechaVencimientoPermiso")
+    .optional()
+    .isString()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de vencimiento debe tener el formato YYYY-MM-DD"),
+  body("diasNotificacion")
+    .optional()
+    .isInt({ min: 1, max: 365 })
+    .withMessage("Los días de notificación deben ser un número entre 1 y 365"),
 ];
 
 // Validación para actualizar usuario
@@ -98,6 +107,15 @@ export const updateUserValidation = [
     .optional()
     .isBoolean()
     .withMessage("El campo activo debe ser true o false"),
+  body("fechaVencimientoPermiso")
+    .optional()
+    .isString()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("La fecha de vencimiento debe tener el formato YYYY-MM-DD"),
+  body("diasNotificacion")
+    .optional()
+    .isInt({ min: 1, max: 365 })
+    .withMessage("Los días de notificación deben ser un número entre 1 y 365"),
 ];
 
 // Validación para eliminar usuario

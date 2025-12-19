@@ -28,6 +28,7 @@ export enum EstadoPermiso {
   POR_VENCER = "por_vencer",
   VENCIDO = "vencido",
   SUSPENDIDO = "suspendido",
+  PENDIENTE = "pendiente", // Permiso sin fecha de vencimiento asignada
 }
 
 export interface Embarcacion {

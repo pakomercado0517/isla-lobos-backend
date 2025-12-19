@@ -558,6 +558,9 @@ class DashboardController {
         vencidos: usuarios.filter(
           (u) => u.estadoPermiso === EstadoPermiso.VENCIDO
         ).length,
+        pendientes: usuarios.filter(
+          (u) => u.estadoPermiso === EstadoPermiso.PENDIENTE
+        ).length,
         vencen_proximos_30_dias: usuarios.filter(
           (u) =>
             u.fechaVencimientoPermiso &&
@@ -569,6 +572,9 @@ class DashboardController {
       };
 
       // Usuarios que requieren atención
+      const usuariosPendientes = usuarios.filter(
+        (u) => u.estadoPermiso === EstadoPermiso.PENDIENTE
+      );
       const usuariosPorVencer = usuarios.filter(
         (u) => u.estadoPermiso === EstadoPermiso.POR_VENCER
       );
@@ -587,6 +593,8 @@ class DashboardController {
       // Formatear usuarios con fechas en YYYY-MM-DD
       const usuariosFormateados =
         DashboardController.formatearUsuariosParaRespuesta(usuarios);
+      const usuariosPendientesFormateados =
+        DashboardController.formatearUsuariosParaRespuesta(usuariosPendientes);
       const usuariosPorVencerFormateados =
         DashboardController.formatearUsuariosParaRespuesta(usuariosPorVencer);
       const usuariosVencidosFormateados =
@@ -601,6 +609,7 @@ class DashboardController {
         message: "Estado de permisos obtenido exitosamente",
         data: {
           estadisticas,
+          usuarios_pendientes: usuariosPendientesFormateados,
           usuarios_por_vencer: usuariosPorVencerFormateados,
           usuarios_vencidos: usuariosVencidosFormateados,
           usuarios_vencen_proximos_30_dias: usuariosVencenProximosFormateados,

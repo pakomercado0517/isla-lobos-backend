@@ -314,16 +314,20 @@ LoteBrazalete.init(
     indexes: [
       {
         fields: ["tipo"],
+        name: "idx_lotes_brazaletes_tipo",
       },
       {
         fields: ["estado"],
+        name: "idx_lotes_brazaletes_estado",
       },
       {
         fields: ["fecha_compra"],
+        name: "idx_lotes_brazaletes_fecha_compra",
       },
       {
         fields: ["numero_lote"],
         unique: true,
+        name: "idx_lotes_brazaletes_numero_lote",
       },
     ],
   }

@@ -178,6 +178,8 @@ class UserController {
         password,
         rol,
         activo = true,
+        fechaVencimientoPermiso,
+        diasNotificacion = 30,
       } = req.body;
 
       // Verificar si el email ya existe
@@ -203,10 +205,16 @@ class UserController {
         password: hashedPassword,
         rol: rol as UserRole,
         activo,
+        diasNotificacion,
       };
 
       if (telefono) {
         userData.telefono = telefono;
+      }
+
+      // Guardar fecha de vencimiento si se proporciona (formato YYYY-MM-DD, directo sin conversiones)
+      if (fechaVencimientoPermiso) {
+        userData.fechaVencimientoPermiso = fechaVencimientoPermiso;
       }
 
       const newUser = await User.create(userData);
@@ -253,7 +261,15 @@ class UserController {
       }
 
       const { userId } = req.params;
-      const { nombre, email, telefono, rol, activo } = req.body;
+      const {
+        nombre,
+        email,
+        telefono,
+        rol,
+        activo,
+        fechaVencimientoPermiso,
+        diasNotificacion,
+      } = req.body;
 
       const user = await User.findByPk(userId);
       if (!user) {
@@ -282,6 +298,10 @@ class UserController {
         }
       }
 
+      // Guardar el estado anterior de fechaVencimientoPermiso para detectar cambios
+      const fechaVencimientoAnterior = user.fechaVencimientoPermiso;
+      const diasNotificacionAnterior = user.diasNotificacion;
+
       // Actualizar campos
       if (nombre !== undefined) user.nombre = nombre;
       if (email !== undefined) user.email = email;
@@ -289,7 +309,31 @@ class UserController {
       if (rol !== undefined) user.rol = rol as UserRole;
       if (activo !== undefined) user.activo = activo;
 
+      // Actualizar fecha de vencimiento si se proporciona (formato YYYY-MM-DD, directo sin conversiones)
+      if (fechaVencimientoPermiso !== undefined) {
+        user.fechaVencimientoPermiso = fechaVencimientoPermiso;
+      }
+
+      // Actualizar días de notificación si se proporciona
+      if (diasNotificacion !== undefined) {
+        user.diasNotificacion = diasNotificacion;
+      }
+
       await user.save();
+
+      // Actualizar estado del permiso automáticamente si cambió la fecha o días de notificación
+      const fechaCambio =
+        fechaVencimientoPermiso !== undefined &&
+        fechaVencimientoPermiso !== fechaVencimientoAnterior;
+      const diasCambio =
+        diasNotificacion !== undefined &&
+        diasNotificacion !== diasNotificacionAnterior;
+
+      if (fechaCambio || diasCambio) {
+        await user.actualizarEstadoPermiso();
+        // Recargar el usuario para obtener el estado actualizado
+        await user.reload();
+      }
 
       // Formatear usuario con fechas en YYYY-MM-DD
       const userFormateado = UserController.formatearUsuarioParaRespuesta(
