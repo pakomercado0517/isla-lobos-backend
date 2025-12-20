@@ -21,7 +21,7 @@ export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
       origin:
         process.env["NODE_ENV"] === "production"
           ? allowedOrigins
-          : (_origin, callback) => {
+          : (_origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
               // En desarrollo, permitir cualquier origen
               callback(null, true);
             },
@@ -29,7 +29,7 @@ export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
       methods: ["GET", "POST"],
     },
     path: "/socket.io/",
-  });
+  } as any);
 
   // Middleware de autenticación
   io.use((socket, next) => {

@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -11,7 +11,7 @@ import { serverLogger } from "./utils/logger";
 import { httpLogger } from "./utils/http-logger";
 dotenv.config();
 
-const app: Express = express();
+const app = express();
 
 // Middleware de seguridad
 // Configurar Helmet para permitir cookies cross-domain
@@ -113,7 +113,7 @@ const initializeDatabase = async (): Promise<void> => {
 initializeDatabase();
 
 // Ruta de prueba
-app.get("/health", (_req, res) => {
+app.get("/health", (_req: express.Request, res: express.Response) => {
   res.json({
     status: "OK",
     message: "Servidor funcionando correctamente",
@@ -125,7 +125,7 @@ app.get("/health", (_req, res) => {
 app.use("/api", apiRoutes);
 
 // Manejo de rutas no encontradas
-app.use((_req, res) => {
+app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({
     status: "ERROR",
     message: "Ruta no encontrada",
