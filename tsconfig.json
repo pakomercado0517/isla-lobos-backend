@@ -16,6 +16,7 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "preserveSymlinks": true,
+    "skipLibCheck": true,
 
     // Other Outputs
     "sourceMap": true,
@@ -38,8 +39,13 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    
+    // Type Resolution (para pnpm)
+    // typeRoots removido para permitir resolución automática de tipos
+    "baseUrl": ".",
+    "paths": {}
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", ".pnpm"]
 }

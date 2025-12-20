@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Backend para el sistema de gestión de bloques y salidas de embarcaciones",
   "main": "dist/index.js",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
