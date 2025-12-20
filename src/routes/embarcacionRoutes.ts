@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import EmbarcacionController from "../controllers/embarcacionController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import {
@@ -15,7 +15,7 @@ import {
   getEmbarcacionStatsValidation,
 } from "../validators/embarcacionValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

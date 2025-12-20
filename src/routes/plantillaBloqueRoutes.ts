@@ -1,10 +1,10 @@
-import express from "express";
+import express, { type Router as ExpressRouter } from "express";
 import PlantillaBloqueController from "../controllers/plantillaBloqueController";
 import { authMiddleware } from "../middleware/auth";
 import { body } from "express-validator";
 import { validationMiddleware } from "../middleware/validation";
 
-const router = express.Router();
+const router: ExpressRouter = express.Router();
 
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authMiddleware);

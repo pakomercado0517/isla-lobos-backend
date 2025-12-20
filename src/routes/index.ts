@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import authRoutes from "./authRoutes";
 import userRoutes from "./userRoutes";
 import bloqueRoutes from "./bloqueRoutes";
@@ -14,7 +14,7 @@ import emailRoutes from "./emailRoutes";
 import avatarRoutes from "./avatarRoutes";
 import publicRoutes from "./publicRoutes";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * Rutas principales del sistema Isla Lobos

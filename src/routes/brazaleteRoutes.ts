@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import BrazaleteController from "../controllers/brazaleteController";
 import EstadisticasBrazaleteController from "../controllers/estadisticasBrazaleteController";
 import BrazaleteValidator from "../validators/brazaleteValidator";
 import { validationMiddleware } from "../middleware/validation";
 import { authMiddleware, requireRole } from "../middleware/auth";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // ============================================================================
 // RUTAS PARA GESTIÓN DE INVENTARIO

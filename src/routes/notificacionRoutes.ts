@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import NotificacionController from "../controllers/notificacionController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import { handleValidationErrors } from "../middleware/validation";
@@ -11,7 +11,7 @@ import {
   enviarPruebaValidation,
 } from "../validators/notificacionValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * @route   GET /api/notificaciones/estado

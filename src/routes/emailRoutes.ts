@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import EmailController from "../controllers/emailController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import { handleValidationErrors } from "../middleware/validation";
@@ -10,7 +10,7 @@ import {
   enviarPruebaValidation,
 } from "../validators/emailValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * @route   GET /api/emails/estado

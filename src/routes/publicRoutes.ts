@@ -1,8 +1,8 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import PublicController from "../controllers/publicController";
 import { sanitizeInput } from "../middleware/validation";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 // Solo sanitización, NO autenticación ni autorización

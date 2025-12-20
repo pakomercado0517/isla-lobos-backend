@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import DashboardController from "../controllers/dashboardController";
 import DashboardNotificationController from "../controllers/dashboardNotificationController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
@@ -11,7 +11,7 @@ import {
   getResumenClimaValidation,
 } from "../validators/dashboardValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

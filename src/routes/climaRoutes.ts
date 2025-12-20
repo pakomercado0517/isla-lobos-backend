@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import ClimaController from "../controllers/climaController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import {
@@ -15,7 +15,7 @@ import {
   getEstadisticasValidation,
 } from "../validators/climaValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

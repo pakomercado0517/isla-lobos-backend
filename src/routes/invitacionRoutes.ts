@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import InvitacionController from "../controllers/invitacionController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import {
@@ -15,7 +15,7 @@ import {
   usarInvitacionValidation,
 } from "../validators/invitacionValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

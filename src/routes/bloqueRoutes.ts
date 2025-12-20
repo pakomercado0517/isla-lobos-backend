@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import BloqueController from "../controllers/bloqueController";
 import { authenticateToken, requireCONANP } from "../middleware/auth";
 import {
@@ -14,7 +14,7 @@ import {
   getBloqueStatsValidation,
 } from "../validators/bloqueValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

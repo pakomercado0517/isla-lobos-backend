@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import AuthController from "../controllers/authController";
 import { authenticateToken } from "../middleware/auth";
 import {
@@ -17,7 +17,7 @@ import {
   resetPasswordValidation,
 } from "../validators/authValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 /**
  * Rutas de autenticación para el sistema Isla Lobos

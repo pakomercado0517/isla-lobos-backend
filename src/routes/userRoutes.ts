@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import UserController from "../controllers/userController";
 import {
   authenticateToken,
@@ -21,7 +21,7 @@ import {
   hardDeleteUserValidation,
 } from "../validators/userValidators";
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Middleware global para sanitizar entrada
 router.use(sanitizeInput);

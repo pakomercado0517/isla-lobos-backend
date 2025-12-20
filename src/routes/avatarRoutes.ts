@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, type Router as ExpressRouter, Request, Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import AvatarController from "../controllers/avatarController";
 import {
@@ -19,7 +19,7 @@ import { authenticateToken } from "../middleware/auth";
  * Todas las rutas requieren autenticación JWT
  */
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Aplicar autenticación a todas las rutas de avatares
 router.use(authenticateToken);

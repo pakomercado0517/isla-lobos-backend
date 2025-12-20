@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -11,7 +11,7 @@ import { serverLogger } from "./utils/logger";
 import { httpLogger } from "./utils/http-logger";
 dotenv.config();
 
-const app = express();
+const app: Express = express();
 
 // Middleware de seguridad
 // Configurar Helmet para permitir cookies cross-domain
