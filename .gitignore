@@ -52,6 +52,7 @@ scripts/
 migrations/
 seeders/
 .cursor/
+.ejemplo-uso-script.txt
 
 # nyc test coverage
 .nyc_output/
