@@ -43,3 +43,4 @@ Write-Host "`n✓ Desinstalación completada!" -ForegroundColor Green
 Write-Host "`nCierra y vuelve a abrir la terminal para que los cambios surtan efecto." -ForegroundColor Yellow
 Write-Host "Luego verifica con: pnpm --version (debería dar error)" -ForegroundColor Yellow
 
+
