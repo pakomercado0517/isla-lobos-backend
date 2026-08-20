@@ -1,9 +1,10 @@
-import { Server as SocketIOServer } from "socket.io";
+import { Server as SocketIOServer, ServerOptions } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../utils/logger";
 import { UserRole } from "../types";
 import dashboardNotificationService from "../services/dashboardNotificationService";
+import { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from "../types/socketIO.types";
 
 const logger = createLogger("SocketIO");
 
@@ -15,13 +16,12 @@ const logger = createLogger("SocketIO");
 export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
   const corsOrigin = process.env["CORS_ORIGIN"] || "http://localhost:3000";
   const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
-
-  const io = new SocketIOServer(httpServer, {
+  const socketConfig: Partial<ServerOptions> = {
     cors: {
       origin:
         process.env["NODE_ENV"] === "production"
           ? allowedOrigins
-          : (_origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+          : (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
               // En desarrollo, permitir cualquier origen
               callback(null, true);
             },
@@ -29,7 +29,14 @@ export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
       methods: ["GET", "POST"],
     },
     path: "/socket.io/",
-  } as any);
+  }
+
+  const io = new SocketIOServer<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+  >(httpServer, socketConfig);
 
   // Middleware de autenticación
   io.use((socket, next) => {
@@ -93,9 +100,9 @@ export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
     socket.join("conanp_todos");
 
     // Notificar al usuario que está conectado
-    socket.emit("conectado", {
-      mensaje: "Conectado al sistema de notificaciones",
-      usuario_id: userId,
+    socket.emit("actualizacionEstado", {
+      id: userId,
+      status: "conectado",
     });
 
     // Manejar desconexión

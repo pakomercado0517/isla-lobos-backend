@@ -1501,7 +1501,7 @@ export class BrazaleteController {
       // Actualizar todos los brazaletes
       const brazaletesActualizados = [];
       const errores = [];
-      let contadorLotes: Record<string, number> = {};
+      const contadorLotes: Record<string, number> = {};
 
       for (const brazalete of brazaletesAsignados) {
         try {

@@ -5,17 +5,16 @@
     "outDir": "./dist",
 
     // Environment Settings
-    "module": "commonjs",
+    "module": "node16",
     "target": "es2020",
     "lib": ["es2020"],
 
-    // Module Resolution
-    "moduleResolution": "node",
+    // Module Resolution (node16 reemplaza "node"/node10, obsoleto en TS 6+)
+    "moduleResolution": "node16",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "preserveSymlinks": true,
-    "skipLibCheck": true,
 
     // Other Outputs
     "sourceMap": true,
@@ -38,11 +37,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    
-    // Type Resolution (para pnpm)
-    "baseUrl": ".",
-    "paths": {}
+    "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", ".pnpm"]

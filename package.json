@@ -7,6 +7,11 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "verify:all": "pnpm lint && pnpm typecheck && pnpm build",
+    "verify:code": "pnpm lint && pnpm typecheck",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:migrate": "sequelize-cli db:migrate",
@@ -43,6 +48,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^17.2.2",
+    "engine.io": "6.6.9",
     "express": "4.18.2",
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.2.1",
@@ -65,6 +71,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -79,9 +86,12 @@
     "@types/sequelize": "^6.12.0",
     "@types/socket.io": "^3.0.1",
     "@types/twilio": "^3.19.3",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
     "nodemon": "^3.1.11",
     "sequelize-cli": "^6.6.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.67.0"
   }
 }
