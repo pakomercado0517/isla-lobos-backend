@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { Op } from "sequelize";
 import User from "../models/User";
 import { ApiResponse, UserRole } from "../types";
 import { createLogger } from "../utils/logger";
@@ -285,7 +286,7 @@ class UserController {
       // Verificar si el email ya existe en otro usuario
       if (email && email !== user.email) {
         const existingUser = await User.findOne({
-          where: { email, id: { [require("sequelize").Op.ne]: userId } },
+          where: { email, id: { [Op.ne]: userId } },
         });
         if (existingUser) {
           const response: ApiResponse = {

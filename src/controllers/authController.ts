@@ -17,9 +17,8 @@ import {
 } from "../types";
 import { createLogger } from "../utils/logger";
 import emailService from "../services/emailService";
+import jwt from "jsonwebtoken";
 
-// Importar jsonwebtoken usando require para evitar problemas de tipos
-const jwt = require("jsonwebtoken");
 const logger = createLogger("AuthController");
 
 // Configuración de cookies para producción cross-domain

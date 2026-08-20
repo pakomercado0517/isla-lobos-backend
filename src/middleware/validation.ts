@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { validationResult, ValidationError } from "express-validator";
 import { ApiResponse } from "../types";
 import { createLogger } from "../utils/logger";
+import type UserModel from "../models/User.js";
 
 const logger = createLogger("ValidationMiddleware");
 
@@ -168,7 +169,8 @@ export const validateUserExists = async (
       return;
     }
 
-    const User = (await import("../models/User")).default;
+    const User = (await import("../models/User.js"))
+      .default as unknown as typeof UserModel;
     const user = await User.findByPk(userId);
 
     if (!user) {

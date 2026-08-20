@@ -149,7 +149,7 @@ class BloqueController {
     try {
       const { id } = req.params;
 
-      const bloque = await Bloque.findByPk(id, {
+      const bloque = await Bloque.findByPk(id as string, {
         include: [
           {
             model: PlantillaBloque,
@@ -307,7 +307,7 @@ class BloqueController {
       }
 
       // El estado ya no determina si es plantilla, usamos es_plantilla
-      let estadoFinal = estado;
+      const estadoFinal = estado;
 
       // Crear el bloque
       const datosBloque: any = {
@@ -365,7 +365,7 @@ class BloqueController {
         fecha,
       } = req.body;
 
-      const bloque = await Bloque.findByPk(id, {
+      const bloque = await Bloque.findByPk(id as string, {
         include: [
           {
             model: PlantillaBloque,
@@ -410,7 +410,7 @@ class BloqueController {
           });
           return;
         }
-      }
+      } 
 
       // Validar que no exista otro bloque con el mismo nombre, destino y fecha
       // Usar datos formateados (de plantilla si aplica) para la validación

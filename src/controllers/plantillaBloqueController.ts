@@ -3,6 +3,7 @@ import PlantillaBloque from "../models/PlantillaBloque";
 import Bloque from "../models/Bloque";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
+import type BloqueControllerType from "./bloqueController.js";
 
 const logger = createLogger("PlantillaBloqueController");
 
@@ -160,16 +161,22 @@ class PlantillaBloqueController {
         manana.setDate(hoy.getDate() + 1);
 
         // Importar BloqueController dinámicamente para evitar dependencias circulares
-        const BloqueController = (await import("./bloqueController")).default;
+        const BloqueController = (
+          await import("./bloqueController.js")
+        ).default as unknown as typeof BloqueControllerType;
 
         // Recrear bloques para hoy y mañana
-        const hoyStr = hoy.toISOString().split('T')[0];
-        const mananaStr = manana.toISOString().split('T')[0];
+        const hoyStr = hoy.toISOString().split("T")[0];
+        const mananaStr = manana.toISOString().split("T")[0];
         if (hoyStr && destino) {
-          await BloqueController["crearBloquesParaFecha"](hoyStr, destino, true);
+          await BloqueController.crearBloquesParaFecha(hoyStr, destino, true);
         }
         if (mananaStr && destino) {
-          await BloqueController["crearBloquesParaFecha"](mananaStr, destino, true);
+          await BloqueController.crearBloquesParaFecha(
+            mananaStr,
+            destino,
+            true
+          );
         }
 
         logger.info(

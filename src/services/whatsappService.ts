@@ -87,7 +87,7 @@ class WhatsAppService {
    */
   private formatearTelefono(telefono: string): string {
     // Eliminar espacios, guiones y paréntesis
-    let numeroLimpio = telefono.replace(/[\s\-\(\)]/g, "");
+    const numeroLimpio = telefono.replace(/[\s\-\(\)]/g, "");
 
     // Si ya tiene el prefijo completo +521, usarlo directamente
     if (numeroLimpio.startsWith("+521")) {
