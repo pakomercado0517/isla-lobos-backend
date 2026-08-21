@@ -3,16 +3,14 @@ import { body } from "express-validator";
 /**
  * Validaciones para el sistema de autenticación
  */
-const passwordRules = () => [
-  body("password")
+const passwordRules = (field: "password" | "newPassword" | "confirmPassword") => [
+  body(field)
     .isLength({ min: 6 })
     .withMessage("La contraseña debe tener al menos 6 caracteres")
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage(
       "La contraseña debe contener al menos una letra minúscula, una mayúscula y un número"
     )
-  .notEmpty()
-  .withMessage("La contraseña es requerida"),
 ]
 // Validaciones para login
 export const loginValidation = [
@@ -21,7 +19,7 @@ export const loginValidation = [
     .withMessage("Debe ser un email válido")
     .normalizeEmail()
     .withMessage("Formato de email inválido"),
-  passwordRules
+  body("password").notEmpty().withMessage("La contraseña es requerida")
 ];
 
 // Validaciones para registro
@@ -62,7 +60,7 @@ export const registerValidation = [
     )
     .isLength({ max: 500 })
     .withMessage("La URL del avatar no puede exceder 500 caracteres"),
-  passwordRules,
+  ...passwordRules("password"),
 
   body("codigo_invitacion")
     .optional()
@@ -79,20 +77,7 @@ export const changePasswordValidation = [
   body("currentPassword")
     .notEmpty()
     .withMessage("La contraseña actual es requerida"),
-
-  body("newPassword")
-    .isLength({ min: 6, max: 128 })
-    .withMessage("La nueva contraseña debe tener entre 6 y 128 caracteres")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage(
-      "La nueva contraseña debe contener al menos una letra minúscula, una mayúscula y un número"
-    )
-    .custom((value, { req }) => {
-      if (value === req.body.currentPassword) {
-        throw new Error("La nueva contraseña debe ser diferente a la actual");
-      }
-      return true;
-    }),
+  ...passwordRules("newPassword")
 ];
 
 // Validaciones para solicitar recuperación de contraseña
@@ -111,38 +96,11 @@ export const resetPasswordValidation = [
     .withMessage("El token de recuperación es requerido")
     .isLength({ min: 32, max: 255 })
     .withMessage("El token debe tener entre 32 y 255 caracteres"),
-
-  body("newPassword")
-    .isLength({ min: 6, max: 128 })
-    .withMessage("La nueva contraseña debe tener entre 6 y 128 caracteres")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage(
-      "La nueva contraseña debe contener al menos una letra minúscula, una mayúscula y un número"
-    )
-    .custom((value) => {
-      // Validar que no sea una contraseña común
-      const commonPasswords = [
-        "password",
-        "123456",
-        "123456789",
-        "qwerty",
-        "abc123",
-        "password123",
-        "admin",
-        "letmein",
-        "welcome",
-        "monkey",
-      ];
-      if (commonPasswords.includes(value.toLowerCase())) {
-        throw new Error("La contraseña es muy común, elige una más segura");
-      }
-      return true;
-    }),
-
+  ...passwordRules("newPassword"),
   body("confirmPassword").custom((value, { req }) => {
     if (value !== req.body.newPassword) {
-      throw new Error("Las contraseñas no coinciden");
+      throw new Error("Las contraseñas no coinciden")
     }
-    return true;
+    return true
   }),
 ];

@@ -3,7 +3,6 @@ import AuthController from "../controllers/auth.controller";
 import { authenticateToken } from "../middleware/auth";
 import {
   handleValidationErrors,
-  sanitizeInput,
 } from "../middleware/validation";
 import {
   loginValidation,
@@ -20,9 +19,6 @@ const router: ExpressRouter = Router();
  *
  * @route /api/auth
  */
-
-// Middleware global para sanitizar entrada
-router.use(sanitizeInput);
 
 // Rutas públicas (no requieren autenticación)
 router.post(
@@ -57,7 +53,6 @@ router.post(
 // Ruta pública para renovar token (NO requiere authenticateToken porque el access token estará expirado)
 router.post(
   "/refresh",
-  handleValidationErrors,
   AuthController.refreshToken
 );
 
@@ -65,14 +60,12 @@ router.post(
 router.get(
   "/verify",
   authenticateToken,
-  handleValidationErrors,
   AuthController.verifyToken
 );
 
 router.post(
   "/logout",
   authenticateToken,
-  handleValidationErrors,
   AuthController.logout
 );
 

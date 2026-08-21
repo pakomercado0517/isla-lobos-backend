@@ -1,16 +1,16 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
-import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
-import { testConnection } from "./config/database";
-import { syncModels } from "./models";
-import apiRoutes from "./routes";
-import { serverLogger } from "./utils/logger";
-import { httpLogger } from "./utils/http-logger";
-import { errorHandler } from "./middleware/error.middleware";
-import { type NextFunction, type Request, type Response } from "express";
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+import { testConnection } from './config/database';
+import { syncModels } from './models';
+import apiRoutes from './routes';
+import { serverLogger } from './utils/logger';
+import { httpLogger } from './utils/http-logger';
+import { errorHandler } from './middleware/error.middleware';
+import { type NextFunction, type Request, type Response } from 'express';
 dotenv.config();
 
 const app = express();
@@ -20,19 +20,19 @@ const app = express();
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false, // Permitir recursos cross-origin
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // Permitir recursos cross-origin
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Permitir recursos cross-origin
   })
 );
 
 // Configuración de CORS
-const corsOrigin = process.env["CORS_ORIGIN"] || "http://localhost:3000";
-const allowedOrigins = corsOrigin.split(",").map((origin) => origin.trim());
+const corsOrigin = process.env['CORS_ORIGIN'] || 'http://localhost:3000';
+const allowedOrigins = corsOrigin.split(',').map((origin) => origin.trim());
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // En desarrollo, permitir cualquier origen
-      if (process.env["NODE_ENV"] !== "production") {
+      if (process.env['NODE_ENV'] !== 'production') {
         return callback(null, true);
       }
 
@@ -43,46 +43,33 @@ app.use(
 
       // En producción, verificar que el origen esté permitido
       if (!allowedOrigins.includes(origin)) {
-        serverLogger.warn(
-          { origin, allowedOrigins },
-          "Origen rechazado por CORS"
-        );
+        serverLogger.warn({ origin, allowedOrigins }, 'Origen rechazado por CORS');
         return callback(new Error(`Origen no permitido: ${origin}`));
       }
 
       callback(null, true);
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   })
 );
 
 // Configuración de trust proxy para proxies reversos (nginx, load balancers, etc.)
 // Necesario para que express-rate-limit identifique correctamente las IPs de los clientes
 // cuando la aplicación está detrás de un proxy que envía el header X-Forwarded-For
-app.set("trust proxy", true);
+app.set('trust proxy', true);
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 100, // límite de 100 requests por ventana
-  message: "Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.",
+  message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.',
 });
 app.use(
-  process.env["NODE_ENV"] === "production"
+  process.env['NODE_ENV'] === 'production'
     ? limiter
-    : (
-        _req: express.Request,
-        _res: express.Response,
-        next: express.NextFunction
-      ) => next()
+    : (_req: express.Request, _res: express.Response, next: express.NextFunction) => next()
 );
 
 // Middleware de logging HTTP - Estilo Morgan Dev
@@ -90,7 +77,7 @@ app.use(
 app.use(httpLogger);
 
 // Middleware para parsing
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Middleware para cookies
@@ -101,12 +88,9 @@ const initializeDatabase = async (): Promise<void> => {
   try {
     await testConnection();
     await syncModels();
-    serverLogger.info("🚀 Base de datos inicializada correctamente");
+    serverLogger.info('🚀 Base de datos inicializada correctamente');
   } catch (error) {
-    serverLogger.error(
-      { err: error },
-      "❌ Error al inicializar la base de datos"
-    );
+    serverLogger.error({ err: error }, '❌ Error al inicializar la base de datos');
     process.exit(1);
   }
 };
@@ -115,44 +99,40 @@ const initializeDatabase = async (): Promise<void> => {
 initializeDatabase();
 
 // Ruta de prueba
-app.get("/health", (_req: express.Request, res: express.Response) => {
+app.get('/health', (_req: express.Request, res: express.Response) => {
   res.json({
-    status: "OK",
-    message: "Servidor funcionando correctamente",
+    status: 'OK',
+    message: 'Servidor funcionando correctamente',
     timestamp: new Date().toISOString(),
   });
 });
 
 // Rutas de la API
-app.use("/api", apiRoutes);
+app.use('/api', apiRoutes);
 
 // Manejo de rutas no encontradas
 app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({
-    status: "ERROR",
-    message: "Ruta no encontrada",
+    status: 'ERROR',
+    message: 'Ruta no encontrada',
   });
 });
 
 // Manejo global de errores
-app.use(errorHandler)
+app.use(errorHandler);
 
 // Middleware de manejo de errores centralizad (debe ir al final)
-app.use((err:Error, req: Request, res: Response, _next: NextFunction): void => {
-  serverLogger.error({
-    err,
-    method: req.method,
-    path: req.path,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  }, 'Error inesperado en la aplicación'
-)
-
-const isDevelopment = process.env['NODE_ENV'] !== 'production'
-res.status(500).json({
-  error: 'Error interno del servidor',
-  message: isDevelopment ? err.message : 'Ocurrió un error inesperado. Por favor intenta nuevamente más tarde.', ...(isDevelopment && { stack: err.stack})
-})
-})
+app.use((err: Error, req: Request, _res: Response, _next: NextFunction): void => {
+  serverLogger.error(
+    {
+      err,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+    'Error inesperado en la aplicación'
+  );
+});
 
 export default app;
