@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from "express";
-import AuthController from "../controllers/authController";
+import AuthController from "../controllers/auth.controller";
 import { authenticateToken } from "../middleware/auth";
 import {
   handleValidationErrors,
@@ -9,13 +9,9 @@ import {
   loginValidation,
   registerValidation,
   changePasswordValidation,
-  verifyTokenValidation,
-  refreshTokenValidation,
-  logoutValidation,
-  getProfileValidation,
   forgotPasswordValidation,
   resetPasswordValidation,
-} from "../validators/authValidators";
+} from "../validators/auth.validators";
 
 const router: ExpressRouter = Router();
 
@@ -61,7 +57,6 @@ router.post(
 // Ruta pública para renovar token (NO requiere authenticateToken porque el access token estará expirado)
 router.post(
   "/refresh",
-  refreshTokenValidation,
   handleValidationErrors,
   AuthController.refreshToken
 );
@@ -70,7 +65,6 @@ router.post(
 router.get(
   "/verify",
   authenticateToken,
-  verifyTokenValidation,
   handleValidationErrors,
   AuthController.verifyToken
 );
@@ -78,7 +72,6 @@ router.get(
 router.post(
   "/logout",
   authenticateToken,
-  logoutValidation,
   handleValidationErrors,
   AuthController.logout
 );
@@ -94,8 +87,6 @@ router.put(
 router.get(
   "/profile",
   authenticateToken,
-  getProfileValidation,
-  handleValidationErrors,
   AuthController.getProfile
 );
 

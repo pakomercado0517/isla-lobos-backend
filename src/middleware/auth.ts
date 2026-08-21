@@ -3,9 +3,8 @@ import { UserRole } from "../types";
 import User from "../models/User";
 import { param, validationResult } from "express-validator";
 import { authLogger } from "../utils/logger";
-
-// Importar jsonwebtoken usando require para evitar problemas de tipos
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken"
+import { AppError } from "../lib/AppError";
 
 // Interfaz para Request con usuario autenticado
 export interface AuthRequest extends Request {
@@ -15,21 +14,9 @@ export interface AuthRequest extends Request {
     rol: UserRole;
     nombre: string;
   };
+  targetUser?: User;
 }
 
-// Extender la interfaz Request para incluir el usuario
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        email: string;
-        rol: UserRole;
-        nombre: string;
-      };
-    }
-  }
-}
 
 // Interfaz para el payload del JWT
 interface JwtPayload {
@@ -53,8 +40,7 @@ export const validateUserId = async (
     .run(req);
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400).json({ errors: errors.array() });
-    return;
+    throw new AppError(`Validation error: ${errors.array().map(err => err.msg)}`, 400)
   }
   next();
 };
@@ -64,7 +50,7 @@ export const validateUserId = async (
  * Lee el token desde cookies (prioridad) o Authorization header (fallback)
  */
 export const authenticateToken = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -94,11 +80,7 @@ export const authenticateToken = async (
     // Buscar el usuario en la base de datos para verificar que sigue activo
     const user = await User.findByPk(decoded.id);
     if (!user || !user.activo) {
-      res.status(401).json({
-        status: "error",
-        message: "Usuario no encontrado o inactivo",
-      });
-      return;
+      throw new AppError("Usuario no encontrado o inactivo", 401)
     }
 
     // Agregar información del usuario al request
@@ -112,38 +94,27 @@ export const authenticateToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({
-        status: "error",
-        message: "Token inválido",
-      });
-      return;
+      throw new AppError("Token inválido", 401)
     }
 
     if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({
-        status: "error",
-        message: "Token expirado",
-      });
-      return;
+      throw new AppError("Token expirado", 401)
     }
 
     authLogger.error({ err: error }, "Error en autenticación");
-    res.status(500).json({
-      status: "error",
-      message: "Error interno del servidor",
-    });
+    throw new AppError("Error en autenticación", 500)
   }
 };
 
 /** Middleware para verificar que el usuario existe */
 export const validateUserExists = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const { userId } = req.params;
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(userId as string);
     if (!user) {
       const error = new Error("Usuario no encontrado");
       res.status(404).json({ error: error.message });
@@ -152,7 +123,7 @@ export const validateUserExists = async (
     req.user = user;
     next();
   } catch (error) {
-    res.status(500).json({ error: "Hubo un error al validar al usuario" });
+    throw new AppError(`Hubo un error al validar al usuario: ${error}`, 501)
   }
 };
 
@@ -160,13 +131,9 @@ export const validateUserExists = async (
  * Middleware para verificar roles específicos
  */
 export const requireRole = (roles: UserRole[] | UserRole | string) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        status: "error",
-        message: "Usuario no autenticado",
-      });
-      return;
+      throw new AppError("Usuario no autenticado", 401)
     }
 
     // Convertir a array si es un string o UserRole individual
@@ -180,11 +147,7 @@ export const requireRole = (roles: UserRole[] | UserRole | string) => {
     }
 
     if (!rolesArray.includes(req.user.rol)) {
-      res.status(403).json({
-        status: "error",
-        message: "No tienes permisos para acceder a este recurso",
-      });
-      return;
+      throw new AppError("No tienes permisos para acceder a este recurso", 403)
     }
 
     next();
@@ -209,7 +172,7 @@ export const authMiddleware = authenticateToken;
  * Lee el token desde cookies (prioridad) o Authorization header (fallback)
  */
 export const optionalAuth = async (
-  req: Request,
+  req: AuthRequest,
   _res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -241,6 +204,7 @@ export const optionalAuth = async (
 
     next();
   } catch (error) {
+    authLogger.error({ err: error}, "Error en autenticación opcional")
     // En caso de error, continuar sin autenticación
     next();
   }

@@ -9,6 +9,8 @@ import { syncModels } from "./models";
 import apiRoutes from "./routes";
 import { serverLogger } from "./utils/logger";
 import { httpLogger } from "./utils/http-logger";
+import { errorHandler } from "./middleware/error.middleware";
+import { type NextFunction, type Request, type Response } from "express";
 dotenv.config();
 
 const app = express();
@@ -133,20 +135,24 @@ app.use((_req: express.Request, res: express.Response) => {
 });
 
 // Manejo global de errores
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    serverLogger.error({ err, stack: err.stack }, "Error interno del servidor");
-    res.status(500).json({
-      status: "ERROR",
-      message: "Error interno del servidor",
-      ...(process.env["NODE_ENV"] === "development" && { stack: err.stack }),
-    });
-  }
-);
+app.use(errorHandler)
+
+// Middleware de manejo de errores centralizad (debe ir al final)
+app.use((err:Error, req: Request, res: Response, _next: NextFunction): void => {
+  serverLogger.error({
+    err,
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  }, 'Error inesperado en la aplicación'
+)
+
+const isDevelopment = process.env['NODE_ENV'] !== 'production'
+res.status(500).json({
+  error: 'Error interno del servidor',
+  message: isDevelopment ? err.message : 'Ocurrió un error inesperado. Por favor intenta nuevamente más tarde.', ...(isDevelopment && { stack: err.stack})
+})
+})
 
 export default app;

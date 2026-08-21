@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response, NextFunction } from "express";
 import { Op } from "sequelize";
 import bcrypt from "bcryptjs";
 import { randomUUID, randomBytes } from "crypto";
@@ -18,6 +18,9 @@ import {
 import { createLogger } from "../utils/logger";
 import emailService from "../services/emailService";
 import jwt from "jsonwebtoken";
+import { AuthRequest } from "../middleware/auth";
+import { UserAccesTokenDTO, UserBase, UserResponse } from "../types/auth.types";
+import { loginService, registerService } from "../services/auth.service";
 
 const logger = createLogger("AuthController");
 
@@ -43,7 +46,7 @@ const ACCESS_TOKEN_COOKIE_OPTIONS = {
 };
 
 // Helper function para generar tokens JWT
-const generateAccessToken = (payload: any): string => {
+const generateAccessToken = (payload: UserAccesTokenDTO): string => {
   const secret = process.env["JWT_SECRET"] || "fallback-secret";
   // Configurar tiempo de expiración según el entorno
   const expiresIn =
@@ -80,8 +83,8 @@ class AuthController {
    */
   private static extraerSoloFecha(
     fecha: Date | string | null | undefined
-  ): string | null | undefined {
-    if (!fecha) return fecha as null | undefined;
+  ): string  | undefined {
+    if (!fecha) return  undefined;
     const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
     const partes = fechaString.split("T");
     return partes[0] || fechaString.substring(0, 10);
@@ -90,108 +93,27 @@ class AuthController {
   /**
    * Formatea un usuario para respuesta, convirtiendo fechas a YYYY-MM-DD
    */
-  private static formatearUsuarioParaRespuesta(user: any): any {
-    const userFormateado = { ...user };
-    if (userFormateado.fechaVencimientoPermiso) {
-      userFormateado.fechaVencimientoPermiso = AuthController.extraerSoloFecha(
-        userFormateado.fechaVencimientoPermiso
-      );
+  private static formatearUsuarioParaRespuesta(user: UserBase): UserResponse {
+    return {
+      ...user,
+      fechaVencimientoPermiso: user.fechaVencimientoPermiso ? AuthController.extraerSoloFecha(user.fechaVencimientoPermiso) : user.fechaVencimientoPermiso,
+      ultimaNotificacion: user.ultimaNotificacion ? AuthController.extraerSoloFecha(user.ultimaNotificacion) : user.ultimaNotificacion
     }
-    if (userFormateado.ultimaNotificacion) {
-      userFormateado.ultimaNotificacion = AuthController.extraerSoloFecha(
-        userFormateado.ultimaNotificacion
-      );
-    }
-    return userFormateado;
   }
 
   /**
    * Iniciar sesión de usuario
    * POST /api/auth/login
    */
-  public async login(req: Request, res: Response): Promise<void> {
+  public async login(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Verificar errores de validación
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        const firstError = errors.array()[0];
-        res.status(400).json({
-          status: "error",
-          message: firstError?.msg || "Error de validación",
-          error: "VALIDATION_ERROR",
-        } as ApiResponse);
-        return;
-      }
-
-      const { email, password }: LoginRequest = req.body;
-
-      // Buscar usuario por email
-      const user = await User.findOne({
-        where: { email: email.toLowerCase() },
-      });
-
-      if (!user) {
-        res.status(401).json({
-          status: "error",
-          message: "Credenciales inválidas",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verificar si el usuario está activo
-      if (!user.activo) {
-        res.status(401).json({
-          status: "error",
-          message: "Usuario inactivo. Contacta al administrador",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verificar contraseña
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        res.status(401).json({
-          status: "error",
-          message: "Credenciales inválidas",
-        } as ApiResponse);
-        return;
-      }
-
-      // Generar tokens
-      const accessToken = generateAccessToken({
-        id: user.id,
-        email: user.email,
-        rol: user.rol,
-        nombre: user.nombre,
-      });
-
-      const refreshToken = await generateRefreshToken(user.id);
-
-      // Enviar tokens en cookies httpOnly
-      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
-      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
-
-      // Respuesta exitosa (sin tokens en el body)
-      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
-        user.toJSON()
-      );
-      const response: ApiResponse<AuthResponse> = {
-        status: "success",
-        message: "Inicio de sesión exitoso",
-        data: {
-          user: userFormateado as any,
-          accessToken, // Mantener en body para compatibilidad temporal
-          refreshToken, // Mantener en body para compatibilidad temporal
-        },
-      };
-
-      res.status(200).json(response);
+      const { email, password } = req.body
+      const response = await loginService(email, password)
+      res.cookie("accessToken", response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS)
+      res.cookie("refreshToken", response.data.refreshToken, COOKIE_OPTIONS)
+      res.status(200).json(response)
     } catch (error) {
-      logger.error({ err: error, email: req.body.email }, "Error en login");
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
@@ -199,139 +121,15 @@ class AuthController {
    * Registrar nuevo usuario
    * POST /api/auth/register
    */
-  public async register(req: Request, res: Response): Promise<void> {
+  public async register(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Verificar errores de validación
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        const firstError = errors.array()[0];
-        res.status(400).json({
-          status: "error",
-          message: firstError?.msg || "Error de validación",
-          error: "VALIDATION_ERROR",
-        } as ApiResponse);
-        return;
-      }
-
-      const {
-        nombre,
-        email,
-        telefono,
-        avatar_url,
-        password,
-        codigo_invitacion,
-      }: RegisterRequest = req.body;
-
-      // Verificar si el email ya existe
-      const existingUser = await User.findOne({
-        where: { email: email.toLowerCase() },
-      });
-
-      if (existingUser) {
-        res.status(409).json({
-          status: "error",
-          message: "Ya existe un usuario con este email",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verificar código de invitación si se proporciona
-      let rol = UserRole.PRESTADOR; // Rol por defecto
-      if (codigo_invitacion) {
-        const invitacion = await Invitacion.findOne({
-          where: { codigo: codigo_invitacion },
-        });
-
-        if (!invitacion) {
-          res.status(400).json({
-            status: "error",
-            message: "Código de invitación inválido",
-          } as ApiResponse);
-          return;
-        }
-
-        if (invitacion.usada) {
-          res.status(400).json({
-            status: "error",
-            message: "Código de invitación ya utilizado",
-          } as ApiResponse);
-          return;
-        }
-
-        if (invitacion.esta_expirada) {
-          res.status(400).json({
-            status: "error",
-            message: "Código de invitación expirado",
-          } as ApiResponse);
-          return;
-        }
-
-        // Usar el rol de la invitación
-        rol = invitacion.rol;
-
-        // Marcar invitación como usada
-        await invitacion.update({ usada: true });
-      }
-
-      // Encriptar contraseña
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // Crear usuario
-      const userData: any = {
-        id: randomUUID(),
-        nombre: nombre.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        rol,
-        activo: true,
-      };
-
-      if (telefono?.trim()) {
-        userData.telefono = telefono.trim();
-      }
-
-      if (avatar_url?.trim()) {
-        userData.avatar_url = avatar_url.trim();
-      }
-
-      const newUser = await User.create(userData);
-
-      // Generar tokens
-      const accessToken = generateAccessToken({
-        id: newUser.id,
-        email: newUser.email,
-        rol: newUser.rol,
-        nombre: newUser.nombre,
-      });
-
-      const refreshToken = await generateRefreshToken(newUser.id);
-
+      const response = await registerService(req.body)
       // Enviar tokens en cookies httpOnly
-      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
-      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+      res.cookie("accessToken", response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+      res.cookie("refreshToken", response.data.refreshToken, COOKIE_OPTIONS);
 
-      // Respuesta exitosa (sin tokens en el body)
-      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
-        newUser.toJSON()
-      );
-      const response: ApiResponse<AuthResponse> = {
-        status: "success",
-        message: "Usuario registrado exitosamente",
-        data: {
-          user: userFormateado as any,
-          accessToken, // Mantener en body para compatibilidad temporal
-          refreshToken, // Mantener en body para compatibilidad temporal
-        },
-      };
-
-      res.status(201).json(response);
     } catch (error) {
-      logger.error({ err: error, email: req.body.email }, "Error en registro");
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
@@ -339,7 +137,7 @@ class AuthController {
    * Verificar token JWT
    * GET /api/auth/verify
    */
-  public async verifyToken(req: Request, res: Response): Promise<void> {
+  public async verifyToken(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Si llegamos aquí, el middleware de autenticación ya verificó el token
       const user = req.user;
@@ -387,7 +185,7 @@ class AuthController {
    * Renovar token JWT usando refresh token
    * POST /api/auth/refresh
    */
-  public async refreshToken(req: Request, res: Response): Promise<void> {
+  public async refreshToken(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
       const refreshToken =
@@ -495,7 +293,7 @@ class AuthController {
    * Cerrar sesión (revocar refresh token)
    * POST /api/auth/logout
    */
-  public async logout(req: Request, res: Response): Promise<void> {
+  public async logout(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
       const refreshToken =
@@ -547,7 +345,7 @@ class AuthController {
    * Cambiar contraseña
    * PUT /api/auth/change-password
    */
-  public async changePassword(req: Request, res: Response): Promise<void> {
+  public async changePassword(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Verificar errores de validación
       const errors = validationResult(req);
@@ -624,7 +422,7 @@ class AuthController {
    * Obtener perfil del usuario actual
    * GET /api/auth/profile
    */
-  public async getProfile(req: Request, res: Response): Promise<void> {
+  public async getProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
       const user = req.user;
 
@@ -674,7 +472,7 @@ class AuthController {
    * Solicitar recuperación de contraseña
    * POST /api/auth/forgot-password
    */
-  public async forgotPassword(req: Request, res: Response): Promise<void> {
+  public async forgotPassword(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Verificar errores de validación
       const errors = validationResult(req);
@@ -784,7 +582,7 @@ class AuthController {
    * Resetear contraseña con token
    * POST /api/auth/reset-password
    */
-  public async resetPassword(req: Request, res: Response): Promise<void> {
+  public async resetPassword(req: AuthRequest, res: Response): Promise<void> {
     try {
       // Verificar errores de validación
       const errors = validationResult(req);

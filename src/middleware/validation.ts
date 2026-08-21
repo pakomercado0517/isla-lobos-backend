@@ -3,6 +3,7 @@ import { validationResult, ValidationError } from "express-validator";
 import { ApiResponse } from "../types";
 import { createLogger } from "../utils/logger";
 import type UserModel from "../models/User.js";
+import { AuthRequest } from "./auth";
 
 const logger = createLogger("ValidationMiddleware");
 
@@ -83,11 +84,11 @@ export const sanitizeInput = (
   next: NextFunction
 ): void => {
   // Sanitizar strings para prevenir XSS
-  const sanitizeString = (str: any): string => {
+  const sanitizeString = (str: string): string => {
     if (typeof str !== "string") return str;
     return str
       .trim()
-      .replace(/[<>]/g, "") // Remover caracteres potencialmente peligrosos
+      .replace(/['']/g, "") // Remover caracteres potencialmente peligrosos
       .substring(0, 1000); // Limitar longitud
   };
 
@@ -116,7 +117,7 @@ export const sanitizeInput = (
  * Middleware para validar que el usuario tiene permisos para acceder a un recurso
  */
 export const validateResourceAccess = (_resourceType: string) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
     const user = req.user;
 
     if (!user) {
@@ -154,7 +155,7 @@ export const validateResourceAccess = (_resourceType: string) => {
  * Middleware para validar que el usuario existe y está activo
  */
 export const validateUserExists = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -171,7 +172,7 @@ export const validateUserExists = async (
 
     const User = (await import("../models/User.js"))
       .default as unknown as typeof UserModel;
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(userId as string);
 
     if (!user) {
       res.status(404).json({
@@ -190,7 +191,7 @@ export const validateUserExists = async (
     }
 
     // Agregar el usuario al request para uso posterior
-    (req as any).targetUser = user;
+    (req).targetUser = user;
     next();
   } catch (error) {
     logger.error(
