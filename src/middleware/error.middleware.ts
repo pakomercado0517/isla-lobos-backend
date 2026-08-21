@@ -4,7 +4,6 @@ import { serverLogger } from "../utils/logger";
 
 interface ErrorResponseBody {
   status: "error"
-  error: string
   message: string
   stack?: string
 }
@@ -14,15 +13,14 @@ export const errorHandler = (err: unknown, _req: Request, res: Response, _next: 
   const statusCode = isAppError ? err.status : 500
   const message = err instanceof Error ? err.message : 'Ocurrió un error inesperado en el servidor'
 
-  if(!isAppError) serverLogger.error(`Error inesperado: ${err}`)
+  if (!isAppError) serverLogger.error({ err }, 'Error inesperado')
 
   const body: ErrorResponseBody = {
     status: "error",
-    error: message,
     message
   }
 
-  if(process.env["NODE_ENV"] === "development" && err instanceof Error && err.stack) body.stack = err.stack
+  if (process.env["NODE_ENV"] === "development" && err instanceof Error && err.stack) body.stack = err.stack
 
   res.status(statusCode).json(body)
 }

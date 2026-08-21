@@ -5,6 +5,7 @@ import { param, validationResult } from 'express-validator';
 import { authLogger } from '../utils/logger';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../lib/AppError';
+import { getJwtSecret } from '../lib/authTokens';
 
 // Interfaz para Request con usuario autenticado
 export interface AuthRequest extends Request {
@@ -43,7 +44,7 @@ export const validateUserId = async (req: Request, res: Response, next: NextFunc
  */
 export const authenticateToken = async (
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
@@ -56,23 +57,16 @@ export const authenticateToken = async (
     }
 
     if (!token) {
-      res.status(401).json({
-        status: 'error',
-        message: 'Token de acceso requerido',
-      });
-      return;
+      return next(new AppError('Token de acceso requerido', 401));
     }
 
-    // Verificar el token
-    const decoded = jwt.verify(token, process.env['JWT_SECRET'] || 'fallback-secret') as JwtPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
-    // Buscar el usuario en la base de datos para verificar que sigue activo
     const user = await User.findByPk(decoded.id);
     if (!user || !user.activo) {
       throw new AppError('Usuario no encontrado o inactivo', 401);
     }
 
-    // Agregar información del usuario al request
     req.user = {
       id: user.id,
       email: user.email,
@@ -82,6 +76,15 @@ export const authenticateToken = async (
 
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return next(new AppError('Token expirado', 401));
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new AppError('Token inválido', 401));
+    }
+    if (error instanceof AppError) {
+      return next(error);
+    }
     authLogger.error({ err: error }, 'Error en autenticación');
     next(error);
   }
@@ -163,10 +166,7 @@ export const optionalAuth = async (
     }
 
     if (token) {
-      const decoded = jwt.verify(
-        token,
-        process.env['JWT_SECRET'] || 'fallback-secret'
-      ) as JwtPayload;
+      const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
       const user = await User.findByPk(decoded.id);
       if (user && user.activo) {
@@ -180,9 +180,7 @@ export const optionalAuth = async (
     }
 
     next();
-  } catch (error) {
-    authLogger.error({ err: error }, 'Error en autenticación opcional');
-    // En caso de error, continuar sin autenticación
-    next(error);
+  } catch {
+    next();
   }
 };

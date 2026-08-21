@@ -10,7 +10,6 @@ import apiRoutes from './routes';
 import { serverLogger } from './utils/logger';
 import { httpLogger } from './utils/http-logger';
 import { errorHandler } from './middleware/error.middleware';
-import { type NextFunction, type Request, type Response } from 'express';
 dotenv.config();
 
 const app = express();
@@ -120,19 +119,5 @@ app.use((_req: express.Request, res: express.Response) => {
 
 // Manejo global de errores
 app.use(errorHandler);
-
-// Middleware de manejo de errores centralizad (debe ir al final)
-app.use((err: Error, req: Request, _res: Response, _next: NextFunction): void => {
-  serverLogger.error(
-    {
-      err,
-      method: req.method,
-      path: req.path,
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-    },
-    'Error inesperado en la aplicación'
-  );
-});
 
 export default app;

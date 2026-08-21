@@ -6,6 +6,7 @@ import { EmailRecuperacionPasswordData, RegisterRequest, UserRole } from '../typ
 import { randomBytes, randomUUID } from 'crypto';
 import RefreshToken from '../models/RefreshToken';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
 import { comparePassword, hashPassword } from '../utils/password.utils';
 import emailService from './emailService';
 import logger from '../utils/logger';
@@ -14,7 +15,7 @@ export const loginService = async (
   email: string,
   password: string
 ): Promise<AuthServiceResponse> => {
-  const user = await User.findOne({ where: { email: email.toLocaleLowerCase() } });
+  const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
   if (!user) throw new AppError('Credenciales inválidas', 401);
   if (!user.activo) throw new AppError('Credenciales inválidas', 401);
@@ -45,33 +46,40 @@ export const loginService = async (
 export const registerService = async (data: RegisterRequest): Promise<AuthServiceResponse> => {
   const { nombre, email, password, telefono, avatar_url, codigo_invitacion } = data;
 
-  const existingUser = await User.findOne({ where: { email: email.toLocaleLowerCase() } });
+  const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
   if (existingUser) throw new AppError('El email ya está en uso', 409);
 
-  let rol = UserRole.PRESTADOR;
-  if (codigo_invitacion) {
-    const invitacion = await Invitacion.findOne({ where: { codigo: codigo_invitacion } });
-    if (!invitacion) throw new AppError('Código de invitación inválido', 400);
-    if (invitacion.usada) throw new AppError('Código de invitación ya utilizado', 400);
-    if (invitacion.esta_expirada) throw new AppError('Código de invitación expirado', 400);
-    rol = invitacion.rol;
-    await invitacion.update({ usada: true });
-  }
   const hashedPassword = await hashPassword(password);
 
-  const userData: RegisterUserDTO = {
-    id: randomUUID(),
-    nombre: nombre.trim(),
-    email: email.toLocaleLowerCase().trim(),
-    password: hashedPassword,
-    rol,
-    activo: true,
-  };
+  const newUser = await sequelize.transaction(async (transaction) => {
+    let rol = UserRole.PRESTADOR;
 
-  if (telefono?.trim()) userData.telefono = telefono.trim();
-  if (avatar_url?.trim()) userData.avatar_url = avatar_url.trim();
+    if (codigo_invitacion) {
+      const invitacion = await Invitacion.findOne({
+        where: { codigo: codigo_invitacion },
+        transaction,
+      });
+      if (!invitacion) throw new AppError('Código de invitación inválido', 400);
+      if (invitacion.usada) throw new AppError('Código de invitación ya utilizado', 400);
+      if (invitacion.esta_expirada) throw new AppError('Código de invitación expirado', 400);
+      rol = invitacion.rol;
+      await invitacion.update({ usada: true }, { transaction });
+    }
 
-  const newUser = await User.create(userData);
+    const userData: RegisterUserDTO = {
+      id: randomUUID(),
+      nombre: nombre.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      rol,
+      activo: true,
+    };
+
+    if (telefono?.trim()) userData.telefono = telefono.trim();
+    if (avatar_url?.trim()) userData.avatar_url = avatar_url.trim();
+
+    return User.create(userData, { transaction });
+  });
 
   const accessToken = generateAccessToken({
     id: newUser.id,
@@ -94,7 +102,6 @@ export const registerService = async (data: RegisterRequest): Promise<AuthServic
 };
 
 export const verifyTokenService = async (userId: string): Promise<AuthServiceResponse> => {
-  //recuerda poner en el controller (user.id)
   const user = await User.findByPk(userId);
   if (!user || !user.activo) throw new AppError('Usuario no encontrado o inactivo', 401);
 
@@ -137,16 +144,20 @@ export const refreshTokenService = async (refreshToken: string) => {
   };
 };
 
-export const logoutService = async (refreshToken: string): Promise<AuthServiceResponse> => {
-  await RefreshToken.update(
-    { isRevoked: true },
-    {
-      where: {
-        token: refreshToken,
-        isRevoked: false,
-      },
-    }
-  );
+export const logoutService = async (
+  refreshToken?: string
+): Promise<AuthServiceResponse> => {
+  if (refreshToken) {
+    await RefreshToken.update(
+      { isRevoked: true },
+      {
+        where: {
+          token: refreshToken,
+          isRevoked: false,
+        },
+      }
+    );
+  }
 
   return {
     status: 'success',
@@ -176,7 +187,7 @@ export const changePasswordService = async (
 };
 
 export const forgotPasswordService = async (email: string): Promise<AuthServiceResponse> => {
-  const user = await User.findOne({ where: { email: email.toLocaleLowerCase() } });
+  const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
   const infoResponse: AuthServiceResponse = {
     status: 'success',
@@ -186,16 +197,19 @@ export const forgotPasswordService = async (email: string): Promise<AuthServiceR
 
   if (!user || !user.activo) return infoResponse;
 
-  const resetToken = await randomBytes(32).toString('hex');
-  const resetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+  const frontendUrl = process.env['FRONTEND_URL'];
+  if (!frontendUrl) {
+    logger.error('URL de frontend no configurada');
+    return infoResponse;
+  }
+
+  const resetToken = randomBytes(32).toString('hex');
+  const resetExpires = new Date(Date.now() + 15 * 60 * 1000);
 
   await user.update({
     passwordResetToken: resetToken,
     passwordResetExpires: resetExpires,
   });
-
-  const frontendUrl = process.env['FRONTEND_URL'];
-  if (!frontendUrl) logger.error('URL de frontend no configurada');
 
   const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
@@ -232,10 +246,6 @@ export const resetPasswordService = async (
   });
 
   if (!user) throw new AppError('Token de recuperación inválido o expirado', 400);
-  if (!user.isPasswordResetTokenValid()) {
-    await user.clearPasswordResetToken();
-    throw new AppError('Token de recupareción inválido o expirado', 400);
-  }
   if (!user.activo) throw new AppError('Usuario inactivo. Contacta al administrador', 400);
 
   const hashedNewPassword = await hashPassword(newPassword);

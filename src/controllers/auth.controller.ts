@@ -11,28 +11,29 @@ import {
   resetPasswordService,
   verifyTokenService,
 } from '../services/auth.service';
-import { AppError } from '../lib/AppError';
 import { asyncHandler } from '../middleware/error.middleware';
+import {
+  ACCESS_TOKEN_COOKIE_MAX_AGE_MS,
+  REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
+} from '../lib/authTokens';
 
-// Configuración de cookies para producción cross-domain
 const isProduction = process.env['NODE_ENV'] === 'production';
 
+const COOKIE_BASE = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+  path: '/',
+};
+
 const COOKIE_OPTIONS = {
-  httpOnly: true, // No accesible desde JavaScript (protección XSS)
-  secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
-  sameSite: 'lax' as const, // "none" para cross-domain, "lax" para desarrollo
-  path: '/', // Disponible en todas las rutas del backend
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
+  ...COOKIE_BASE,
+  maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
 };
 
 const ACCESS_TOKEN_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProduction, // Solo HTTPS en producción (requerido para sameSite: "none")
-  sameSite: 'lax' as const, // "none" para cross-domain, "lax" para desarrollo
-  path: '/', // Disponible en todas las rutas del backend
-  maxAge: isProduction
-    ? 15 * 60 * 1000 // 15 minutos en producción
-    : 10 * 1000, // 10 segundos en desarrollo para pruebas
+  ...COOKIE_BASE,
+  maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE_MS,
 };
 
 /**
@@ -57,18 +58,14 @@ class AuthController {
    */
   public register = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { email, password, nombre, telefono, avatar_url, codigo_invitacion } = req.body;
-    if (!email || !password || !nombre || !telefono || !avatar_url || !codigo_invitacion)
-      throw new AppError('Faltan datos', 400);
-    const userData = {
+    const response = await registerService({
       email,
       password,
       nombre,
       telefono,
       avatar_url,
       codigo_invitacion,
-    };
-    const response = await registerService(userData);
-    // Enviar tokens en cookies httpOnly
+    });
     res.cookie('accessToken', response.data?.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
     res.cookie('refreshToken', response.data?.refreshToken, COOKIE_OPTIONS);
     res.status(201).json(response);
@@ -79,9 +76,8 @@ class AuthController {
    * GET /api/auth/verify
    */
   public verifyToken = asyncHandler(async (req: AuthRequest, res: Response) => {
-    // Si llegamos aquí, el middleware de autenticación ya verificó el token
-    const user = req.user;
-    const response = await verifyTokenService(user!.id);
+    const user = req.user!;
+    const response = await verifyTokenService(user.id);
     res.status(200).json(response);
   });
 
@@ -90,15 +86,10 @@ class AuthController {
    * POST /api/auth/refresh
    */
   public refreshToken = asyncHandler(async (req: AuthRequest, res: Response) => {
-    // Leer refresh token desde cookies (prioridad) o body (fallback)
     const refreshToken = req.cookies?.['refreshToken'] || req.body?.refreshToken;
-
     const response = await refreshTokenService(refreshToken);
 
-    // Re-establecer refresh token en cookie para asegurar persistencia
-    // (mantener el mismo refresh token, no generar uno nuevo)
     res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
-    // Enviar nuevo access token en cookie
     res.cookie('accessToken', response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
 
     res.status(200).json(response);
@@ -109,24 +100,11 @@ class AuthController {
    * POST /api/auth/logout
    */
   public logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-    // Leer refresh token desde cookies (prioridad) o body (fallback)
     const refreshToken = req.cookies?.['refreshToken'] || req.body?.refreshToken;
+    const response = await logoutService(refreshToken);
 
-    const response = await logoutService((refreshToken as string | undefined) ?? '');
-
-    // Limpiar cookies con las mismas opciones para asegurar que se borren correctamente
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'none' as const,
-      path: '/',
-    });
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'none' as const,
-      path: '/',
-    });
+    res.clearCookie('accessToken', COOKIE_BASE);
+    res.clearCookie('refreshToken', COOKIE_BASE);
 
     res.status(200).json(response);
   });
@@ -148,12 +126,8 @@ class AuthController {
    * GET /api/auth/profile
    */
   public getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const user = req.user;
-
-    if (!user) throw new AppError('Usuario no autenticado', 401);
-
+    const user = req.user!;
     const response = await getProfileService(user.id);
-
     res.status(200).json(response);
   });
 
@@ -163,9 +137,7 @@ class AuthController {
    */
   public forgotPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { email } = req.body;
-
     const response = await forgotPasswordService(email);
-
     res.status(200).json(response);
   });
 
@@ -175,9 +147,7 @@ class AuthController {
    */
   public resetPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { token, newPassword } = req.body;
-
     const response = await resetPasswordService(token, newPassword);
-
     res.status(200).json(response);
   });
 }
