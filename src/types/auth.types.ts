@@ -44,10 +44,10 @@ export interface UserResponse extends Omit<UserBase, 'fechaVencimientoPermiso' |
 export interface AuthServiceResponse {
   status: "success" | "error"
   message: string
-  data: {
-    user: UserResponse
-    accessToken: string
-    refreshToken: string
+  data?: {
+    user?: UserResponse;
+    accessToken?: string;
+    refreshToken?: string
   }
 }
 

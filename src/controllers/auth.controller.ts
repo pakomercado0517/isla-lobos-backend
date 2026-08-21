@@ -1,26 +1,17 @@
 import { Response, NextFunction } from "express";
-import { Op } from "sequelize";
 import bcrypt from "bcryptjs";
-import { randomUUID, randomBytes } from "crypto";
-import RefreshToken from "../models/RefreshToken";
+import { randomBytes } from "crypto";
 import { validationResult } from "express-validator";
 import User from "../models/User";
-import Invitacion from "../models/Invitacion";
 import {
-  LoginRequest,
-  RegisterRequest,
-  AuthResponse,
-  ApiResponse,
-  UserRole,
-  RefreshTokenResponse,
-  EmailRecuperacionPasswordData,
+  ApiResponse, EmailRecuperacionPasswordData
 } from "../types";
 import { createLogger } from "../utils/logger";
 import emailService from "../services/emailService";
-import jwt from "jsonwebtoken";
 import { AuthRequest } from "../middleware/auth";
-import { UserAccesTokenDTO, UserBase, UserResponse } from "../types/auth.types";
-import { loginService, registerService } from "../services/auth.service";
+import { UserBase, UserResponse } from "../types/auth.types";
+import { changePasswordService, loginService, logoutService, refreshTokenService, registerService, verifyTokenService } from "../services/auth.service";
+import { AppError } from "../lib/AppError";
 
 const logger = createLogger("AuthController");
 
@@ -43,33 +34,6 @@ const ACCESS_TOKEN_COOKIE_OPTIONS = {
   maxAge: isProduction
     ? 15 * 60 * 1000 // 15 minutos en producción
     : 10 * 1000, // 10 segundos en desarrollo para pruebas
-};
-
-// Helper function para generar tokens JWT
-const generateAccessToken = (payload: UserAccesTokenDTO): string => {
-  const secret = process.env["JWT_SECRET"] || "fallback-secret";
-  // Configurar tiempo de expiración según el entorno
-  const expiresIn =
-    process.env["NODE_ENV"] === "production"
-      ? process.env["JWT_EXPIRES_IN"] || "15m" // 15 minutos en producción
-      : "10s"; // 10 segundos en desarrollo para pruebas
-
-  return jwt.sign(payload, secret, { expiresIn });
-};
-
-const generateRefreshToken = async (userId: string): Promise<string> => {
-  const token = randomUUID();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 días de validez
-
-  await RefreshToken.create({
-    token,
-    userId,
-    expiresAt,
-    isRevoked: false,
-  });
-
-  return token;
 };
 
 /**
@@ -109,8 +73,8 @@ class AuthController {
     try {
       const { email, password } = req.body
       const response = await loginService(email, password)
-      res.cookie("accessToken", response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS)
-      res.cookie("refreshToken", response.data.refreshToken, COOKIE_OPTIONS)
+      res.cookie("accessToken", response.data?.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS)
+      res.cookie("refreshToken", response.data?.refreshToken, COOKIE_OPTIONS)
       res.status(200).json(response)
     } catch (error) {
       next(error)
@@ -125,9 +89,9 @@ class AuthController {
     try {
       const response = await registerService(req.body)
       // Enviar tokens en cookies httpOnly
-      res.cookie("accessToken", response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
-      res.cookie("refreshToken", response.data.refreshToken, COOKIE_OPTIONS);
-
+      res.cookie("accessToken", response.data?.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+      res.cookie("refreshToken", response.data?.refreshToken, COOKIE_OPTIONS);
+      res.status(201).json(response)
     } catch (error) {
       next(error)
     }
@@ -137,47 +101,16 @@ class AuthController {
    * Verificar token JWT
    * GET /api/auth/verify
    */
-  public async verifyToken(req: AuthRequest, res: Response): Promise<void> {
+  public async verifyToken(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // Si llegamos aquí, el middleware de autenticación ya verificó el token
       const user = req.user;
+      if(!user) throw new AppError("Token inválido", 401) //el middleware de autenticación ya verificó el token y no hay que volver a verificarlo
 
-      if (!user) {
-        res.status(401).json({
-          status: "error",
-          message: "Token inválido",
-        } as ApiResponse);
-        return;
-      }
-
-      // Buscar usuario actualizado en la base de datos
-      const dbUser = await User.findByPk(user.id);
-      if (!dbUser || !dbUser.activo) {
-        res.status(401).json({
-          status: "error",
-          message: "Usuario no encontrado o inactivo",
-        } as ApiResponse);
-        return;
-      }
-
-      const userFormateado = AuthController.formatearUsuarioParaRespuesta(
-        dbUser.toJSON()
-      );
-      const response: ApiResponse<{ user: any }> = {
-        status: "success",
-        message: "Token válido",
-        data: {
-          user: userFormateado,
-        },
-      };
-
+      const response = await verifyTokenService(user.id)
       res.status(200).json(response);
     } catch (error) {
-      logger.error({ err: error }, "Error en verificación de token");
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
@@ -185,107 +118,25 @@ class AuthController {
    * Renovar token JWT usando refresh token
    * POST /api/auth/refresh
    */
-  public async refreshToken(req: AuthRequest, res: Response): Promise<void> {
+  public async refreshToken(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
       const refreshToken =
         req.cookies?.["refreshToken"] || req.body?.refreshToken;
 
-      // Logging para debugging en producción
-      logger.info(
-        {
-          hasCookie: !!req.cookies?.["refreshToken"],
-          hasBody: !!req.body?.refreshToken,
-          cookiesCount: req.cookies ? Object.keys(req.cookies).length : 0,
-        },
-        "Intento de renovación de token"
-      );
+      if (!refreshToken) throw new AppError("Refresh Token requerido", 401)
 
-      if (!refreshToken) {
-        logger.warn(
-          {
-            cookies: req.cookies,
-            body: req.body,
-          },
-          "Refresh token no encontrado en cookies ni body"
-        );
-        res.status(401).json({
-          status: "error",
-          message: "Refresh token requerido",
-        } as ApiResponse);
-        return;
-      }
-
-      // Buscar el refresh token en la base de datos
-      const tokenDoc = await RefreshToken.findOne({
-        where: {
-          token: refreshToken,
-          isRevoked: false,
-          expiresAt: {
-            [Op.gt]: new Date(), // Verificar que no haya expirado
-          },
-        },
-        include: [
-          {
-            model: User,
-            as: "user",
-          },
-        ],
-      });
-
-      if (!tokenDoc || !tokenDoc.user || !tokenDoc.user.activo) {
-        logger.warn(
-          {
-            tokenExists: !!tokenDoc,
-            userActive: tokenDoc?.user?.activo,
-          },
-          "Refresh token inválido o expirado"
-        );
-        res.status(401).json({
-          status: "error",
-          message: "Refresh token inválido o expirado",
-        } as ApiResponse);
-        return;
-      }
-
-      // Generar nuevo access token
-      const accessToken = generateAccessToken({
-        id: tokenDoc.user.id,
-        email: tokenDoc.user.email,
-        rol: tokenDoc.user.rol,
-        nombre: tokenDoc.user.nombre,
-      });
+      const response = await refreshTokenService(refreshToken)
 
       // Re-establecer refresh token en cookie para asegurar persistencia
       // (mantener el mismo refresh token, no generar uno nuevo)
       res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
-
       // Enviar nuevo access token en cookie
-      res.cookie("accessToken", accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
-
-      logger.info(
-        {
-          userId: tokenDoc.user.id,
-          email: tokenDoc.user.email,
-        },
-        "Token renovado exitosamente"
-      );
-
-      const response: ApiResponse<RefreshTokenResponse> = {
-        status: "success",
-        message: "Token renovado exitosamente",
-        data: {
-          accessToken, // Mantener en body para compatibilidad temporal
-        },
-      };
+      res.cookie("accessToken", response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
 
       res.status(200).json(response);
     } catch (error) {
-      logger.error({ err: error }, "Error en renovación de token");
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
@@ -293,24 +144,13 @@ class AuthController {
    * Cerrar sesión (revocar refresh token)
    * POST /api/auth/logout
    */
-  public async logout(req: AuthRequest, res: Response): Promise<void> {
+  public async logout(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       // Leer refresh token desde cookies (prioridad) o body (fallback)
       const refreshToken =
         req.cookies?.["refreshToken"] || req.body?.refreshToken;
-
-      if (refreshToken) {
-        // Revocar el refresh token si existe
-        await RefreshToken.update(
-          { isRevoked: true },
-          {
-            where: {
-              token: refreshToken,
-              isRevoked: false,
-            },
-          }
-        );
-      }
+        
+      const response = await logoutService(refreshToken)
 
       // Limpiar cookies con las mismas opciones para asegurar que se borren correctamente
       res.clearCookie("accessToken", {
@@ -326,18 +166,10 @@ class AuthController {
         path: "/",
       });
 
-      const response: ApiResponse = {
-        status: "success",
-        message: "Sesión cerrada exitosamente",
-      };
 
       res.status(200).json(response);
     } catch (error) {
-      logger.error({ err: error, userId: req.user?.id }, "Error en logout");
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
@@ -345,76 +177,17 @@ class AuthController {
    * Cambiar contraseña
    * PUT /api/auth/change-password
    */
-  public async changePassword(req: AuthRequest, res: Response): Promise<void> {
+  public async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Verificar errores de validación
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        const firstError = errors.array()[0];
-        res.status(400).json({
-          status: "error",
-          message: firstError?.msg || "Error de validación",
-          error: "VALIDATION_ERROR",
-        } as ApiResponse);
-        return;
-      }
-
       const { currentPassword, newPassword } = req.body;
       const user = req.user;
 
-      if (!user) {
-        res.status(401).json({
-          status: "error",
-          message: "Usuario no autenticado",
-        } as ApiResponse);
-        return;
-      }
+      if (!user) throw new AppError("Usuario no autenticado", 401)
 
-      // Buscar usuario en la base de datos
-      const dbUser = await User.findByPk(user.id);
-      if (!dbUser) {
-        res.status(404).json({
-          status: "error",
-          message: "Usuario no encontrado",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verificar contraseña actual
-      const isCurrentPasswordValid = await bcrypt.compare(
-        currentPassword,
-        dbUser.password
-      );
-      if (!isCurrentPasswordValid) {
-        res.status(400).json({
-          status: "error",
-          message: "Contraseña actual incorrecta",
-        } as ApiResponse);
-        return;
-      }
-
-      // Encriptar nueva contraseña
-      const saltRounds = 12;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Actualizar contraseña
-      await dbUser.update({ password: hashedNewPassword });
-
-      const response: ApiResponse = {
-        status: "success",
-        message: "Contraseña actualizada exitosamente",
-      };
-
+      const response = await changePasswordService(user.id, currentPassword, newPassword)
       res.status(200).json(response);
     } catch (error) {
-      logger.error(
-        { err: error, userId: req.user?.id },
-        "Error en cambio de contraseña"
-      );
-      res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-      } as ApiResponse);
+      next(error)
     }
   }
 
