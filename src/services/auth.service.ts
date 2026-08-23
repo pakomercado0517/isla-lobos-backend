@@ -1,8 +1,14 @@
 import { AppError } from '../lib/AppError';
 import { generateAccessToken, generateRefreshToken } from '../lib/authTokens';
 import { Invitacion, User } from '../models';
-import { AuthServiceResponse, RegisterUserDTO } from '../types/auth.types';
-import { EmailRecuperacionPasswordData, RegisterRequest, UserRole } from '../types';
+import { AuthResponse, RegisterUserDTO } from '../types/auth.types';
+import {
+  ApiResponse,
+  EmailRecuperacionPasswordData,
+  RefreshTokenResponse,
+  RegisterRequest,
+  UserRole,
+} from '../types';
 import { randomBytes, randomUUID } from 'crypto';
 import RefreshToken from '../models/RefreshToken';
 import { Op } from 'sequelize';
@@ -14,7 +20,7 @@ import logger from '../utils/logger';
 export const loginService = async (
   email: string,
   password: string
-): Promise<AuthServiceResponse> => {
+): Promise<ApiResponse<AuthResponse>> => {
   const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
   if (!user) throw new AppError('Credenciales inválidas', 401);
@@ -43,7 +49,9 @@ export const loginService = async (
   };
 };
 
-export const registerService = async (data: RegisterRequest): Promise<AuthServiceResponse> => {
+export const registerService = async (
+  data: RegisterRequest
+): Promise<ApiResponse<AuthResponse>> => {
   const { nombre, email, password, telefono, avatar_url, codigo_invitacion } = data;
 
   const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
@@ -101,7 +109,7 @@ export const registerService = async (data: RegisterRequest): Promise<AuthServic
   };
 };
 
-export const verifyTokenService = async (userId: string): Promise<AuthServiceResponse> => {
+export const verifyTokenService = async (userId: string): Promise<ApiResponse> => {
   const user = await User.findByPk(userId);
   if (!user || !user.activo) throw new AppError('Usuario no encontrado o inactivo', 401);
 
@@ -114,7 +122,9 @@ export const verifyTokenService = async (userId: string): Promise<AuthServiceRes
   };
 };
 
-export const refreshTokenService = async (refreshToken: string) => {
+export const refreshTokenService = async (
+  refreshToken: string
+): Promise<ApiResponse<RefreshTokenResponse>> => {
   const tokenDoc = await RefreshToken.findOne({
     where: {
       token: refreshToken,
@@ -144,9 +154,7 @@ export const refreshTokenService = async (refreshToken: string) => {
   };
 };
 
-export const logoutService = async (
-  refreshToken?: string
-): Promise<AuthServiceResponse> => {
+export const logoutService = async (refreshToken?: string): Promise<ApiResponse> => {
   if (refreshToken) {
     await RefreshToken.update(
       { isRevoked: true },
@@ -169,7 +177,7 @@ export const changePasswordService = async (
   userId: string,
   currentPassword: string,
   newPassword: string
-): Promise<AuthServiceResponse> => {
+): Promise<ApiResponse> => {
   const user = await User.findByPk(userId);
   if (!user) throw new AppError('Usuario no encontrado', 404);
 
@@ -186,10 +194,10 @@ export const changePasswordService = async (
   };
 };
 
-export const forgotPasswordService = async (email: string): Promise<AuthServiceResponse> => {
+export const forgotPasswordService = async (email: string): Promise<ApiResponse> => {
   const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
-  const infoResponse: AuthServiceResponse = {
+  const infoResponse: ApiResponse = {
     status: 'success',
     message:
       'Si el email existe en nuestro sistema, recibirás un enlace para recuperar tu contraseña',
@@ -237,7 +245,7 @@ export const forgotPasswordService = async (email: string): Promise<AuthServiceR
 export const resetPasswordService = async (
   token: string,
   newPassword: string
-): Promise<AuthServiceResponse> => {
+): Promise<ApiResponse> => {
   const user = await User.findOne({
     where: {
       passwordResetToken: token,
@@ -263,7 +271,7 @@ export const resetPasswordService = async (
   };
 };
 
-export const getProfileService = async (userId: string): Promise<AuthServiceResponse> => {
+export const getProfileService = async (userId: string): Promise<ApiResponse> => {
   const user = await User.findByPk(userId);
   if (!user) throw new AppError('Usuario no encontrado', 404);
 

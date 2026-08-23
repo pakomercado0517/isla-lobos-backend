@@ -90,7 +90,7 @@ class AuthController {
     const response = await refreshTokenService(refreshToken);
 
     res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
-    res.cookie('accessToken', response.data.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
+    res.cookie('accessToken', response.data?.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
 
     res.status(200).json(response);
   });

@@ -5,30 +5,30 @@ export interface User {
   nombre: string;
   email: string;
   telefono?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
   fechaVencimientoPermiso?: string; // YYYY-MM-DD
-  estadoPermiso: EstadoPermiso;
-  diasNotificacion: number;
+  estadoPermiso?: EstadoPermiso;
+  diasNotificacion?: number;
   ultimaNotificacion?: string; // YYYY-MM-DD
   motivoSuspension?: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export enum UserRole {
-  CONANP = "conanp",
-  PRESTADOR = "prestador",
+  CONANP = 'conanp',
+  PRESTADOR = 'prestador',
 }
 
 export enum EstadoPermiso {
-  VIGENTE = "vigente",
-  POR_VENCER = "por_vencer",
-  VENCIDO = "vencido",
-  SUSPENDIDO = "suspendido",
-  PENDIENTE = "pendiente", // Permiso sin fecha de vencimiento asignada
+  VIGENTE = 'vigente',
+  POR_VENCER = 'por_vencer',
+  VENCIDO = 'vencido',
+  SUSPENDIDO = 'suspendido',
+  PENDIENTE = 'pendiente', // Permiso sin fecha de vencimiento asignada
 }
 
 export interface Embarcacion {
@@ -44,15 +44,15 @@ export interface Embarcacion {
 }
 
 export enum TipoEmbarcacion {
-  MENOR = "menor",
-  MAYOR = "mayor",
+  MENOR = 'menor',
+  MAYOR = 'mayor',
 }
 
 export enum EstadoEmbarcacion {
-  DISPONIBLE = "disponible",
-  EN_USO = "en_uso",
-  MANTENIMIENTO = "mantenimiento",
-  PENDIENTE_AUTORIZACION = "pendiente_autorizacion",
+  DISPONIBLE = 'disponible',
+  EN_USO = 'en_uso',
+  MANTENIMIENTO = 'mantenimiento',
+  PENDIENTE_AUTORIZACION = 'pendiente_autorizacion',
 }
 
 export interface Bloque {
@@ -71,19 +71,19 @@ export interface Bloque {
 }
 
 export enum EstadoBloque {
-  ACTIVO = "activo",
-  INACTIVO = "inactivo",
-  SUSPENDIDO_POR_CLIMA = "suspendido_por_clima",
-  CERRADO_CAPITANIA = "cerrado_capitaria",
-  LLENO = "lleno",
+  ACTIVO = 'activo',
+  INACTIVO = 'inactivo',
+  SUSPENDIDO_POR_CLIMA = 'suspendido_por_clima',
+  CERRADO_CAPITANIA = 'cerrado_capitaria',
+  LLENO = 'lleno',
 }
 
 // Destinos disponibles
 export const DESTINOS = {
-  ISLA_LOBOS: "Isla de Lobos",
-  ARRECIFE_TUXPAN: "Arrecife Tuxpan",
-  ARRECIFE_EN_MEDIO: "Arrecife de en Medio",
-  ARRECIFE_TANHUIJO: "Arrecife Tanhuijo",
+  ISLA_LOBOS: 'Isla de Lobos',
+  ARRECIFE_TUXPAN: 'Arrecife Tuxpan',
+  ARRECIFE_EN_MEDIO: 'Arrecife de en Medio',
+  ARRECIFE_TANHUIJO: 'Arrecife Tanhuijo',
 } as const;
 
 export type DestinoType = (typeof DESTINOS)[keyof typeof DESTINOS];
@@ -105,12 +105,12 @@ export interface Salida {
 }
 
 export enum EstadoSalida {
-  PROGRAMADA = "programada",
-  EN_CURSO = "en_curso",
-  COMPLETADA = "completada",
-  CANCELADA = "cancelada",
-  CANCELADA_POR_CLIMA = "cancelada_por_clima",
-  CANCELADA_CAPITARIA = "cancelada_capitaria",
+  PROGRAMADA = 'programada',
+  EN_CURSO = 'en_curso',
+  COMPLETADA = 'completada',
+  CANCELADA = 'cancelada',
+  CANCELADA_POR_CLIMA = 'cancelada_por_clima',
+  CANCELADA_CAPITARIA = 'cancelada_capitaria',
 }
 
 export interface CondicionMeteorologica {
@@ -128,10 +128,10 @@ export interface CondicionMeteorologica {
 }
 
 export enum EstadoPuerto {
-  ABIERTO = "abierto",
-  RESTRICCIONES = "restricciones",
-  CERRADO = "cerrado",
-  EMERGENCIA = "emergencia",
+  ABIERTO = 'abierto',
+  RESTRICCIONES = 'restricciones',
+  CERRADO = 'cerrado',
+  EMERGENCIA = 'emergencia',
 }
 
 export interface Invitacion {
@@ -146,15 +146,20 @@ export interface Invitacion {
   updated_at: Date;
 }
 
+export interface UserResponse extends Omit<User, 'fechaVencimientoPermiso' | 'ultimaNotificacion'> {
+  fechaVencimientoPermiso?: string | undefined;
+  ultimaNotificacion?: string | undefined;
+}
+
 // Tipos para respuestas de la API
-export interface ApiResponse<T = any> {
-  status: "success" | "error";
+export interface ApiResponse<T = unknown> {
+  status: 'success' | 'error';
   message: string;
   data?: T;
   error?: string;
 }
 
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
+export interface PaginatedResponse extends ApiResponse {
   pagination: {
     page: number;
     limit: number;
@@ -197,12 +202,6 @@ export interface RefreshTokenResponse {
   accessToken: string;
 }
 
-export interface AuthResponse {
-  user: Omit<User, "password">;
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
@@ -230,8 +229,8 @@ export interface DashboardStats {
 export interface ReporteRequest {
   fecha_inicio: Date;
   fecha_fin: Date;
-  tipo: "salidas" | "capacidad" | "embarcaciones" | "clima";
-  formato: "pdf" | "excel";
+  tipo: 'salidas' | 'capacidad' | 'embarcaciones' | 'clima';
+  formato: 'pdf' | 'excel';
 }
 
 // Tipos para LoteBrazalete
@@ -255,14 +254,14 @@ export interface LoteBrazalete {
 }
 
 export enum TipoBrazalete {
-  UNIVERSAL = "universal",
+  UNIVERSAL = 'universal',
 }
 
 export enum EstadoLote {
-  ACTIVO = "activo",
-  AGOTADO = "agotado",
-  VENCIDO = "vencido",
-  CANCELADO = "cancelado",
+  ACTIVO = 'activo',
+  AGOTADO = 'agotado',
+  VENCIDO = 'vencido',
+  CANCELADO = 'cancelado',
 }
 
 // Tipos para Brazalete
@@ -285,10 +284,10 @@ export interface Brazalete {
 }
 
 export enum EstadoBrazalete {
-  DISPONIBLE = "disponible",
-  ASIGNADO = "asignado",
-  UTILIZADO = "utilizado",
-  PERDIDO = "perdido",
+  DISPONIBLE = 'disponible',
+  ASIGNADO = 'asignado',
+  UTILIZADO = 'utilizado',
+  PERDIDO = 'perdido',
 }
 
 // Tipos para VentaBrazalete
@@ -307,9 +306,9 @@ export interface VentaBrazalete {
 }
 
 export enum EstadoPago {
-  PENDIENTE = "pendiente",
-  PAGADO = "pagado",
-  CANCELADO = "cancelado",
+  PENDIENTE = 'pendiente',
+  PAGADO = 'pagado',
+  CANCELADO = 'cancelado',
 }
 
 // Tipos para requests de brazaletes
@@ -384,7 +383,7 @@ export interface EstadisticasBrazaletes {
   };
   alertas: {
     tipo: string;
-    severidad: "alta" | "media" | "baja";
+    severidad: 'alta' | 'media' | 'baja';
     mensaje: string;
     fecha: Date;
   }[];
@@ -447,33 +446,33 @@ export interface SMNConfiguracionRegion {
 
 // Tipos de notificaciones disponibles en el sistema
 export enum TipoNotificacion {
-  ALERTA_CLIMA = "alerta_clima",
-  PERMISO_POR_VENCER = "permiso_por_vencer",
-  PERMISO_VENCIDO = "permiso_vencido",
-  CONFIRMACION_SALIDA = "confirmacion_salida",
-  CANCELACION_SALIDA = "cancelacion_salida",
-  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
-  RESUMEN_DIARIO = "resumen_diario",
-  BIENVENIDA = "bienvenida",
-  RECORDATORIO_GENERICO = "recordatorio_generico",
+  ALERTA_CLIMA = 'alerta_clima',
+  PERMISO_POR_VENCER = 'permiso_por_vencer',
+  PERMISO_VENCIDO = 'permiso_vencido',
+  CONFIRMACION_SALIDA = 'confirmacion_salida',
+  CANCELACION_SALIDA = 'cancelacion_salida',
+  STOCK_BRAZALETES_BAJO = 'stock_brazaletes_bajo',
+  RESUMEN_DIARIO = 'resumen_diario',
+  BIENVENIDA = 'bienvenida',
+  RECORDATORIO_GENERICO = 'recordatorio_generico',
 }
 
 // Prioridad de las notificaciones
 export enum PrioridadNotificacion {
-  URGENTE = "urgente", // Puerto cerrado, emergencias
-  ALTA = "alta", // Permisos vencidos, alertas importantes
-  MEDIA = "media", // Recordatorios, confirmaciones
-  BAJA = "baja", // Resúmenes, información general
+  URGENTE = 'urgente', // Puerto cerrado, emergencias
+  ALTA = 'alta', // Permisos vencidos, alertas importantes
+  MEDIA = 'media', // Recordatorios, confirmaciones
+  BAJA = 'baja', // Resúmenes, información general
 }
 
 // Estado de envío de notificación
 export enum EstadoNotificacion {
-  PENDIENTE = "pendiente",
-  ENVIADO = "enviado",
-  ENTREGADO = "entregado",
-  LEIDO = "leido",
-  FALLIDO = "fallido",
-  REINTENTANDO = "reintentando",
+  PENDIENTE = 'pendiente',
+  ENVIADO = 'enviado',
+  ENTREGADO = 'entregado',
+  LEIDO = 'leido',
+  FALLIDO = 'fallido',
+  REINTENTANDO = 'reintentando',
 }
 
 // Request para enviar notificación individual
@@ -606,19 +605,19 @@ export interface HistorialNotificacion {
 
 // Tipos de emails disponibles en el sistema
 export enum TipoEmail {
-  ALERTA_CLIMA = "alerta_clima",
-  PERMISO_POR_VENCER = "permiso_por_vencer",
-  PERMISO_VENCIDO = "permiso_vencido",
-  CONFIRMACION_SALIDA = "confirmacion_salida",
-  CANCELACION_SALIDA = "cancelacion_salida",
-  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
-  RESUMEN_DIARIO = "resumen_diario",
-  BIENVENIDA = "bienvenida",
-  RECUPERACION_PASSWORD = "recuperacion_password",
-  REGISTRO_EXITOSO = "registro_exitoso",
-  INVITACION = "invitacion",
-  NOTIFICACION_GENERAL = "notificacion_general",
-  RECORDATORIO_GENERICO = "recordatorio_generico",
+  ALERTA_CLIMA = 'alerta_clima',
+  PERMISO_POR_VENCER = 'permiso_por_vencer',
+  PERMISO_VENCIDO = 'permiso_vencido',
+  CONFIRMACION_SALIDA = 'confirmacion_salida',
+  CANCELACION_SALIDA = 'cancelacion_salida',
+  STOCK_BRAZALETES_BAJO = 'stock_brazaletes_bajo',
+  RESUMEN_DIARIO = 'resumen_diario',
+  BIENVENIDA = 'bienvenida',
+  RECUPERACION_PASSWORD = 'recuperacion_password',
+  REGISTRO_EXITOSO = 'registro_exitoso',
+  INVITACION = 'invitacion',
+  NOTIFICACION_GENERAL = 'notificacion_general',
+  RECORDATORIO_GENERICO = 'recordatorio_generico',
 }
 
 // Configuración de Nodemailer
@@ -739,22 +738,22 @@ export interface EmailInvitacionData {
 
 // Tipos de notificaciones del dashboard
 export enum TipoNotificacionDashboard {
-  NUEVA_EMBARCACION = "nueva_embarcacion",
-  EMBARCACION_AUTORIZADA = "embarcacion_autorizada",
-  EMBARCACION_RECHAZADA = "embarcacion_rechazada",
-  PERMISO_POR_VENCER = "permiso_por_vencer",
-  PERMISO_VENCIDO = "permiso_vencido",
-  STOCK_BRAZALETES_BAJO = "stock_brazaletes_bajo",
-  NUEVA_SALIDA_REGISTRADA = "nueva_salida_registrada",
-  ALERTA_CLIMA = "alerta_clima",
-  OTRO = "otro",
+  NUEVA_EMBARCACION = 'nueva_embarcacion',
+  EMBARCACION_AUTORIZADA = 'embarcacion_autorizada',
+  EMBARCACION_RECHAZADA = 'embarcacion_rechazada',
+  PERMISO_POR_VENCER = 'permiso_por_vencer',
+  PERMISO_VENCIDO = 'permiso_vencido',
+  STOCK_BRAZALETES_BAJO = 'stock_brazaletes_bajo',
+  NUEVA_SALIDA_REGISTRADA = 'nueva_salida_registrada',
+  ALERTA_CLIMA = 'alerta_clima',
+  OTRO = 'otro',
 }
 
 // Prioridad de notificaciones del dashboard
 export enum PrioridadNotificacionDashboard {
-  ALTA = "alta",
-  MEDIA = "media",
-  BAJA = "baja",
+  ALTA = 'alta',
+  MEDIA = 'media',
+  BAJA = 'baja',
 }
 
 // Interfaz para notificación del dashboard
