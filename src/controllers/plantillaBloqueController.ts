@@ -1,11 +1,11 @@
-import { Request, Response } from "express";
-import PlantillaBloque from "../models/PlantillaBloque";
-import Bloque from "../models/Bloque";
-import { Op } from "sequelize";
-import { createLogger } from "../utils/logger";
-import type BloqueControllerType from "./bloqueController.js";
+import { Request, Response } from 'express';
+import PlantillaBloque from '../models/PlantillaBloque';
+import Bloque from '../models/Bloque';
+import { Op } from 'sequelize';
+import { createLogger } from '../utils/logger';
+import { crearBloquesParaFecha } from '../services/bloque.service';
 
-const logger = createLogger("PlantillaBloqueController");
+const logger = createLogger('PlantillaBloqueController');
 
 /**
  * PlantillaBloqueController - Gestión de plantillas de bloques
@@ -31,30 +31,30 @@ class PlantillaBloqueController {
       }
 
       if (activa !== undefined) {
-        whereCondition.activa = activa === "true";
+        whereCondition.activa = activa === 'true';
       }
 
       const plantillas = await PlantillaBloque.findAll({
         where: whereCondition,
         order: [
-          ["destino", "ASC"],
-          ["hora_inicio", "ASC"],
+          ['destino', 'ASC'],
+          ['hora_inicio', 'ASC'],
         ],
       });
 
       res.status(200).json({
-        status: "success",
-        message: "Plantillas obtenidas exitosamente",
+        status: 'success',
+        message: 'Plantillas obtenidas exitosamente',
         data: {
           plantillas: plantillas.map((p) => p.toJSON()),
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener plantillas:", error);
+      logger.error({ err: error }, 'Error al obtener plantillas:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -71,34 +71,34 @@ class PlantillaBloqueController {
         include: [
           {
             model: Bloque,
-            as: "bloques_derivados",
+            as: 'bloques_derivados',
             where: { es_plantilla: true },
             required: false,
-            attributes: ["id", "fecha", "estado", "capacidad_registrada"],
+            attributes: ['id', 'fecha', 'estado', 'capacidad_registrada'],
           },
         ],
       });
 
       if (!plantilla) {
         res.status(404).json({
-          status: "error",
-          message: "Plantilla no encontrada",
-          error: "PLANTILLA_NOT_FOUND",
+          status: 'error',
+          message: 'Plantilla no encontrada',
+          error: 'PLANTILLA_NOT_FOUND',
         });
         return;
       }
 
       res.status(200).json({
-        status: "success",
-        message: "Plantilla obtenida exitosamente",
+        status: 'success',
+        message: 'Plantilla obtenida exitosamente',
         data: { plantilla: plantilla.toJSON() },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener plantilla:", error);
+      logger.error({ err: error }, 'Error al obtener plantilla:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -109,14 +109,7 @@ class PlantillaBloqueController {
    */
   static async createPlantilla(req: Request, res: Response): Promise<void> {
     try {
-      const {
-        nombre,
-        hora_inicio,
-        hora_fin,
-        capacidad_total,
-        destino,
-        activa = true,
-      } = req.body;
+      const { nombre, hora_inicio, hora_fin, capacidad_total, destino, activa = true } = req.body;
 
       // Validar que no exista plantilla con mismo nombre y destino
       const plantillaExistente = await PlantillaBloque.findOne({
@@ -128,9 +121,9 @@ class PlantillaBloqueController {
 
       if (plantillaExistente) {
         res.status(409).json({
-          status: "error",
-          message: "Ya existe una plantilla con ese nombre y destino",
-          error: "PLANTILLA_ALREADY_EXISTS",
+          status: 'error',
+          message: 'Ya existe una plantilla con ese nombre y destino',
+          error: 'PLANTILLA_ALREADY_EXISTS',
         });
         return;
       }
@@ -138,9 +131,9 @@ class PlantillaBloqueController {
       // Validar que hora_fin > hora_inicio
       if (hora_fin <= hora_inicio) {
         res.status(400).json({
-          status: "error",
-          message: "La hora de fin debe ser mayor que la hora de inicio",
-          error: "INVALID_TIME_RANGE",
+          status: 'error',
+          message: 'La hora de fin debe ser mayor que la hora de inicio',
+          error: 'INVALID_TIME_RANGE',
         });
         return;
       }
@@ -160,23 +153,13 @@ class PlantillaBloqueController {
         const manana = new Date();
         manana.setDate(hoy.getDate() + 1);
 
-        // Importar BloqueController dinámicamente para evitar dependencias circulares
-        const BloqueController = (
-          await import("./bloqueController.js")
-        ).default as unknown as typeof BloqueControllerType;
-
-        // Recrear bloques para hoy y mañana
-        const hoyStr = hoy.toISOString().split("T")[0];
-        const mananaStr = manana.toISOString().split("T")[0];
+        const hoyStr = hoy.toISOString().split('T')[0];
+        const mananaStr = manana.toISOString().split('T')[0];
         if (hoyStr && destino) {
-          await BloqueController.crearBloquesParaFecha(hoyStr, destino, true);
+          await crearBloquesParaFecha(hoyStr, destino, true);
         }
         if (mananaStr && destino) {
-          await BloqueController.crearBloquesParaFecha(
-            mananaStr,
-            destino,
-            true
-          );
+          await crearBloquesParaFecha(mananaStr, destino, true);
         }
 
         logger.info(
@@ -185,21 +168,21 @@ class PlantillaBloqueController {
       } catch (recreacionError) {
         logger.warn(
           { err: recreacionError },
-          "Error al recrear bloques después de crear plantilla (no crítico)"
+          'Error al recrear bloques después de crear plantilla (no crítico)'
         );
       }
 
       res.status(201).json({
-        status: "success",
-        message: "Plantilla creada exitosamente y bloques actualizados",
+        status: 'success',
+        message: 'Plantilla creada exitosamente y bloques actualizados',
         data: { plantilla: nuevaPlantilla.toJSON() },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al crear plantilla:", error);
+      logger.error({ err: error }, 'Error al crear plantilla:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -211,22 +194,15 @@ class PlantillaBloqueController {
   static async updatePlantilla(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const {
-        nombre,
-        hora_inicio,
-        hora_fin,
-        capacidad_total,
-        destino,
-        activa,
-      } = req.body;
+      const { nombre, hora_inicio, hora_fin, capacidad_total, destino, activa } = req.body;
 
       const plantilla = await PlantillaBloque.findByPk(id);
 
       if (!plantilla) {
         res.status(404).json({
-          status: "error",
-          message: "Plantilla no encontrada",
-          error: "PLANTILLA_NOT_FOUND",
+          status: 'error',
+          message: 'Plantilla no encontrada',
+          error: 'PLANTILLA_NOT_FOUND',
         });
         return;
       }
@@ -243,9 +219,9 @@ class PlantillaBloqueController {
 
         if (plantillaExistente) {
           res.status(409).json({
-            status: "error",
-            message: "Ya existe otra plantilla con ese nombre y destino",
-            error: "PLANTILLA_ALREADY_EXISTS",
+            status: 'error',
+            message: 'Ya existe otra plantilla con ese nombre y destino',
+            error: 'PLANTILLA_ALREADY_EXISTS',
           });
           return;
         }
@@ -257,9 +233,9 @@ class PlantillaBloqueController {
 
       if (horaFinFinal <= horaInicioFinal) {
         res.status(400).json({
-          status: "error",
-          message: "La hora de fin debe ser mayor que la hora de inicio",
-          error: "INVALID_TIME_RANGE",
+          status: 'error',
+          message: 'La hora de fin debe ser mayor que la hora de inicio',
+          error: 'INVALID_TIME_RANGE',
         });
         return;
       }
@@ -283,7 +259,7 @@ class PlantillaBloqueController {
       });
 
       res.status(200).json({
-        status: "success",
+        status: 'success',
         message: `Plantilla actualizada exitosamente. ${bloquesAfectados} bloques derivados se verán afectados automáticamente`,
         data: {
           plantilla: plantilla.toJSON(),
@@ -291,11 +267,11 @@ class PlantillaBloqueController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al actualizar plantilla:", error);
+      logger.error({ err: error }, 'Error al actualizar plantilla:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -312,9 +288,9 @@ class PlantillaBloqueController {
 
       if (!plantilla) {
         res.status(404).json({
-          status: "error",
-          message: "Plantilla no encontrada",
-          error: "PLANTILLA_NOT_FOUND",
+          status: 'error',
+          message: 'Plantilla no encontrada',
+          error: 'PLANTILLA_NOT_FOUND',
         });
         return;
       }
@@ -329,9 +305,9 @@ class PlantillaBloqueController {
 
       if (bloquesDerivados > 0) {
         res.status(400).json({
-          status: "error",
+          status: 'error',
           message: `No se puede eliminar la plantilla porque tiene ${bloquesDerivados} bloques derivados. Elimine o actualice los bloques primero.`,
-          error: "PLANTILLA_HAS_DEPENDENCIES",
+          error: 'PLANTILLA_HAS_DEPENDENCIES',
         });
         return;
       }
@@ -339,15 +315,15 @@ class PlantillaBloqueController {
       await plantilla.destroy();
 
       res.status(200).json({
-        status: "success",
-        message: "Plantilla eliminada exitosamente",
+        status: 'success',
+        message: 'Plantilla eliminada exitosamente',
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al eliminar plantilla:", error);
+      logger.error({ err: error }, 'Error al eliminar plantilla:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -356,10 +332,7 @@ class PlantillaBloqueController {
    * Obtener estadísticas de una plantilla
    * GET /api/plantillas-bloque/:id/estadisticas
    */
-  static async getEstadisticasPlantilla(
-    req: Request,
-    res: Response
-  ): Promise<void> {
+  static async getEstadisticasPlantilla(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
@@ -367,9 +340,9 @@ class PlantillaBloqueController {
 
       if (!plantilla) {
         res.status(404).json({
-          status: "error",
-          message: "Plantilla no encontrada",
-          error: "PLANTILLA_NOT_FOUND",
+          status: 'error',
+          message: 'Plantilla no encontrada',
+          error: 'PLANTILLA_NOT_FOUND',
         });
         return;
       }
@@ -381,20 +354,14 @@ class PlantillaBloqueController {
           es_plantilla: true,
         },
         attributes: [
-          "estado",
+          'estado',
+          [Bloque.sequelize!.fn('COUNT', Bloque.sequelize!.col('id')), 'cantidad'],
           [
-            Bloque.sequelize!.fn("COUNT", Bloque.sequelize!.col("id")),
-            "cantidad",
-          ],
-          [
-            Bloque.sequelize!.fn(
-              "SUM",
-              Bloque.sequelize!.col("capacidad_registrada")
-            ),
-            "capacidad_ocupada",
+            Bloque.sequelize!.fn('SUM', Bloque.sequelize!.col('capacidad_registrada')),
+            'capacidad_ocupada',
           ],
         ],
-        group: ["estado"],
+        group: ['estado'],
         raw: true,
       })) as any[];
 
@@ -406,8 +373,8 @@ class PlantillaBloqueController {
       });
 
       res.status(200).json({
-        status: "success",
-        message: "Estadísticas obtenidas exitosamente",
+        status: 'success',
+        message: 'Estadísticas obtenidas exitosamente',
         data: {
           plantilla: plantilla.toJSON(),
           total_bloques_derivados: totalBloques,
@@ -415,11 +382,11 @@ class PlantillaBloqueController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener estadísticas:", error);
+      logger.error({ err: error }, 'Error al obtener estadísticas:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
