@@ -1,10 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import BloqueController from "../controllers/bloqueController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import BloqueController from '../controllers/bloque.controller';
+import { authenticateToken, requireCONANP } from '../middleware/auth';
+import { handleValidationErrors } from '../middleware/validation';
 import {
   getAllBloquesValidation,
   getBloqueByIdValidation,
@@ -12,41 +9,27 @@ import {
   updateBloqueValidation,
   deleteBloqueValidation,
   getBloqueStatsValidation,
-} from "../validators/bloqueValidators";
+} from '../validators/bloqueValidators';
 
 const router: ExpressRouter = Router();
 
-// Middleware global para sanitizar entrada
-router.use(sanitizeInput);
-
-// Rutas protegidas (requieren autenticación)
+// Autenticado: GET / (prestador y CONANP). Mutaciones y stats: solo CONANP.
 router.use(authenticateToken);
 
-// Rutas para gestión de bloques (solo CONANP)
-router.get(
-  "/",
-  getAllBloquesValidation,
-  handleValidationErrors,
-  BloqueController.getAllBloques
-);
+router.get('/', getAllBloquesValidation, handleValidationErrors, BloqueController.getAllBloques);
 
 router.get(
-  "/estadisticas",
+  '/estadisticas',
   requireCONANP,
   getBloqueStatsValidation,
   handleValidationErrors,
   BloqueController.getBloqueStats
 );
 
-router.get(
-  "/:id",
-  getBloqueByIdValidation,
-  handleValidationErrors,
-  BloqueController.getBloqueById
-);
+router.get('/:id', getBloqueByIdValidation, handleValidationErrors, BloqueController.getBloqueById);
 
 router.post(
-  "/",
+  '/',
   requireCONANP,
   createBloqueValidation,
   handleValidationErrors,
@@ -54,7 +37,7 @@ router.post(
 );
 
 router.put(
-  "/:id",
+  '/:id',
   requireCONANP,
   updateBloqueValidation,
   handleValidationErrors,
@@ -62,7 +45,7 @@ router.put(
 );
 
 router.delete(
-  "/:id",
+  '/:id',
   requireCONANP,
   deleteBloqueValidation,
   handleValidationErrors,

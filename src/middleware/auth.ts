@@ -62,16 +62,11 @@ export const authenticateToken = async (
 
     const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
-    const user = await User.findByPk(decoded.id);
-    if (!user || !user.activo) {
-      throw new AppError('Usuario no encontrado o inactivo', 401);
-    }
-
     req.user = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-      nombre: user.nombre,
+      id: decoded.id,
+      email: decoded.email,
+      rol: decoded.rol,
+      nombre: decoded.nombre,
     };
 
     next();
@@ -168,15 +163,12 @@ export const optionalAuth = async (
     if (token) {
       const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
-      const user = await User.findByPk(decoded.id);
-      if (user && user.activo) {
-        req.user = {
-          id: user.id,
-          email: user.email,
-          rol: user.rol,
-          nombre: user.nombre,
-        };
-      }
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        rol: decoded.rol,
+        nombre: decoded.nombre,
+      };
     }
 
     next();
