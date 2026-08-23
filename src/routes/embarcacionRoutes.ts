@@ -1,10 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import EmbarcacionController from "../controllers/embarcacionController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import EmbarcacionController from '../controllers/embarcacionController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getAllEmbarcacionesValidation,
   getEmbarcacionByIdValidation,
@@ -13,7 +10,7 @@ import {
   deleteEmbarcacionValidation,
   getMisEmbarcacionesValidation,
   getEmbarcacionStatsValidation,
-} from "../validators/embarcacionValidators";
+} from '../validators/embarcacionValidators';
 
 const router: ExpressRouter = Router();
 
@@ -25,14 +22,14 @@ router.use(authenticateToken);
 
 // Rutas para gestión de embarcaciones
 router.get(
-  "/",
+  '/',
   getAllEmbarcacionesValidation,
   handleValidationErrors,
   EmbarcacionController.getAllEmbarcaciones
 );
 
 router.get(
-  "/estadisticas",
+  '/estadisticas',
   requireCONANP,
   getEmbarcacionStatsValidation,
   handleValidationErrors,
@@ -40,35 +37,35 @@ router.get(
 );
 
 router.get(
-  "/mis-embarcaciones",
+  '/mis-embarcaciones',
   getMisEmbarcacionesValidation,
   handleValidationErrors,
   EmbarcacionController.getMisEmbarcaciones
 );
 
 router.get(
-  "/:id",
+  '/:id',
   getEmbarcacionByIdValidation,
   handleValidationErrors,
   EmbarcacionController.getEmbarcacionById
 );
 
 router.post(
-  "/",
+  '/',
   createEmbarcacionValidation,
   handleValidationErrors,
   EmbarcacionController.createEmbarcacion
 );
 
 router.put(
-  "/:id",
+  '/:id',
   updateEmbarcacionValidation,
   handleValidationErrors,
   EmbarcacionController.updateEmbarcacion
 );
 
 router.delete(
-  "/:id",
+  '/:id',
   deleteEmbarcacionValidation,
   handleValidationErrors,
   EmbarcacionController.deleteEmbarcacion

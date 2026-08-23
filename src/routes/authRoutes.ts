@@ -1,16 +1,14 @@
-import { Router, type Router as ExpressRouter } from "express";
-import AuthController from "../controllers/auth.controller";
-import { authenticateToken } from "../middleware/auth";
-import {
-  handleValidationErrors,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import AuthController from '../controllers/auth.controller';
+import { authenticateToken } from '../middleware/auth.middleware';
+import { handleValidationErrors } from '../middleware/validation';
 import {
   loginValidation,
   registerValidation,
   changePasswordValidation,
   forgotPasswordValidation,
   resetPasswordValidation,
-} from "../validators/auth.validators";
+} from '../validators/auth.validators';
 
 const router: ExpressRouter = Router();
 
@@ -21,66 +19,41 @@ const router: ExpressRouter = Router();
  */
 
 // Rutas públicas (no requieren autenticación)
-router.post(
-  "/login",
-  loginValidation,
-  handleValidationErrors,
-  AuthController.login
-);
+router.post('/login', loginValidation, handleValidationErrors, AuthController.login);
 
-router.post(
-  "/register",
-  registerValidation,
-  handleValidationErrors,
-  AuthController.register
-);
+router.post('/register', registerValidation, handleValidationErrors, AuthController.register);
 
 // Rutas de recuperación de contraseña (públicas)
 router.post(
-  "/forgot-password",
+  '/forgot-password',
   forgotPasswordValidation,
   handleValidationErrors,
   AuthController.forgotPassword
 );
 
 router.post(
-  "/reset-password",
+  '/reset-password',
   resetPasswordValidation,
   handleValidationErrors,
   AuthController.resetPassword
 );
 
 // Ruta pública para renovar token (NO requiere authenticateToken porque el access token estará expirado)
-router.post(
-  "/refresh",
-  AuthController.refreshToken
-);
+router.post('/refresh', AuthController.refreshToken);
 
 // Rutas protegidas (requieren autenticación)
-router.get(
-  "/verify",
-  authenticateToken,
-  AuthController.verifyToken
-);
+router.get('/verify', authenticateToken, AuthController.verifyToken);
 
-router.post(
-  "/logout",
-  authenticateToken,
-  AuthController.logout
-);
+router.post('/logout', authenticateToken, AuthController.logout);
 
 router.put(
-  "/change-password",
+  '/change-password',
   authenticateToken,
   changePasswordValidation,
   handleValidationErrors,
   AuthController.changePassword
 );
 
-router.get(
-  "/profile",
-  authenticateToken,
-  AuthController.getProfile
-);
+router.get('/profile', authenticateToken, AuthController.getProfile);
 
 export default router;

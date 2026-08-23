@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error.middleware';
 import {
   deleteAvatarService,
@@ -25,11 +25,7 @@ export class AvatarController {
 
   static generateDefaultAvatar = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { backgroundColor, textColor } = req.body;
-    const response = await generateDefaultAvatarService(
-      req.user!.id,
-      backgroundColor,
-      textColor
-    );
+    const response = await generateDefaultAvatarService(req.user!.id, backgroundColor, textColor);
     res.status(201).json(response);
   });
 

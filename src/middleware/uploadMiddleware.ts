@@ -2,7 +2,7 @@ import multer from 'multer';
 import { Request, type Response, type NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { AppError } from '../lib/AppError';
-import { AuthRequest } from './auth';
+import { AuthRequest } from './auth.middleware';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];

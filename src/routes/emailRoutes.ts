@@ -1,14 +1,14 @@
-import { Router, type Router as ExpressRouter } from "express";
-import EmailController from "../controllers/emailController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import { handleValidationErrors } from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import EmailController from '../controllers/emailController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors } from '../middleware/validation';
 import {
   enviarEmailValidation,
   enviarEmailMasivoValidation,
   enviarAlertaClimaValidation,
   enviarAlertaPermisosValidation,
   enviarPruebaValidation,
-} from "../validators/emailValidators";
+} from '../validators/emailValidators';
 
 const router: ExpressRouter = Router();
 
@@ -17,12 +17,7 @@ const router: ExpressRouter = Router();
  * @desc    Verificar estado del servicio de Email
  * @access  Privado (CONANP)
  */
-router.get(
-  "/estado",
-  authenticateToken,
-  requireCONANP,
-  EmailController.verificarEstado
-);
+router.get('/estado', authenticateToken, requireCONANP, EmailController.verificarEstado);
 
 /**
  * @route   POST /api/emails/enviar
@@ -30,7 +25,7 @@ router.get(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/enviar",
+  '/enviar',
   authenticateToken,
   requireCONANP,
   enviarEmailValidation,
@@ -44,7 +39,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/enviar-masivo",
+  '/enviar-masivo',
   authenticateToken,
   requireCONANP,
   enviarEmailMasivoValidation,
@@ -58,7 +53,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/alerta-clima",
+  '/alerta-clima',
   authenticateToken,
   requireCONANP,
   enviarAlertaClimaValidation,
@@ -72,7 +67,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/alerta-permisos",
+  '/alerta-permisos',
   authenticateToken,
   requireCONANP,
   enviarAlertaPermisosValidation,
@@ -85,12 +80,7 @@ router.post(
  * @desc    Obtener plantillas de emails disponibles
  * @access  Privado (CONANP)
  */
-router.get(
-  "/plantillas",
-  authenticateToken,
-  requireCONANP,
-  EmailController.obtenerPlantillas
-);
+router.get('/plantillas', authenticateToken, requireCONANP, EmailController.obtenerPlantillas);
 
 /**
  * @route   POST /api/emails/test
@@ -98,7 +88,7 @@ router.get(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/test",
+  '/test',
   authenticateToken,
   requireCONANP,
   enviarPruebaValidation,
@@ -107,4 +97,3 @@ router.post(
 );
 
 export default router;
-

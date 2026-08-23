@@ -1,10 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import SalidaController from "../controllers/salidaController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import SalidaController from '../controllers/salidaController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getAllSalidasValidation,
   getSalidaByIdValidation,
@@ -13,7 +10,7 @@ import {
   cancelarSalidaValidation,
   getMisSalidasValidation,
   getSalidaStatsValidation,
-} from "../validators/salidaValidators";
+} from '../validators/salidaValidators';
 
 const router: ExpressRouter = Router();
 
@@ -24,15 +21,10 @@ router.use(sanitizeInput);
 router.use(authenticateToken);
 
 // Rutas para gestión de salidas
-router.get(
-  "/",
-  getAllSalidasValidation,
-  handleValidationErrors,
-  SalidaController.getAllSalidas
-);
+router.get('/', getAllSalidasValidation, handleValidationErrors, SalidaController.getAllSalidas);
 
 router.get(
-  "/estadisticas",
+  '/estadisticas',
   requireCONANP,
   getSalidaStatsValidation,
   handleValidationErrors,
@@ -40,35 +32,20 @@ router.get(
 );
 
 router.get(
-  "/mis-salidas",
+  '/mis-salidas',
   getMisSalidasValidation,
   handleValidationErrors,
   SalidaController.getMisSalidas
 );
 
-router.get(
-  "/:id",
-  getSalidaByIdValidation,
-  handleValidationErrors,
-  SalidaController.getSalidaById
-);
+router.get('/:id', getSalidaByIdValidation, handleValidationErrors, SalidaController.getSalidaById);
 
-router.post(
-  "/",
-  createSalidaValidation,
-  handleValidationErrors,
-  SalidaController.createSalida
-);
+router.post('/', createSalidaValidation, handleValidationErrors, SalidaController.createSalida);
 
-router.put(
-  "/:id",
-  updateSalidaValidation,
-  handleValidationErrors,
-  SalidaController.updateSalida
-);
+router.put('/:id', updateSalidaValidation, handleValidationErrors, SalidaController.updateSalida);
 
 router.delete(
-  "/:id",
+  '/:id',
   cancelarSalidaValidation,
   handleValidationErrors,
   SalidaController.cancelarSalida

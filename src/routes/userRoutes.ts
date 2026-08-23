@@ -1,14 +1,11 @@
-import { Router, type Router as ExpressRouter } from "express";
-import UserController from "../controllers/userController";
+import { Router, type Router as ExpressRouter } from 'express';
+import UserController from '../controllers/userController';
 import {
   authenticateToken,
   requireCONANP,
   requireRole as _requireRole,
-} from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+} from '../middleware/auth.middleware';
+import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getAllUsersValidation,
   getUserByIdValidation,
@@ -19,7 +16,7 @@ import {
   updateProfileValidation,
   getUserStatsValidation,
   hardDeleteUserValidation,
-} from "../validators/userValidators";
+} from '../validators/userValidators';
 
 const router: ExpressRouter = Router();
 
@@ -31,7 +28,7 @@ router.use(authenticateToken);
 
 // Rutas para gestión de usuarios (solo CONANP)
 router.get(
-  "/",
+  '/',
   requireCONANP,
   getAllUsersValidation,
   handleValidationErrors,
@@ -39,7 +36,7 @@ router.get(
 );
 
 router.get(
-  "/stats",
+  '/stats',
   requireCONANP,
   getUserStatsValidation,
   handleValidationErrors,
@@ -47,7 +44,7 @@ router.get(
 );
 
 router.get(
-  "/:userId",
+  '/:userId',
   requireCONANP,
   getUserByIdValidation,
   handleValidationErrors,
@@ -55,7 +52,7 @@ router.get(
 );
 
 router.post(
-  "/",
+  '/',
   requireCONANP,
   createUserValidation,
   handleValidationErrors,
@@ -63,7 +60,7 @@ router.post(
 );
 
 router.put(
-  "/:userId",
+  '/:userId',
   requireCONANP,
   updateUserValidation,
   handleValidationErrors,
@@ -71,7 +68,7 @@ router.put(
 );
 
 router.delete(
-  "/:userId",
+  '/:userId',
   requireCONANP,
   deleteUserValidation,
   handleValidationErrors,
@@ -79,7 +76,7 @@ router.delete(
 );
 
 router.patch(
-  "/:userId/activate",
+  '/:userId/activate',
   requireCONANP,
   activateUserValidation,
   handleValidationErrors,
@@ -87,7 +84,7 @@ router.patch(
 );
 
 router.delete(
-  "/:userId/permanent",
+  '/:userId/permanent',
   requireCONANP,
   hardDeleteUserValidation,
   handleValidationErrors,
@@ -96,7 +93,7 @@ router.delete(
 
 // Rutas para perfil personal (todos los usuarios autenticados)
 router.put(
-  "/profile/update",
+  '/profile/update',
   updateProfileValidation,
   handleValidationErrors,
   UserController.updateProfile

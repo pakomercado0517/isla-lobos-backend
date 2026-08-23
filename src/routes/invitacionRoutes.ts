@@ -1,10 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import InvitacionController from "../controllers/invitacionController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import InvitacionController from '../controllers/invitacionController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getAllInvitacionesValidation,
   getInvitacionByIdValidation,
@@ -13,7 +10,7 @@ import {
   deleteInvitacionValidation,
   validarCodigoValidation,
   usarInvitacionValidation,
-} from "../validators/invitacionValidators";
+} from '../validators/invitacionValidators';
 
 const router: ExpressRouter = Router();
 
@@ -22,34 +19,30 @@ router.use(sanitizeInput);
 
 // RUTAS PÚBLICAS (no requieren autenticación)
 router.post(
-  "/validar",
+  '/validar',
   validarCodigoValidation,
   handleValidationErrors,
   InvitacionController.validarCodigo
 );
 
-router.get("/validar/:codigo", InvitacionController.validarCodigoPorGet);
+router.get('/validar/:codigo', InvitacionController.validarCodigoPorGet);
 
 // Rutas protegidas (requieren autenticación)
 router.use(authenticateToken);
 
 // Rutas que requieren rol CONANP
 router.get(
-  "/",
+  '/',
   requireCONANP,
   getAllInvitacionesValidation,
   handleValidationErrors,
   InvitacionController.getAllInvitaciones
 );
 
-router.get(
-  "/estadisticas",
-  requireCONANP,
-  InvitacionController.getEstadisticas
-);
+router.get('/estadisticas', requireCONANP, InvitacionController.getEstadisticas);
 
 router.get(
-  "/:id",
+  '/:id',
   requireCONANP,
   getInvitacionByIdValidation,
   handleValidationErrors,
@@ -57,7 +50,7 @@ router.get(
 );
 
 router.post(
-  "/",
+  '/',
   requireCONANP,
   createInvitacionValidation,
   handleValidationErrors,
@@ -65,7 +58,7 @@ router.post(
 );
 
 router.put(
-  "/:id",
+  '/:id',
   requireCONANP,
   updateInvitacionValidation,
   handleValidationErrors,
@@ -73,7 +66,7 @@ router.put(
 );
 
 router.delete(
-  "/:id",
+  '/:id',
   requireCONANP,
   deleteInvitacionValidation,
   handleValidationErrors,
@@ -82,7 +75,7 @@ router.delete(
 
 // Rutas que requieren autenticación pero no rol específico
 router.post(
-  "/:id/usar",
+  '/:id/usar',
   usarInvitacionValidation,
   handleValidationErrors,
   InvitacionController.usarInvitacion

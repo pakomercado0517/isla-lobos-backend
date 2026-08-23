@@ -1,10 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import ClimaController from "../controllers/climaController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import {
-  handleValidationErrors,
-  sanitizeInput,
-} from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import ClimaController from '../controllers/climaController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getAllCondicionesValidation,
   getCondicionByIdValidation,
@@ -13,7 +10,7 @@ import {
   deleteCondicionValidation,
   getPrediccionValidation,
   getEstadisticasValidation,
-} from "../validators/climaValidators";
+} from '../validators/climaValidators';
 
 const router: ExpressRouter = Router();
 
@@ -25,25 +22,25 @@ router.use(authenticateToken);
 
 // Rutas para gestión de condiciones meteorológicas
 router.get(
-  "/",
+  '/',
   getAllCondicionesValidation,
   handleValidationErrors,
   ClimaController.getAllCondiciones
 );
 
-router.get("/actual", ClimaController.getCondicionActual);
+router.get('/actual', ClimaController.getCondicionActual);
 
 router.get(
-  "/prediccion",
+  '/prediccion',
   getPrediccionValidation,
   handleValidationErrors,
   ClimaController.getPrediccion
 );
 
-router.get("/alertas", ClimaController.getAlertas);
+router.get('/alertas', ClimaController.getAlertas);
 
 router.get(
-  "/estadisticas",
+  '/estadisticas',
   requireCONANP,
   getEstadisticasValidation,
   handleValidationErrors,
@@ -51,17 +48,17 @@ router.get(
 );
 
 // Ruta para sincronizar datos del SMN (Servicio Meteorológico Nacional)
-router.post("/sincronizar-smn", requireCONANP, ClimaController.sincronizarSMN);
+router.post('/sincronizar-smn', requireCONANP, ClimaController.sincronizarSMN);
 
 router.get(
-  "/:id",
+  '/:id',
   getCondicionByIdValidation,
   handleValidationErrors,
   ClimaController.getCondicionById
 );
 
 router.post(
-  "/",
+  '/',
   requireCONANP,
   createCondicionValidation,
   handleValidationErrors,
@@ -69,7 +66,7 @@ router.post(
 );
 
 router.put(
-  "/:id",
+  '/:id',
   requireCONANP,
   updateCondicionValidation,
   handleValidationErrors,
@@ -77,7 +74,7 @@ router.put(
 );
 
 router.delete(
-  "/:id",
+  '/:id',
   requireCONANP,
   deleteCondicionValidation,
   handleValidationErrors,

@@ -1,9 +1,9 @@
-import { Router, type Router as ExpressRouter } from "express";
-import BrazaleteController from "../controllers/brazaleteController";
-import EstadisticasBrazaleteController from "../controllers/estadisticasBrazaleteController";
-import BrazaleteValidator from "../validators/brazaleteValidator";
-import { validationMiddleware } from "../middleware/validation";
-import { authMiddleware, requireRole } from "../middleware/auth";
+import { Router, type Router as ExpressRouter } from 'express';
+import BrazaleteController from '../controllers/brazaleteController';
+import EstadisticasBrazaleteController from '../controllers/estadisticasBrazaleteController';
+import BrazaleteValidator from '../validators/brazaleteValidator';
+import { validationMiddleware } from '../middleware/validation';
+import { authMiddleware, requireRole } from '../middleware/auth.middleware';
 
 const router: ExpressRouter = Router();
 
@@ -16,11 +16,7 @@ const router: ExpressRouter = Router();
  * Obtener estado actual del inventario
  * Acceso: CONANP y Prestadores
  */
-router.get(
-  "/inventario",
-  authMiddleware,
-  BrazaleteController.obtenerInventario
-);
+router.get('/inventario', authMiddleware, BrazaleteController.obtenerInventario);
 
 /**
  * POST /api/brazaletes/lotes
@@ -28,9 +24,9 @@ router.get(
  * Acceso: Solo CONANP
  */
 router.post(
-  "/lotes",
+  '/lotes',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.crearLote,
   validationMiddleware,
   BrazaleteController.crearLote
@@ -42,9 +38,9 @@ router.post(
  * Acceso: Solo CONANP
  */
 router.get(
-  "/lotes",
+  '/lotes',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.listarLotes,
   validationMiddleware,
   BrazaleteController.listarLotes
@@ -60,9 +56,9 @@ router.get(
  * Acceso: Solo CONANP
  */
 router.post(
-  "/venta",
+  '/venta',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.venderBrazaletes,
   validationMiddleware,
   BrazaleteController.venderBrazaletes
@@ -74,7 +70,7 @@ router.post(
  * Acceso: CONANP y el prestador propietario
  */
 router.get(
-  "/prestador/:id",
+  '/prestador/:id',
   authMiddleware,
   BrazaleteValidator.obtenerBrazaletesPrestador,
   validationMiddleware,
@@ -86,16 +82,11 @@ router.get(
  * Obtener brazaletes del prestador autenticado
  * Acceso: Solo Prestadores
  */
-router.get(
-  "/mis-brazaletes",
-  authMiddleware,
-  requireRole("prestador"),
-  (req, res) => {
-    // Redirigir a la ruta con el ID del prestador autenticado
-    req.params["id"] = req.user!.id;
-    BrazaleteController.obtenerBrazaletesPrestador(req, res);
-  }
-);
+router.get('/mis-brazaletes', authMiddleware, requireRole('prestador'), (req, res) => {
+  // Redirigir a la ruta con el ID del prestador autenticado
+  req.params['id'] = req.user!.id;
+  BrazaleteController.obtenerBrazaletesPrestador(req, res);
+});
 
 // ============================================================================
 // RUTAS PARA USO EN SALIDAS
@@ -107,7 +98,7 @@ router.get(
  * Acceso: CONANP y Prestadores
  */
 router.post(
-  "/asignar",
+  '/asignar',
   authMiddleware,
   BrazaleteValidator.asignarBrazaletes,
   validationMiddleware,
@@ -120,7 +111,7 @@ router.post(
  * Acceso: CONANP y Prestadores
  */
 router.post(
-  "/uso",
+  '/uso',
   authMiddleware,
   BrazaleteValidator.registrarUso,
   validationMiddleware,
@@ -133,7 +124,7 @@ router.post(
  * Acceso: CONANP y Prestadores
  */
 router.get(
-  "/uso/salida/:id",
+  '/uso/salida/:id',
   authMiddleware,
   BrazaleteValidator.obtenerBrazaletesSalida,
   validationMiddleware,
@@ -146,7 +137,7 @@ router.get(
  * Acceso: CONANP y Prestadores (solo sus propios brazaletes)
  */
 router.put(
-  "/uso/actualizar",
+  '/uso/actualizar',
   authMiddleware,
   BrazaleteValidator.actualizarUso,
   validationMiddleware,
@@ -163,9 +154,9 @@ router.put(
  * Acceso: Solo CONANP
  */
 router.get(
-  "/estadisticas",
+  '/estadisticas',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.estadisticas,
   validationMiddleware,
   EstadisticasBrazaleteController.obtenerEstadisticas
@@ -177,9 +168,9 @@ router.get(
  * Acceso: Solo CONANP
  */
 router.get(
-  "/alertas",
+  '/alertas',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   EstadisticasBrazaleteController.obtenerAlertas
 );
 
@@ -189,9 +180,9 @@ router.get(
  * Acceso: Solo CONANP
  */
 router.get(
-  "/reportes/ventas",
+  '/reportes/ventas',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.reporteVentas,
   validationMiddleware,
   EstadisticasBrazaleteController.reporteVentas
@@ -203,9 +194,9 @@ router.get(
  * Acceso: Solo CONANP
  */
 router.get(
-  "/reportes/utilizacion",
+  '/reportes/utilizacion',
   authMiddleware,
-  requireRole("conanp"),
+  requireRole('conanp'),
   BrazaleteValidator.reporteUtilizacion,
   validationMiddleware,
   EstadisticasBrazaleteController.reporteUtilizacion
@@ -220,22 +211,17 @@ router.get(
  * Datos para dashboard de CONANP
  * Acceso: Solo CONANP
  */
-router.get(
-  "/dashboard",
-  authMiddleware,
-  requireRole("conanp"),
-  async (req, res) => {
-    try {
-      // Redirigir a inventario por ahora
-      await BrazaleteController.obtenerInventario(req, res);
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: "Error al obtener datos del dashboard",
-      });
-    }
+router.get('/dashboard', authMiddleware, requireRole('conanp'), async (req, res) => {
+  try {
+    // Redirigir a inventario por ahora
+    await BrazaleteController.obtenerInventario(req, res);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener datos del dashboard',
+    });
   }
-);
+});
 
 /**
  * GET /api/brazaletes/search
@@ -243,7 +229,7 @@ router.get(
  * Acceso: CONANP y Prestadores
  */
 router.get(
-  "/search",
+  '/search',
   authMiddleware,
   BrazaleteValidator.buscarBrazaletes,
   validationMiddleware,
@@ -259,10 +245,10 @@ router.get(
  * Verificar estado del sistema de brazaletes
  * Acceso: Público (para monitoreo)
  */
-router.get("/health", (_req, res) => {
+router.get('/health', (_req, res) => {
   res.json({
     success: true,
-    message: "Sistema de brazaletes operativo",
+    message: 'Sistema de brazaletes operativo',
     timestamp: new Date().toISOString(),
   });
 });

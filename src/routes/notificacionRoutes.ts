@@ -1,7 +1,7 @@
-import { Router, type Router as ExpressRouter } from "express";
-import NotificacionController from "../controllers/notificacionController";
-import { authenticateToken, requireCONANP } from "../middleware/auth";
-import { handleValidationErrors } from "../middleware/validation";
+import { Router, type Router as ExpressRouter } from 'express';
+import NotificacionController from '../controllers/notificacionController';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
+import { handleValidationErrors } from '../middleware/validation';
 import {
   enviarNotificacionValidation,
   enviarNotificacionMasivaValidation,
@@ -9,7 +9,7 @@ import {
   enviarAlertaPermisosValidation,
   verificarEstadoMensajeValidation,
   enviarPruebaValidation,
-} from "../validators/notificacionValidators";
+} from '../validators/notificacionValidators';
 
 const router: ExpressRouter = Router();
 
@@ -18,12 +18,7 @@ const router: ExpressRouter = Router();
  * @desc    Verificar estado del servicio de WhatsApp
  * @access  Privado (CONANP)
  */
-router.get(
-  "/estado",
-  authenticateToken,
-  requireCONANP,
-  NotificacionController.verificarEstado
-);
+router.get('/estado', authenticateToken, requireCONANP, NotificacionController.verificarEstado);
 
 /**
  * @route   POST /api/notificaciones/enviar
@@ -31,7 +26,7 @@ router.get(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/enviar",
+  '/enviar',
   authenticateToken,
   requireCONANP,
   enviarNotificacionValidation,
@@ -45,7 +40,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/enviar-masivo",
+  '/enviar-masivo',
   authenticateToken,
   requireCONANP,
   enviarNotificacionMasivaValidation,
@@ -59,7 +54,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/alerta-clima",
+  '/alerta-clima',
   authenticateToken,
   requireCONANP,
   enviarAlertaClimaValidation,
@@ -73,7 +68,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/alerta-permisos",
+  '/alerta-permisos',
   authenticateToken,
   requireCONANP,
   enviarAlertaPermisosValidation,
@@ -87,7 +82,7 @@ router.post(
  * @access  Privado (CONANP)
  */
 router.get(
-  "/plantillas",
+  '/plantillas',
   authenticateToken,
   requireCONANP,
   NotificacionController.obtenerPlantillas
@@ -99,7 +94,7 @@ router.get(
  * @access  Privado (CONANP)
  */
 router.get(
-  "/estado/:messageSid",
+  '/estado/:messageSid',
   authenticateToken,
   requireCONANP,
   verificarEstadoMensajeValidation,
@@ -113,7 +108,7 @@ router.get(
  * @access  Privado (CONANP)
  */
 router.post(
-  "/test",
+  '/test',
   authenticateToken,
   requireCONANP,
   enviarPruebaValidation,

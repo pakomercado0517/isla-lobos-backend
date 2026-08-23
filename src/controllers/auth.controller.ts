@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.middleware';
 import {
   changePasswordService,
   forgotPasswordService,
@@ -12,10 +12,7 @@ import {
   verifyTokenService,
 } from '../services/auth.service';
 import { asyncHandler } from '../middleware/error.middleware';
-import {
-  ACCESS_TOKEN_COOKIE_MAX_AGE_MS,
-  REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
-} from '../lib/authTokens';
+import { ACCESS_TOKEN_COOKIE_MAX_AGE_MS, REFRESH_TOKEN_COOKIE_MAX_AGE_MS } from '../lib/authTokens';
 
 const isProduction = process.env['NODE_ENV'] === 'production';
 

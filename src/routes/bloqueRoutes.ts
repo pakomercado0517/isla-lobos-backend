@@ -1,6 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import BloqueController from '../controllers/bloque.controller';
-import { authenticateToken, requireCONANP } from '../middleware/auth';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors } from '../middleware/validation';
 import {
   getAllBloquesValidation,

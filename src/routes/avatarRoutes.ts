@@ -9,7 +9,7 @@ import {
   uploadLimits,
 } from '../middleware/uploadMiddleware';
 import { generateDefaultAvatarValidation } from '../validators/avatarValidators';
-import { authenticateToken, requireCONANP } from '../middleware/auth';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors } from '../middleware/validation';
 
 const router: ExpressRouter = Router();
@@ -46,11 +46,6 @@ router.post(
 
 router.get('/info', AvatarController.getAvatarInfo);
 
-router.get(
-  '/stats',
-  requireCONANP,
-  validateCloudinaryConfig,
-  AvatarController.getCloudinaryStats
-);
+router.get('/stats', requireCONANP, validateCloudinaryConfig, AvatarController.getCloudinaryStats);
 
 export default router;

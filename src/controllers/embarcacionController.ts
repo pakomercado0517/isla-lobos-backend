@@ -1,17 +1,17 @@
-import { Request, Response } from "express";
-import Embarcacion from "../models/Embarcacion";
-import User from "../models/User";
-import { Op } from "sequelize";
-import { createLogger } from "../utils/logger";
-import dashboardNotificationService from "../services/dashboardNotificationService";
+import { Request, Response } from 'express';
+import Embarcacion from '../models/Embarcacion';
+import User from '../models/User';
+import { Op } from 'sequelize';
+import { createLogger } from '../utils/logger';
+import dashboardNotificationService from '../services/dashboardNotificationService';
 import {
   TipoNotificacionDashboard,
   PrioridadNotificacionDashboard,
   EstadoEmbarcacion,
-} from "../types";
-import { AuthRequest } from "../middleware/auth";
+} from '../types';
+import { AuthRequest } from '../middleware/auth.middleware';
 
-const logger = createLogger("EmbarcacionController");
+const logger = createLogger('EmbarcacionController');
 
 /**
  * EmbarcacionController - Gestión de embarcaciones
@@ -62,32 +62,32 @@ class EmbarcacionController {
         include: [
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email", "telefono"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email', 'telefono'],
           },
         ],
-        order: [["nombre", "ASC"]],
+        order: [['nombre', 'ASC']],
       });
 
       // Calcular estadísticas básicas
       const estadisticas = {
         total: count,
         disponibles: await Embarcacion.count({
-          where: { ...where, estado: "disponible" },
+          where: { ...where, estado: 'disponible' },
         }),
         en_uso: await Embarcacion.count({
-          where: { ...where, estado: "en_uso" },
+          where: { ...where, estado: 'en_uso' },
         }),
         mantenimiento: await Embarcacion.count({
-          where: { ...where, estado: "mantenimiento" },
+          where: { ...where, estado: 'mantenimiento' },
         }),
-        menor: await Embarcacion.count({ where: { ...where, tipo: "menor" } }),
-        mayor: await Embarcacion.count({ where: { ...where, tipo: "mayor" } }),
+        menor: await Embarcacion.count({ where: { ...where, tipo: 'menor' } }),
+        mayor: await Embarcacion.count({ where: { ...where, tipo: 'mayor' } }),
       };
 
       res.status(200).json({
-        status: "success",
-        message: "Embarcaciones obtenidas exitosamente",
+        status: 'success',
+        message: 'Embarcaciones obtenidas exitosamente',
         data: {
           embarcaciones,
           estadisticas,
@@ -100,11 +100,11 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener embarcaciones:", error);
+      logger.error({ err: error }, 'Error al obtener embarcaciones:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -121,32 +121,32 @@ class EmbarcacionController {
         include: [
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email", "telefono"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email', 'telefono'],
           },
         ],
       });
 
       if (!embarcacion) {
         res.status(404).json({
-          status: "error",
-          message: "Embarcación no encontrada",
-          error: "EMBARCACION_NOT_FOUND",
+          status: 'error',
+          message: 'Embarcación no encontrada',
+          error: 'EMBARCACION_NOT_FOUND',
         });
         return;
       }
 
       res.status(200).json({
-        status: "success",
-        message: "Embarcación obtenida exitosamente",
+        status: 'success',
+        message: 'Embarcación obtenida exitosamente',
         data: { embarcacion },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener embarcación:", error);
+      logger.error({ err: error }, 'Error al obtener embarcación:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -157,31 +157,24 @@ class EmbarcacionController {
    */
   static async createEmbarcacion(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const {
-        nombre,
-        matricula,
-        capacidad,
-        tipo,
-        estado,
-        prestador_id,
-      } = req.body;
+      const { nombre, matricula, capacidad, tipo, estado, prestador_id } = req.body;
 
       // Verificar que el prestador existe y es válido
       const prestador = await User.findByPk(prestador_id);
       if (!prestador) {
         res.status(404).json({
-          status: "error",
-          message: "Prestador no encontrado",
-          error: "PRESTADOR_NOT_FOUND",
+          status: 'error',
+          message: 'Prestador no encontrado',
+          error: 'PRESTADOR_NOT_FOUND',
         });
         return;
       }
 
-      if (prestador.rol !== "prestador") {
+      if (prestador.rol !== 'prestador') {
         res.status(400).json({
-          status: "error",
-          message: "El usuario debe ser un prestador",
-          error: "INVALID_USER_ROLE",
+          status: 'error',
+          message: 'El usuario debe ser un prestador',
+          error: 'INVALID_USER_ROLE',
         });
         return;
       }
@@ -191,7 +184,7 @@ class EmbarcacionController {
       const usuarioAutenticado = req.user;
       const estadoFinal =
         estado ||
-        (usuarioAutenticado?.rol === "prestador"
+        (usuarioAutenticado?.rol === 'prestador'
           ? EstadoEmbarcacion.PENDIENTE_AUTORIZACION
           : EstadoEmbarcacion.DISPONIBLE);
 
@@ -202,9 +195,9 @@ class EmbarcacionController {
 
       if (embarcacionExistente) {
         res.status(409).json({
-          status: "error",
-          message: "Ya existe una embarcación con esa matrícula",
-          error: "EMBARCACION_ALREADY_EXISTS",
+          status: 'error',
+          message: 'Ya existe una embarcación con esa matrícula',
+          error: 'EMBARCACION_ALREADY_EXISTS',
         });
         return;
       }
@@ -220,25 +213,22 @@ class EmbarcacionController {
       });
 
       // Obtener la embarcación con información del prestador
-      const embarcacionCompleta = await Embarcacion.findByPk(
-        nuevaEmbarcacion.id,
-        {
-          include: [
-            {
-              model: User,
-              as: "prestador",
-              attributes: ["id", "nombre", "email", "telefono"],
-            },
-          ],
-        }
-      );
+      const embarcacionCompleta = await Embarcacion.findByPk(nuevaEmbarcacion.id, {
+        include: [
+          {
+            model: User,
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email', 'telefono'],
+          },
+        ],
+      });
 
       // Crear notificación para usuarios CONANP si la embarcación está pendiente de autorización
       if (nuevaEmbarcacion.estado === EstadoEmbarcacion.PENDIENTE_AUTORIZACION) {
         try {
           await dashboardNotificationService.crearNotificacion({
             tipo: TipoNotificacionDashboard.NUEVA_EMBARCACION,
-            titulo: "Nueva embarcación pendiente de autorización",
+            titulo: 'Nueva embarcación pendiente de autorización',
             mensaje: `El prestador ${prestador.nombre} ha registrado una nueva embarcación: ${nombre} (${matricula}) con capacidad para ${capacidad} pasajeros.`,
             usuario_id: null, // Para todos los usuarios CONANP
             enlace: `/embarcaciones/${nuevaEmbarcacion.id}`,
@@ -258,28 +248,28 @@ class EmbarcacionController {
               embarcacion_id: nuevaEmbarcacion.id,
               prestador_id: prestador.id,
             },
-            "Notificación creada para nueva embarcación pendiente"
+            'Notificación creada para nueva embarcación pendiente'
           );
         } catch (notifError) {
           // No fallar la creación de embarcación si falla la notificación
           logger.error(
             { error: notifError, embarcacion_id: nuevaEmbarcacion.id },
-            "Error al crear notificación de nueva embarcación"
+            'Error al crear notificación de nueva embarcación'
           );
         }
       }
 
       res.status(201).json({
-        status: "success",
-        message: "Embarcación creada exitosamente",
+        status: 'success',
+        message: 'Embarcación creada exitosamente',
         data: { embarcacion: embarcacionCompleta },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al crear embarcación:", error);
+      logger.error({ err: error }, 'Error al crear embarcación:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -291,16 +281,15 @@ class EmbarcacionController {
   static async updateEmbarcacion(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { nombre, matricula, capacidad, tipo, estado, prestador_id } =
-        req.body;
+      const { nombre, matricula, capacidad, tipo, estado, prestador_id } = req.body;
 
       const embarcacion = await Embarcacion.findByPk(id);
 
       if (!embarcacion) {
         res.status(404).json({
-          status: "error",
-          message: "Embarcación no encontrada",
-          error: "EMBARCACION_NOT_FOUND",
+          status: 'error',
+          message: 'Embarcación no encontrada',
+          error: 'EMBARCACION_NOT_FOUND',
         });
         return;
       }
@@ -310,18 +299,18 @@ class EmbarcacionController {
         const prestador = await User.findByPk(prestador_id);
         if (!prestador) {
           res.status(404).json({
-            status: "error",
-            message: "Prestador no encontrado",
-            error: "PRESTADOR_NOT_FOUND",
+            status: 'error',
+            message: 'Prestador no encontrado',
+            error: 'PRESTADOR_NOT_FOUND',
           });
           return;
         }
 
-        if (prestador.rol !== "prestador") {
+        if (prestador.rol !== 'prestador') {
           res.status(400).json({
-            status: "error",
-            message: "El usuario debe ser un prestador",
-            error: "INVALID_USER_ROLE",
+            status: 'error',
+            message: 'El usuario debe ser un prestador',
+            error: 'INVALID_USER_ROLE',
           });
           return;
         }
@@ -338,9 +327,9 @@ class EmbarcacionController {
 
         if (embarcacionExistente) {
           res.status(409).json({
-            status: "error",
-            message: "Ya existe otra embarcación con esa matrícula",
-            error: "EMBARCACION_ALREADY_EXISTS",
+            status: 'error',
+            message: 'Ya existe otra embarcación con esa matrícula',
+            error: 'EMBARCACION_ALREADY_EXISTS',
           });
           return;
         }
@@ -361,23 +350,23 @@ class EmbarcacionController {
         include: [
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email", "telefono"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email', 'telefono'],
           },
         ],
       });
 
       res.status(200).json({
-        status: "success",
-        message: "Embarcación actualizada exitosamente",
+        status: 'success',
+        message: 'Embarcación actualizada exitosamente',
         data: { embarcacion: embarcacionActualizada },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al actualizar embarcación:", error);
+      logger.error({ err: error }, 'Error al actualizar embarcación:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -394,19 +383,19 @@ class EmbarcacionController {
 
       if (!embarcacion) {
         res.status(404).json({
-          status: "error",
-          message: "Embarcación no encontrada",
-          error: "EMBARCACION_NOT_FOUND",
+          status: 'error',
+          message: 'Embarcación no encontrada',
+          error: 'EMBARCACION_NOT_FOUND',
         });
         return;
       }
 
       // Verificar si la embarcación está en uso
-      if (embarcacion.estado === "en_uso") {
+      if (embarcacion.estado === 'en_uso') {
         res.status(400).json({
-          status: "error",
-          message: "No se puede eliminar una embarcación que está en uso",
-          error: "EMBARCACION_IN_USE",
+          status: 'error',
+          message: 'No se puede eliminar una embarcación que está en uso',
+          error: 'EMBARCACION_IN_USE',
         });
         return;
       }
@@ -415,15 +404,15 @@ class EmbarcacionController {
       await embarcacion.destroy();
 
       res.status(200).json({
-        status: "success",
-        message: "Embarcación eliminada exitosamente",
+        status: 'success',
+        message: 'Embarcación eliminada exitosamente',
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al eliminar embarcación:", error);
+      logger.error({ err: error }, 'Error al eliminar embarcación:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -462,28 +451,28 @@ class EmbarcacionController {
         where,
         limit: Number(limit),
         offset,
-        order: [["nombre", "ASC"]],
+        order: [['nombre', 'ASC']],
       });
 
       // Calcular estadísticas del prestador
       const estadisticas = {
         total: count,
         disponibles: await Embarcacion.count({
-          where: { ...where, estado: "disponible" },
+          where: { ...where, estado: 'disponible' },
         }),
         en_uso: await Embarcacion.count({
-          where: { ...where, estado: "en_uso" },
+          where: { ...where, estado: 'en_uso' },
         }),
         mantenimiento: await Embarcacion.count({
-          where: { ...where, estado: "mantenimiento" },
+          where: { ...where, estado: 'mantenimiento' },
         }),
-        menor: await Embarcacion.count({ where: { ...where, tipo: "menor" } }),
-        mayor: await Embarcacion.count({ where: { ...where, tipo: "mayor" } }),
+        menor: await Embarcacion.count({ where: { ...where, tipo: 'menor' } }),
+        mayor: await Embarcacion.count({ where: { ...where, tipo: 'mayor' } }),
       };
 
       res.status(200).json({
-        status: "success",
-        message: "Mis embarcaciones obtenidas exitosamente",
+        status: 'success',
+        message: 'Mis embarcaciones obtenidas exitosamente',
         data: {
           embarcaciones,
           estadisticas,
@@ -496,15 +485,11 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      logger.error(
-        { err: error },
-        "Error al obtener mis embarcaciones:",
-        error
-      );
+      logger.error({ err: error }, 'Error al obtener mis embarcaciones:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }
@@ -526,26 +511,26 @@ class EmbarcacionController {
       // Obtener estadísticas generales
       const totalEmbarcaciones = await Embarcacion.count({ where });
       const embarcacionesDisponibles = await Embarcacion.count({
-        where: { ...where, estado: "disponible" },
+        where: { ...where, estado: 'disponible' },
       });
       const embarcacionesEnUso = await Embarcacion.count({
-        where: { ...where, estado: "en_uso" },
+        where: { ...where, estado: 'en_uso' },
       });
       const embarcacionesMantenimiento = await Embarcacion.count({
-        where: { ...where, estado: "mantenimiento" },
+        where: { ...where, estado: 'mantenimiento' },
       });
       const embarcacionesMenor = await Embarcacion.count({
-        where: { ...where, tipo: "menor" },
+        where: { ...where, tipo: 'menor' },
       });
       const embarcacionesMayor = await Embarcacion.count({
-        where: { ...where, tipo: "mayor" },
+        where: { ...where, tipo: 'mayor' },
       });
       // Nota: El modelo actual no tiene campo 'activo'
 
       // Calcular capacidad total
       const embarcaciones = await Embarcacion.findAll({
         where,
-        attributes: ["capacidad"],
+        attributes: ['capacidad'],
       });
 
       const capacidadTotal = embarcaciones.reduce(
@@ -569,8 +554,8 @@ class EmbarcacionController {
       // Nota: Estadísticas de actividad no disponibles sin campo 'activo'
 
       res.status(200).json({
-        status: "success",
-        message: "Estadísticas obtenidas exitosamente",
+        status: 'success',
+        message: 'Estadísticas obtenidas exitosamente',
         data: {
           estadisticas: {
             total_embarcaciones: totalEmbarcaciones,
@@ -581,11 +566,11 @@ class EmbarcacionController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener estadísticas:", error);
+      logger.error({ err: error }, 'Error al obtener estadísticas:', error);
       res.status(500).json({
-        status: "error",
-        message: "Error interno del servidor",
-        error: "INTERNAL_SERVER_ERROR",
+        status: 'error',
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR',
       });
     }
   }

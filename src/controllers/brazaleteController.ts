@@ -1,15 +1,15 @@
-import { Request, Response } from "express";
-import { Op } from "sequelize";
-import sequelize from "../config/database";
-import LoteBrazalete from "../models/LoteBrazalete";
-import Brazalete from "../models/Brazalete";
-import VentaBrazalete from "../models/VentaBrazalete";
-import User from "../models/User";
-import Salida from "../models/Salida";
-import { AuthRequest } from "../middleware/auth";
-import { createLogger } from "../utils/logger";
+import { Request, Response } from 'express';
+import { Op } from 'sequelize';
+import sequelize from '../config/database';
+import LoteBrazalete from '../models/LoteBrazalete';
+import Brazalete from '../models/Brazalete';
+import VentaBrazalete from '../models/VentaBrazalete';
+import User from '../models/User';
+import Salida from '../models/Salida';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { createLogger } from '../utils/logger';
 
-const logger = createLogger("BrazaleteController");
+const logger = createLogger('BrazaleteController');
 
 export class BrazaleteController {
   // ============================================================================
@@ -26,7 +26,7 @@ export class BrazaleteController {
   ): string | null | undefined {
     if (!fecha) return fecha as null | undefined;
     const fechaString = fecha instanceof Date ? fecha.toISOString() : fecha;
-    const partes = fechaString.split("T");
+    const partes = fechaString.split('T');
     return partes[0] || fechaString.substring(0, 10);
   }
 
@@ -41,10 +41,9 @@ export class BrazaleteController {
       );
     }
     if (brazaleteFormateado.fecha_asignacion) {
-      brazaleteFormateado.fecha_asignacion =
-        BrazaleteController.extraerSoloFecha(
-          brazaleteFormateado.fecha_asignacion
-        );
+      brazaleteFormateado.fecha_asignacion = BrazaleteController.extraerSoloFecha(
+        brazaleteFormateado.fecha_asignacion
+      );
     }
     if (brazaleteFormateado.fecha_uso) {
       brazaleteFormateado.fecha_uso = BrazaleteController.extraerSoloFecha(
@@ -54,16 +53,14 @@ export class BrazaleteController {
     // Formatear fechas del lote si existe
     if (brazaleteFormateado.lote) {
       if (brazaleteFormateado.lote.fecha_compra) {
-        brazaleteFormateado.lote.fecha_compra =
-          BrazaleteController.extraerSoloFecha(
-            brazaleteFormateado.lote.fecha_compra
-          );
+        brazaleteFormateado.lote.fecha_compra = BrazaleteController.extraerSoloFecha(
+          brazaleteFormateado.lote.fecha_compra
+        );
       }
       if (brazaleteFormateado.lote.fecha_vencimiento) {
-        brazaleteFormateado.lote.fecha_vencimiento =
-          BrazaleteController.extraerSoloFecha(
-            brazaleteFormateado.lote.fecha_vencimiento
-          );
+        brazaleteFormateado.lote.fecha_vencimiento = BrazaleteController.extraerSoloFecha(
+          brazaleteFormateado.lote.fecha_vencimiento
+        );
       }
     }
     // Formatear fecha de salida si existe
@@ -106,16 +103,14 @@ export class BrazaleteController {
     // Formatear fechas del lote si existe
     if (ventaFormateada.lote) {
       if (ventaFormateada.lote.fecha_compra) {
-        ventaFormateada.lote.fecha_compra =
-          BrazaleteController.extraerSoloFecha(
-            ventaFormateada.lote.fecha_compra
-          );
+        ventaFormateada.lote.fecha_compra = BrazaleteController.extraerSoloFecha(
+          ventaFormateada.lote.fecha_compra
+        );
       }
       if (ventaFormateada.lote.fecha_vencimiento) {
-        ventaFormateada.lote.fecha_vencimiento =
-          BrazaleteController.extraerSoloFecha(
-            ventaFormateada.lote.fecha_vencimiento
-          );
+        ventaFormateada.lote.fecha_vencimiento = BrazaleteController.extraerSoloFecha(
+          ventaFormateada.lote.fecha_vencimiento
+        );
       }
     }
     return ventaFormateada;
@@ -137,9 +132,7 @@ export class BrazaleteController {
    */
   private static formatearLotesParaRespuesta(lotes: any[]): any[] {
     return lotes.map((lote) =>
-      BrazaleteController.formatearLoteParaRespuesta(
-        lote.toJSON ? lote.toJSON() : lote
-      )
+      BrazaleteController.formatearLoteParaRespuesta(lote.toJSON ? lote.toJSON() : lote)
     );
   }
 
@@ -157,8 +150,8 @@ export class BrazaleteController {
       // Solo contar brazaletes disponibles sin prestador asignado
       const inventarioUniversal = await Brazalete.count({
         where: {
-          tipo: "universal",
-          estado: "disponible",
+          tipo: 'universal',
+          estado: 'disponible',
           prestador_id: null,
         } as any,
       });
@@ -167,22 +160,20 @@ export class BrazaleteController {
 
       // Obtener lotes activos y calcular valor del inventario
       const lotesActivosList = await LoteBrazalete.findAll({
-        where: { estado: "activo" },
+        where: { estado: 'activo' },
       });
 
       const lotesActivosCount = lotesActivosList.length;
       let valorInventario = 0;
       for (const lote of lotesActivosList) {
-        valorInventario +=
-          lote.cantidad_disponibles * parseFloat(lote.precio_venta.toString());
+        valorInventario += lote.cantidad_disponibles * parseFloat(lote.precio_venta.toString());
       }
 
       // Determinar si hay stock bajo (menos del 10% del total de brazaletes en el sistema)
       const totalBrazaletesSistema = await Brazalete.count({
-        where: { tipo: "universal" },
+        where: { tipo: 'universal' },
       });
-      const stockBajo =
-        totalDisponibles < (totalBrazaletesSistema as number) * 0.1;
+      const stockBajo = totalDisponibles < (totalBrazaletesSistema as number) * 0.1;
 
       res.json({
         success: true,
@@ -197,11 +188,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al obtener inventario:", error);
+      logger.error({ err: error }, 'Error al obtener inventario:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -217,7 +208,7 @@ export class BrazaleteController {
         cantidad_total,
         primer_numero,
         ultimo_numero,
-        tipo = "universal",
+        tipo = 'universal',
         fecha_compra,
         fecha_vencimiento,
         costo_unitario,
@@ -227,10 +218,10 @@ export class BrazaleteController {
       } = req.body;
 
       // Verificar que el usuario sea CONANP
-      if (req.user?.rol !== "conanp") {
+      if (req.user?.rol !== 'conanp') {
         res.status(403).json({
           success: false,
-          message: "Solo CONANP puede crear lotes de brazaletes",
+          message: 'Solo CONANP puede crear lotes de brazaletes',
         });
         return;
       }
@@ -243,7 +234,7 @@ export class BrazaleteController {
       if (loteExistente) {
         res.status(400).json({
           success: false,
-          message: "Ya existe un lote con ese número",
+          message: 'Ya existe un lote con ese número',
         });
         return;
       }
@@ -259,12 +250,8 @@ export class BrazaleteController {
         cantidadReal = ultimo_numero - primer_numero + 1;
 
         // Verificar que no haya conflictos con códigos existentes
-        const codigoInicial = `BRZ-${año}-${primer_numero
-          .toString()
-          .padStart(6, "0")}`;
-        const codigoFinal = `BRZ-${año}-${ultimo_numero
-          .toString()
-          .padStart(6, "0")}`;
+        const codigoInicial = `BRZ-${año}-${primer_numero.toString().padStart(6, '0')}`;
+        const codigoFinal = `BRZ-${año}-${ultimo_numero.toString().padStart(6, '0')}`;
 
         const codigosExistentes = await Brazalete.count({
           where: {
@@ -292,12 +279,12 @@ export class BrazaleteController {
               [Op.like]: `BRZ-${año}-%`,
             },
           },
-          order: [["codigo", "DESC"]],
+          order: [['codigo', 'DESC']],
         });
 
         numeroInicial = 1;
         if (ultimoBrazalete && ultimoBrazalete.codigo) {
-          const partes = ultimoBrazalete.codigo.split("-");
+          const partes = ultimoBrazalete.codigo.split('-');
           if (partes.length >= 3 && partes[2]) {
             const ultimoNumero = parseInt(partes[2]);
             if (!isNaN(ultimoNumero)) {
@@ -343,9 +330,7 @@ export class BrazaleteController {
       await Brazalete.bulkCreate(brazaletes);
 
       // Formatear lote con fechas en YYYY-MM-DD
-      const loteFormateado = BrazaleteController.formatearLoteParaRespuesta(
-        nuevoLote.toJSON()
-      );
+      const loteFormateado = BrazaleteController.formatearLoteParaRespuesta(nuevoLote.toJSON());
 
       res.status(201).json({
         success: true,
@@ -357,15 +342,15 @@ export class BrazaleteController {
             ultimo_numero: numeroInicial + cantidadReal - 1,
             año: año,
           },
-          message: "Lote creado exitosamente",
+          message: 'Lote creado exitosamente',
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al crear lote:", error);
+      logger.error({ err: error }, 'Error al crear lote:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -384,28 +369,25 @@ export class BrazaleteController {
 
       const offset = (Number(page) - 1) * Number(limit);
 
-      const { rows: lotes, count: total } = await LoteBrazalete.findAndCountAll(
-        {
-          where: whereClause,
-          order: [["fecha_compra", "DESC"]],
-          limit: Number(limit),
-          offset,
-          include: [
-            {
-              model: Brazalete,
-              as: "brazaletes",
-              attributes: ["id", "estado"],
-              required: false,
-            },
-          ],
-        }
-      );
+      const { rows: lotes, count: total } = await LoteBrazalete.findAndCountAll({
+        where: whereClause,
+        order: [['fecha_compra', 'DESC']],
+        limit: Number(limit),
+        offset,
+        include: [
+          {
+            model: Brazalete,
+            as: 'brazaletes',
+            attributes: ['id', 'estado'],
+            required: false,
+          },
+        ],
+      });
 
       const totalPages = Math.ceil(total / Number(limit));
 
       // Formatear lotes con fechas en YYYY-MM-DD
-      const lotesFormateados =
-        BrazaleteController.formatearLotesParaRespuesta(lotes);
+      const lotesFormateados = BrazaleteController.formatearLotesParaRespuesta(lotes);
 
       res.json({
         success: true,
@@ -420,11 +402,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al listar lotes:", error);
+      logger.error({ err: error }, 'Error al listar lotes:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -441,17 +423,14 @@ export class BrazaleteController {
    * - Si se proporcionan primer_numero y ultimo_numero: venta por rango específico
    * - Si NO se proporcionan: venta automática FIFO (comportamiento actual)
    */
-  static async venderBrazaletes(
-    req: AuthRequest,
-    res: Response
-  ): Promise<void> {
+  static async venderBrazaletes(req: AuthRequest, res: Response): Promise<void> {
     try {
       const {
         prestador_id,
         cantidad,
-        tipo = "universal",
+        tipo = 'universal',
         metodo_pago,
-        estado_pago = "pendiente",
+        estado_pago = 'pendiente',
         primer_numero,
         ultimo_numero,
         año,
@@ -459,23 +438,23 @@ export class BrazaleteController {
       } = req.body;
 
       // Verificar que el usuario sea CONANP
-      if (req.user?.rol !== "conanp") {
+      if (req.user?.rol !== 'conanp') {
         res.status(403).json({
           success: false,
-          message: "Solo CONANP puede vender brazaletes",
+          message: 'Solo CONANP puede vender brazaletes',
         });
         return;
       }
 
       // Verificar que el prestador exista y esté activo
       const prestador = await User.findOne({
-        where: { id: prestador_id, rol: "prestador", activo: true },
+        where: { id: prestador_id, rol: 'prestador', activo: true },
       });
 
       if (!prestador) {
         res.status(404).json({
           success: false,
-          message: "Prestador no encontrado o inactivo",
+          message: 'Prestador no encontrado o inactivo',
         });
         return;
       }
@@ -496,25 +475,23 @@ export class BrazaleteController {
         // Buscar brazaletes específicos del rango
         const whereClause: Record<string, unknown> = {
           codigo: { [Op.in]: codigosRango },
-          estado: "disponible",
-          [Op.and]: [
-            sequelize.where(sequelize.col("prestador_id"), "IS", null),
-          ],
+          estado: 'disponible',
+          [Op.and]: [sequelize.where(sequelize.col('prestador_id'), 'IS', null)],
         };
 
         // Si se especifica un lote_id, filtrar por ese lote
         if (lote_id) {
-          whereClause["lote_id"] = lote_id;
+          whereClause['lote_id'] = lote_id;
         }
 
         const brazaletesDisponibles = await Brazalete.findAll({
           where: whereClause,
-          order: [["codigo", "ASC"]],
+          order: [['codigo', 'ASC']],
           include: [
             {
               model: LoteBrazalete,
-              as: "lote",
-              where: { estado: "activo" },
+              as: 'lote',
+              where: { estado: 'activo' },
             },
           ],
         });
@@ -530,7 +507,7 @@ export class BrazaleteController {
           res.status(400).json({
             success: false,
             message: `No todos los brazaletes del rango ${primer_numero}-${ultimo_numero} están disponibles`,
-            error: "RANGO_NO_DISPONIBLE",
+            error: 'RANGO_NO_DISPONIBLE',
             data: {
               solicitados: cantidad,
               disponibles: brazaletesDisponibles.length,
@@ -547,16 +524,13 @@ export class BrazaleteController {
         if (lote_id) {
           loteVenta = await LoteBrazalete.findByPk(lote_id);
         } else if (brazaletesDisponibles[0]?.lote_id) {
-          loteVenta = await LoteBrazalete.findByPk(
-            brazaletesDisponibles[0].lote_id
-          );
+          loteVenta = await LoteBrazalete.findByPk(brazaletesDisponibles[0].lote_id);
         }
 
         if (!loteVenta) {
           res.status(404).json({
             success: false,
-            message:
-              "No se encontró un lote activo para los brazaletes del rango",
+            message: 'No se encontró un lote activo para los brazaletes del rango',
           });
           return;
         }
@@ -594,25 +568,23 @@ export class BrazaleteController {
         }
 
         // Formatear venta con fechas en YYYY-MM-DD
-        const ventaFormateada = BrazaleteController.formatearVentaParaRespuesta(
-          {
-            id: venta.id,
-            prestador_id: venta.prestador_id,
-            lote_id: venta.lote_id,
-            cantidad: venta.cantidad,
-            precio_unitario: venta.precio_unitario,
-            total: venta.total,
-            fecha_venta: venta.fecha_venta,
-            metodo_pago: venta.metodo_pago,
-            estado_pago: venta.estado_pago,
-          }
-        );
+        const ventaFormateada = BrazaleteController.formatearVentaParaRespuesta({
+          id: venta.id,
+          prestador_id: venta.prestador_id,
+          lote_id: venta.lote_id,
+          cantidad: venta.cantidad,
+          precio_unitario: venta.precio_unitario,
+          total: venta.total,
+          fecha_venta: venta.fecha_venta,
+          metodo_pago: venta.metodo_pago,
+          estado_pago: venta.estado_pago,
+        });
 
         res.status(201).json({
           success: true,
           data: {
             venta: ventaFormateada,
-            modo_venta: "rango_especifico",
+            modo_venta: 'rango_especifico',
             rango_brazaletes: {
               numero_inicial: primer_numero,
               numero_final: ultimo_numero,
@@ -649,7 +621,7 @@ export class BrazaleteController {
         id?: string;
       } = {
         tipo,
-        estado: "activo",
+        estado: 'activo',
         cantidad_disponibles: { [Op.gte]: cantidad },
       };
 
@@ -660,7 +632,7 @@ export class BrazaleteController {
 
       const lote = await LoteBrazalete.findOne({
         where: whereConditions,
-        order: [["fecha_compra", "ASC"]], // FIFO
+        order: [['fecha_compra', 'ASC']], // FIFO
       });
 
       if (!lote) {
@@ -677,19 +649,17 @@ export class BrazaleteController {
       const brazaletesDisponibles = await Brazalete.findAll({
         where: {
           lote_id: lote.id,
-          estado: "disponible",
-          [Op.and]: [
-            sequelize.where(sequelize.col("prestador_id"), "IS", null),
-          ],
+          estado: 'disponible',
+          [Op.and]: [sequelize.where(sequelize.col('prestador_id'), 'IS', null)],
         },
         limit: cantidad,
-        order: [["codigo", "ASC"]],
+        order: [['codigo', 'ASC']],
       });
 
       if (brazaletesDisponibles.length < cantidad) {
         res.status(400).json({
           success: false,
-          message: "No hay suficientes brazaletes disponibles en el lote",
+          message: 'No hay suficientes brazaletes disponibles en el lote',
         });
         return;
       }
@@ -716,14 +686,13 @@ export class BrazaleteController {
       await lote.actualizarDespuesVenta(cantidad);
 
       // Calcular rango de brazaletes vendidos
-      const primerCodigo = codigosBrazaletes[0] || "";
-      const ultimoCodigo =
-        codigosBrazaletes[codigosBrazaletes.length - 1] || "";
+      const primerCodigo = codigosBrazaletes[0] || '';
+      const ultimoCodigo = codigosBrazaletes[codigosBrazaletes.length - 1] || '';
 
       // Extraer números de los códigos (formato: BRZ-YYYY-NNNNNN)
       const extraerNumero = (codigo: string): number => {
         if (!codigo) return 0;
-        const partes = codigo.split("-");
+        const partes = codigo.split('-');
         return partes.length >= 3 && partes[2] ? parseInt(partes[2]) : 0;
       };
 
@@ -747,7 +716,7 @@ export class BrazaleteController {
         success: true,
         data: {
           venta: ventaFormateada,
-          modo_venta: "automatico_fifo",
+          modo_venta: 'automatico_fifo',
           rango_brazaletes: {
             numero_inicial: numeroInicial,
             numero_final: numeroFinal,
@@ -765,15 +734,15 @@ export class BrazaleteController {
             numero_lote: lote.numero_lote,
             tipo: lote.tipo,
           },
-          message: "Venta realizada exitosamente (FIFO automático)",
+          message: 'Venta realizada exitosamente (FIFO automático)',
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al vender brazaletes:", error);
+      logger.error({ err: error }, 'Error al vender brazaletes:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -782,42 +751,39 @@ export class BrazaleteController {
    * GET /api/brazaletes/prestador/:id
    * Obtener brazaletes de un prestador específico
    */
-  static async obtenerBrazaletesPrestador(
-    req: Request,
-    res: Response
-  ): Promise<void> {
+  static async obtenerBrazaletesPrestador(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
       // Verificar que el prestador exista
       const prestador = await User.findOne({
-        where: { id, rol: "prestador" },
+        where: { id, rol: 'prestador' },
       });
 
       if (!prestador) {
         res.status(404).json({
           success: false,
-          message: "Prestador no encontrado",
+          message: 'Prestador no encontrado',
         });
         return;
       }
 
       // Obtener estadísticas de brazaletes del prestador
       const disponibles = await Brazalete.count({
-        where: { prestador_id: id, estado: "disponible" },
+        where: { prestador_id: id, estado: 'disponible' },
       });
 
       const asignados = await Brazalete.count({
-        where: { prestador_id: id, estado: "asignado" },
+        where: { prestador_id: id, estado: 'asignado' },
       });
 
       const utilizados = await Brazalete.count({
-        where: { prestador_id: id, estado: "utilizado" },
+        where: { prestador_id: id, estado: 'utilizado' },
       });
 
       // Por tipo (todos son universales)
       const universal = await Brazalete.count({
-        where: { prestador_id: id, tipo: "universal" },
+        where: { prestador_id: id, tipo: 'universal' },
       });
 
       // Obtener detalle de brazaletes
@@ -826,22 +792,21 @@ export class BrazaleteController {
         include: [
           {
             model: LoteBrazalete,
-            as: "lote",
-            attributes: ["numero_lote", "tipo"],
+            as: 'lote',
+            attributes: ['numero_lote', 'tipo'],
           },
           {
             model: Salida,
-            as: "salida",
-            attributes: ["id", "fecha"],
+            as: 'salida',
+            attributes: ['id', 'fecha'],
             required: false,
           },
         ],
-        order: [["fecha_asignacion", "DESC"]],
+        order: [['fecha_asignacion', 'DESC']],
       });
 
       // Formatear brazaletes con fechas en YYYY-MM-DD
-      const detalleFormateado =
-        BrazaleteController.formatearBrazaletesParaRespuesta(detalle);
+      const detalleFormateado = BrazaleteController.formatearBrazaletesParaRespuesta(detalle);
 
       res.json({
         success: true,
@@ -863,15 +828,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error(
-        { err: error },
-        "Error al obtener brazaletes del prestador:",
-        error
-      );
+      logger.error({ err: error }, 'Error al obtener brazaletes del prestador:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -884,10 +845,7 @@ export class BrazaleteController {
    * GET /api/brazaletes/search
    * Buscar brazaletes por código o filtros
    */
-  static async buscarBrazaletes(
-    req: AuthRequest,
-    res: Response
-  ): Promise<void> {
+  static async buscarBrazaletes(req: AuthRequest, res: Response): Promise<void> {
     try {
       const {
         codigo,
@@ -955,7 +913,7 @@ export class BrazaleteController {
       }
 
       // Si es prestador, solo puede ver sus propios brazaletes
-      if (req.user?.rol === "prestador") {
+      if (req.user?.rol === 'prestador') {
         whereClause.prestador_id = req.user.id;
       }
 
@@ -964,35 +922,34 @@ export class BrazaleteController {
       const limitNumber = Number(limit);
 
       // Realizar búsqueda con paginación
-      const { rows: brazaletes, count: total } =
-        await Brazalete.findAndCountAll({
-          where: whereClause,
-          include: [
-            {
-              model: LoteBrazalete,
-              as: "lote",
-              attributes: ["id", "numero_lote", "tipo", "fecha_compra"],
-            },
-            {
-              model: User,
-              as: "prestador",
-              attributes: ["id", "nombre", "email"],
-              required: false,
-            },
-            {
-              model: Salida,
-              as: "salida",
-              attributes: ["id", "fecha", "numero_pasajeros"],
-              required: false,
-            },
-          ],
-          order: [
-            ["fecha_creacion", "DESC"],
-            ["codigo", "ASC"],
-          ],
-          limit: limitNumber,
-          offset,
-        });
+      const { rows: brazaletes, count: total } = await Brazalete.findAndCountAll({
+        where: whereClause,
+        include: [
+          {
+            model: LoteBrazalete,
+            as: 'lote',
+            attributes: ['id', 'numero_lote', 'tipo', 'fecha_compra'],
+          },
+          {
+            model: User,
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email'],
+            required: false,
+          },
+          {
+            model: Salida,
+            as: 'salida',
+            attributes: ['id', 'fecha', 'numero_pasajeros'],
+            required: false,
+          },
+        ],
+        order: [
+          ['fecha_creacion', 'DESC'],
+          ['codigo', 'ASC'],
+        ],
+        limit: limitNumber,
+        offset,
+      });
 
       // Calcular estadísticas de la búsqueda
       const estadisticas = {
@@ -1012,9 +969,7 @@ export class BrazaleteController {
 
       // Contar por estado y nacionalidad
       brazaletes.forEach((brazalete) => {
-        estadisticas.por_estado[
-          brazalete.estado as keyof typeof estadisticas.por_estado
-        ]++;
+        estadisticas.por_estado[brazalete.estado as keyof typeof estadisticas.por_estado]++;
 
         if (brazalete.turista_nacionalidad) {
           estadisticas.por_nacionalidad[
@@ -1057,11 +1012,11 @@ export class BrazaleteController {
         message: `Se encontraron ${total} brazaletes`,
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al buscar brazaletes:", error);
+      logger.error({ err: error }, 'Error al buscar brazaletes:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -1074,10 +1029,7 @@ export class BrazaleteController {
    * POST /api/brazaletes/asignar
    * Asignar brazaletes a una salida
    */
-  static async asignarBrazaletes(
-    req: AuthRequest,
-    res: Response
-  ): Promise<void> {
+  static async asignarBrazaletes(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { salida_id, cantidad, fecha_asignacion } = req.body;
 
@@ -1087,8 +1039,8 @@ export class BrazaleteController {
         include: [
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email'],
           },
         ],
       });
@@ -1096,8 +1048,8 @@ export class BrazaleteController {
       if (!salida) {
         res.status(404).json({
           success: false,
-          message: "Salida no encontrada",
-          error: "SALIDA_NOT_FOUND",
+          message: 'Salida no encontrada',
+          error: 'SALIDA_NOT_FOUND',
         });
         return;
       }
@@ -1106,8 +1058,8 @@ export class BrazaleteController {
       if (salida.prestador_id !== req.user!.id) {
         res.status(403).json({
           success: false,
-          message: "No tienes permisos para asignar brazaletes a esta salida",
-          error: "FORBIDDEN",
+          message: 'No tienes permisos para asignar brazaletes a esta salida',
+          error: 'FORBIDDEN',
         });
         return;
       }
@@ -1116,17 +1068,17 @@ export class BrazaleteController {
       const brazaletesDisponibles = await Brazalete.findAll({
         where: {
           prestador_id: req.user!.id,
-          estado: "disponible",
+          estado: 'disponible',
         },
         limit: cantidad,
-        order: [["fecha_creacion", "ASC"]], // FIFO - First In, First Out
+        order: [['fecha_creacion', 'ASC']], // FIFO - First In, First Out
       });
 
       if (brazaletesDisponibles.length < cantidad) {
         res.status(400).json({
           success: false,
           message: `No hay suficientes brazaletes disponibles. Disponibles: ${brazaletesDisponibles.length}, Solicitados: ${cantidad}`,
-          error: "INSUFFICIENT_BRACELETS",
+          error: 'INSUFFICIENT_BRACELETS',
           data: {
             disponibles: brazaletesDisponibles.length,
             solicitados: cantidad,
@@ -1136,9 +1088,10 @@ export class BrazaleteController {
       }
 
       // Asignar los brazaletes a la salida
-      const fechaAsignacion = typeof fecha_asignacion === 'string' 
-        ? fecha_asignacion 
-        : fecha_asignacion.toISOString().split('T')[0];
+      const fechaAsignacion =
+        typeof fecha_asignacion === 'string'
+          ? fecha_asignacion
+          : fecha_asignacion.toISOString().split('T')[0];
       const brazaletesAsignados = [];
 
       for (const brazalete of brazaletesDisponibles) {
@@ -1162,8 +1115,7 @@ export class BrazaleteController {
       }
 
       // Formatear fecha_asignacion con YYYY-MM-DD
-      const fechaAsignacionFormateada =
-        BrazaleteController.extraerSoloFecha(fechaAsignacion);
+      const fechaAsignacionFormateada = BrazaleteController.extraerSoloFecha(fechaAsignacion);
 
       res.status(201).json({
         success: true,
@@ -1174,18 +1126,16 @@ export class BrazaleteController {
           fecha_asignacion: fechaAsignacionFormateada,
           brazaletes: brazaletesAsignados.map((b: any) => ({
             ...b,
-            fecha_asignacion: BrazaleteController.extraerSoloFecha(
-              b.fecha_asignacion
-            ),
+            fecha_asignacion: BrazaleteController.extraerSoloFecha(b.fecha_asignacion),
           })),
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al asignar brazaletes:", error);
+      logger.error({ err: error }, 'Error al asignar brazaletes:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -1206,19 +1156,16 @@ export class BrazaleteController {
       if (!salida) {
         res.status(404).json({
           success: false,
-          message: "Salida no encontrada",
+          message: 'Salida no encontrada',
         });
         return;
       }
 
       // Verificar que el prestador pueda usar los brazaletes
-      if (
-        req.user?.rol === "prestador" &&
-        salida.prestador_id !== req.user.id
-      ) {
+      if (req.user?.rol === 'prestador' && salida.prestador_id !== req.user.id) {
         res.status(403).json({
           success: false,
-          message: "No tienes permisos para usar brazaletes en esta salida",
+          message: 'No tienes permisos para usar brazaletes en esta salida',
         });
         return;
       }
@@ -1240,17 +1187,13 @@ export class BrazaleteController {
 
           // Verificar que el brazalete pueda ser usado
           if (!brazalete.puedeSerUtilizado()) {
-            errores.push(
-              `Brazalete ${brazaleteData.codigo} no puede ser utilizado`
-            );
+            errores.push(`Brazalete ${brazaleteData.codigo} no puede ser utilizado`);
             continue;
           }
 
           // Verificar que el brazalete pertenezca al prestador de la salida
           if (brazalete.prestador_id !== salida.prestador_id) {
-            errores.push(
-              `Brazalete ${brazaleteData.codigo} no pertenece al prestador`
-            );
+            errores.push(`Brazalete ${brazaleteData.codigo} no pertenece al prestador`);
             continue;
           }
 
@@ -1260,7 +1203,9 @@ export class BrazaleteController {
             brazaleteData.turista_nacionalidad,
             brazaleteData.turista_edad,
             brazaleteData.fecha_uso
-              ? (typeof brazaleteData.fecha_uso === 'string' ? brazaleteData.fecha_uso : brazaleteData.fecha_uso.toISOString().split('T')[0])
+              ? typeof brazaleteData.fecha_uso === 'string'
+                ? brazaleteData.fecha_uso
+                : brazaleteData.fecha_uso.toISOString().split('T')[0]
               : undefined
           );
 
@@ -1274,7 +1219,7 @@ export class BrazaleteController {
         } catch (error) {
           errores.push(
             `Error con brazalete ${brazaleteData.codigo}: ${
-              error instanceof Error ? error.message : "Error desconocido"
+              error instanceof Error ? error.message : 'Error desconocido'
             }`
           );
         }
@@ -1289,11 +1234,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error({ err: error }, "Error al registrar uso:", error);
+      logger.error({ err: error }, 'Error al registrar uso:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -1302,10 +1247,7 @@ export class BrazaleteController {
    * GET /api/brazaletes/uso/salida/:id
    * Obtener brazaletes utilizados en una salida
    */
-  static async obtenerBrazaletesSalida(
-    req: Request,
-    res: Response
-  ): Promise<void> {
+  static async obtenerBrazaletesSalida(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
@@ -1315,7 +1257,7 @@ export class BrazaleteController {
       if (!salida) {
         res.status(404).json({
           success: false,
-          message: "Salida no encontrada",
+          message: 'Salida no encontrada',
         });
         return;
       }
@@ -1326,13 +1268,13 @@ export class BrazaleteController {
         include: [
           {
             model: LoteBrazalete,
-            as: "lote",
-            attributes: ["numero_lote", "tipo"],
+            as: 'lote',
+            attributes: ['numero_lote', 'tipo'],
           },
           {
             model: User,
-            as: "prestador",
-            attributes: ["nombre", "email"],
+            as: 'prestador',
+            attributes: ['nombre', 'email'],
           },
         ],
       });
@@ -1340,22 +1282,17 @@ export class BrazaleteController {
       // Calcular estadísticas
       const totalBrazaletes = brazaletesUtilizados.length;
       const porNacionalidad = {
-        locales: brazaletesUtilizados.filter(
-          (b) => b.turista_nacionalidad === "local"
-        ).length,
-        nacionales: brazaletesUtilizados.filter(
-          (b) => b.turista_nacionalidad === "nacional"
-        ).length,
+        locales: brazaletesUtilizados.filter((b) => b.turista_nacionalidad === 'local').length,
+        nacionales: brazaletesUtilizados.filter((b) => b.turista_nacionalidad === 'nacional')
+          .length,
         internacionales: brazaletesUtilizados.filter(
-          (b) => b.turista_nacionalidad === "internacional"
+          (b) => b.turista_nacionalidad === 'internacional'
         ).length,
       };
 
       // Formatear brazaletes con fechas en YYYY-MM-DD
       const brazaletesFormateados =
-        BrazaleteController.formatearBrazaletesParaRespuesta(
-          brazaletesUtilizados
-        );
+        BrazaleteController.formatearBrazaletesParaRespuesta(brazaletesUtilizados);
 
       res.json({
         success: true,
@@ -1373,15 +1310,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error(
-        { err: error },
-        "Error al obtener brazaletes de salida:",
-        error
-      );
+      logger.error({ err: error }, 'Error al obtener brazaletes de salida:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }
@@ -1400,8 +1333,8 @@ export class BrazaleteController {
         include: [
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email'],
           },
         ],
       });
@@ -1409,21 +1342,20 @@ export class BrazaleteController {
       if (!salida) {
         res.status(404).json({
           success: false,
-          message: "Salida no encontrada",
-          error: "SALIDA_NOT_FOUND",
+          message: 'Salida no encontrada',
+          error: 'SALIDA_NOT_FOUND',
         });
         return;
       }
 
       // Verificar permisos según el rol
-      if (req.user?.rol === "prestador") {
+      if (req.user?.rol === 'prestador') {
         // Los prestadores solo pueden actualizar brazaletes de sus propias salidas
         if (salida.prestador_id !== req.user.id) {
           res.status(403).json({
             success: false,
-            message:
-              "No tienes permisos para actualizar brazaletes de esta salida",
-            error: "FORBIDDEN",
+            message: 'No tienes permisos para actualizar brazaletes de esta salida',
+            error: 'FORBIDDEN',
           });
           return;
         }
@@ -1433,65 +1365,61 @@ export class BrazaleteController {
       const brazaletesAsignados = await Brazalete.findAll({
         where: {
           salida_id: salida_id,
-          estado: "asignado", // Solo actualizar los que están asignados
+          estado: 'asignado', // Solo actualizar los que están asignados
         },
         include: [
           {
             model: LoteBrazalete,
-            as: "lote",
-            attributes: ["numero_lote", "tipo"],
+            as: 'lote',
+            attributes: ['numero_lote', 'tipo'],
           },
           {
             model: User,
-            as: "prestador",
-            attributes: ["id", "nombre", "email"],
+            as: 'prestador',
+            attributes: ['id', 'nombre', 'email'],
           },
         ],
-        order: [["codigo", "ASC"]],
+        order: [['codigo', 'ASC']],
       });
 
       if (brazaletesAsignados.length === 0) {
         res.status(404).json({
           success: false,
-          message: "No se encontraron brazaletes asignados a esta salida",
-          error: "NO_BRACELETS_FOUND",
+          message: 'No se encontraron brazaletes asignados a esta salida',
+          error: 'NO_BRACELETS_FOUND',
           data: {
             salida_id: salida_id,
-            estado_buscado: "asignado",
+            estado_buscado: 'asignado',
           },
         });
         return;
       }
 
       // Validar que la fecha de uso sea posterior a la fecha de asignación
-      const fechaUso = typeof fecha_uso === 'string' 
-        ? fecha_uso 
-        : fecha_uso.toISOString().split('T')[0];
-      const brazaletesConFechaInvalida = brazaletesAsignados.filter(
-        (brazalete) => {
-          if (brazalete.fecha_asignacion) {
-            const fechaAsignacionStr = typeof brazalete.fecha_asignacion === 'string' 
-              ? brazalete.fecha_asignacion 
+      const fechaUso =
+        typeof fecha_uso === 'string' ? fecha_uso : fecha_uso.toISOString().split('T')[0];
+      const brazaletesConFechaInvalida = brazaletesAsignados.filter((brazalete) => {
+        if (brazalete.fecha_asignacion) {
+          const fechaAsignacionStr =
+            typeof brazalete.fecha_asignacion === 'string'
+              ? brazalete.fecha_asignacion
               : (brazalete.fecha_asignacion as Date).toISOString().split('T')[0];
-            return fechaAsignacionStr ? fechaUso < fechaAsignacionStr : false;
-          }
-          return false;
+          return fechaAsignacionStr ? fechaUso < fechaAsignacionStr : false;
         }
-      );
+        return false;
+      });
 
       if (brazaletesConFechaInvalida.length > 0) {
         res.status(400).json({
           success: false,
           message:
-            "La fecha de uso debe ser posterior a la fecha de asignación de todos los brazaletes",
-          error: "FECHA_USO_INVALID",
+            'La fecha de uso debe ser posterior a la fecha de asignación de todos los brazaletes',
+          error: 'FECHA_USO_INVALID',
           data: {
             fecha_uso: BrazaleteController.extraerSoloFecha(fechaUso),
             brazaletes_afectados: brazaletesConFechaInvalida.map((b) => ({
               codigo: b.codigo,
-              fecha_asignacion: BrazaleteController.extraerSoloFecha(
-                b.fecha_asignacion
-              ),
+              fecha_asignacion: BrazaleteController.extraerSoloFecha(b.fecha_asignacion),
             })),
           },
         });
@@ -1507,7 +1435,7 @@ export class BrazaleteController {
         try {
           // Actualizar el brazalete
           await brazalete.update({
-            estado: "utilizado",
+            estado: 'utilizado',
             fecha_uso: fechaUso,
           });
 
@@ -1519,8 +1447,8 @@ export class BrazaleteController {
             id: brazalete.id,
             codigo: brazalete.codigo,
             tipo: brazalete.tipo,
-            estado_anterior: "asignado",
-            estado_actual: "utilizado",
+            estado_anterior: 'asignado',
+            estado_actual: 'utilizado',
             fecha_uso: BrazaleteController.extraerSoloFecha(fechaUso),
             lote_id: loteId,
             prestador_id: brazalete.prestador_id,
@@ -1528,7 +1456,7 @@ export class BrazaleteController {
         } catch (error) {
           errores.push({
             codigo: brazalete.codigo,
-            error: error instanceof Error ? error.message : "Error desconocido",
+            error: error instanceof Error ? error.message : 'Error desconocido',
           });
         }
       }
@@ -1541,11 +1469,7 @@ export class BrazaleteController {
             await lote.actualizarDespuesUso(cantidad);
           }
         } catch (error) {
-          logger.error(
-            { err: error },
-            `Error al actualizar lote ${loteId}:`,
-            error
-          );
+          logger.error({ err: error }, `Error al actualizar lote ${loteId}:`, error);
         }
       }
 
@@ -1574,15 +1498,11 @@ export class BrazaleteController {
         },
       });
     } catch (error) {
-      logger.error(
-        { err: error },
-        "Error al actualizar uso de brazaletes:",
-        error
-      );
+      logger.error({ err: error }, 'Error al actualizar uso de brazaletes:', error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor",
-        error: error instanceof Error ? error.message : "Error desconocido",
+        message: 'Error interno del servidor',
+        error: error instanceof Error ? error.message : 'Error desconocido',
       });
     }
   }

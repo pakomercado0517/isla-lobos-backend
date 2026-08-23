@@ -1,41 +1,35 @@
-import { Request, Response, NextFunction } from "express";
-import { validationResult, ValidationError } from "express-validator";
-import { ApiResponse } from "../types";
-import { createLogger } from "../utils/logger";
-import type UserModel from "../models/User.js";
-import { AuthRequest } from "./auth";
+import { Request, Response, NextFunction } from 'express';
+import { validationResult, ValidationError } from 'express-validator';
+import { ApiResponse } from '../types';
+import { createLogger } from '../utils/logger';
+import type UserModel from '../models/User.js';
+import { AuthRequest } from './auth.middleware';
 
-const logger = createLogger("ValidationMiddleware");
+const logger = createLogger('ValidationMiddleware');
 
 /**
  * Middleware para manejar errores de validación de express-validator
  */
-export const handleValidationErrors = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
     // Formatear errores para una respuesta más clara
     const formattedErrors = errors.array().map((error: ValidationError) => ({
-      field: error.type === "field" ? error.path : "unknown",
+      field: error.type === 'field' ? error.path : 'unknown',
       message: error.msg,
-      value: error.type === "field" ? error.value : undefined,
+      value: error.type === 'field' ? error.value : undefined,
       type: error.type,
     }));
 
     const response: ApiResponse = {
-      status: "error",
-      message: "Errores de validación encontrados",
-      error: "VALIDATION_ERROR",
+      status: 'error',
+      message: 'Errores de validación encontrados',
+      error: 'VALIDATION_ERROR',
       data: {
         errors: formattedErrors,
         count: formattedErrors.length,
-        summary: formattedErrors
-          .map((e) => `${e.field}: ${e.message}`)
-          .join(", "),
+        summary: formattedErrors.map((e) => `${e.field}: ${e.message}`).join(', '),
       },
     };
 
@@ -50,19 +44,15 @@ export const handleValidationErrors = (
  * Middleware para validar que no hay errores de validación
  * (versión más simple que solo devuelve el primer error)
  */
-export const validateRequest = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const validateRequest = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
     const firstError = errors.array()[0];
     const response: ApiResponse = {
-      status: "error",
-      message: firstError?.msg || "Error de validación",
-      error: "VALIDATION_ERROR",
+      status: 'error',
+      message: firstError?.msg || 'Error de validación',
+      error: 'VALIDATION_ERROR',
     };
 
     res.status(400).json(response);
@@ -78,33 +68,29 @@ export const validationMiddleware = handleValidationErrors;
 /**
  * Middleware para sanitizar datos de entrada
  */
-export const sanitizeInput = (
-  req: Request,
-  _res: Response,
-  next: NextFunction
-): void => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   // Sanitizar strings para prevenir XSS
   const sanitizeString = (str: string): string => {
-    if (typeof str !== "string") return str;
+    if (typeof str !== 'string') return str;
     return str
       .trim()
-      .replace(/['']/g, "") // Remover caracteres potencialmente peligrosos
+      .replace(/['']/g, '') // Remover caracteres potencialmente peligrosos
       .substring(0, 1000); // Limitar longitud
   };
 
   // Sanitizar body
-  if (req.body && typeof req.body === "object") {
+  if (req.body && typeof req.body === 'object') {
     for (const key in req.body) {
-      if (typeof req.body[key] === "string") {
+      if (typeof req.body[key] === 'string') {
         req.body[key] = sanitizeString(req.body[key]);
       }
     }
   }
 
   // Sanitizar query parameters
-  if (req.query && typeof req.query === "object") {
+  if (req.query && typeof req.query === 'object') {
     for (const key in req.query) {
-      if (typeof req.query[key] === "string") {
+      if (typeof req.query[key] === 'string') {
         req.query[key] = sanitizeString(req.query[key]);
       }
     }
@@ -122,26 +108,26 @@ export const validateResourceAccess = (_resourceType: string) => {
 
     if (!user) {
       res.status(401).json({
-        status: "error",
-        message: "Usuario no autenticado",
+        status: 'error',
+        message: 'Usuario no autenticado',
       } as ApiResponse);
       return;
     }
 
     // CONANP puede acceder a todo
-    if (user.rol === "conanp") {
+    if (user.rol === 'conanp') {
       next();
       return;
     }
 
     // Prestadores solo pueden acceder a sus propios recursos
-    if (user.rol === "prestador") {
-      const resourceId = req.params["id"] || req.params["userId"];
+    if (user.rol === 'prestador') {
+      const resourceId = req.params['id'] || req.params['userId'];
 
       if (resourceId && resourceId !== user.id) {
         res.status(403).json({
-          status: "error",
-          message: "No tienes permisos para acceder a este recurso",
+          status: 'error',
+          message: 'No tienes permisos para acceder a este recurso',
         } as ApiResponse);
         return;
       }
@@ -164,43 +150,39 @@ export const validateUserExists = async (
 
     if (!userId) {
       res.status(400).json({
-        status: "error",
-        message: "ID de usuario requerido",
+        status: 'error',
+        message: 'ID de usuario requerido',
       } as ApiResponse);
       return;
     }
 
-    const User = (await import("../models/User.js"))
-      .default as unknown as typeof UserModel;
+    const User = (await import('../models/User.js')).default as unknown as typeof UserModel;
     const user = await User.findByPk(userId as string);
 
     if (!user) {
       res.status(404).json({
-        status: "error",
-        message: "Usuario no encontrado",
+        status: 'error',
+        message: 'Usuario no encontrado',
       } as ApiResponse);
       return;
     }
 
     if (!user.activo) {
       res.status(403).json({
-        status: "error",
-        message: "Usuario inactivo",
+        status: 'error',
+        message: 'Usuario inactivo',
       } as ApiResponse);
       return;
     }
 
     // Agregar el usuario al request para uso posterior
-    (req).targetUser = user;
+    req.targetUser = user;
     next();
   } catch (error) {
-    logger.error(
-      { err: error, userId: req.params["userId"] },
-      "Error al validar usuario"
-    );
+    logger.error({ err: error, userId: req.params['userId'] }, 'Error al validar usuario');
     res.status(500).json({
-      status: "error",
-      message: "Error interno del servidor",
+      status: 'error',
+      message: 'Error interno del servidor',
     } as ApiResponse);
   }
 };
