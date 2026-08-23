@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { logger } from '../utils/logger';
+import { AppError } from '../lib/AppError';
 
 /**
  * Servicio para manejo de imágenes con Cloudinary
@@ -20,7 +21,7 @@ export class CloudinaryService {
       const apiSecret = process.env['CLOUDINARY_API_SECRET'];
 
       if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error('Variables de entorno de Cloudinary faltantes');
+        throw new AppError('Variables de entorno de Cloudinary faltantes', 500);
       }
 
       cloudinary.config({
@@ -34,7 +35,7 @@ export class CloudinaryService {
       logger.info('✅ Cloudinary inicializado correctamente');
     } catch (error) {
       logger.error({ err: error }, '❌ Error inicializando Cloudinary');
-      throw new Error('Error de configuración de Cloudinary');
+      throw new AppError('Error de configuración de Cloudinary', 500);
     }
   }
 
@@ -101,7 +102,7 @@ export class CloudinaryService {
       );
 
       if (!result || !result.secure_url) {
-        throw new Error('No se pudo obtener la URL de la imagen subida');
+        throw new AppError('No se pudo obtener la URL de la imagen subida', 500);
       }
 
       logger.info(
@@ -111,11 +112,12 @@ export class CloudinaryService {
 
       return result.secure_url;
     } catch (error) {
-      logger.error(
-        { err: error, userId },
-        'Error subiendo avatar a Cloudinary'
+      if (error instanceof AppError) throw error;
+      logger.error({ err: error, userId }, 'Error subiendo avatar a Cloudinary');
+      throw new AppError(
+        `Error subiendo avatar: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        500
       );
-      throw new Error(`Error subiendo avatar: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
@@ -146,17 +148,11 @@ export class CloudinaryService {
         logger.info({ publicId }, 'Avatar eliminado exitosamente de Cloudinary');
         return true;
       } else {
-        logger.warn(
-          { publicId, result },
-          'No se pudo eliminar el avatar de Cloudinary'
-        );
+        logger.warn({ publicId, result }, 'No se pudo eliminar el avatar de Cloudinary');
         return false;
       }
     } catch (error) {
-      logger.error(
-        { err: error, avatarUrl },
-        'Error eliminando avatar de Cloudinary'
-      );
+      logger.error({ err: error, avatarUrl }, 'Error eliminando avatar de Cloudinary');
       return false;
     }
   }
@@ -266,12 +262,12 @@ export class CloudinaryService {
       // Patrón para extraer public_id de URL de Cloudinary
       const pattern = /\/v\d+\/(.+?)\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/;
       const match = url.match(pattern);
-      
+
       if (match && match[1]) {
         // Decodificar el public_id si tiene caracteres especiales
         return decodeURIComponent(match[1]);
       }
-      
+
       return null;
     } catch (error) {
       logger.error({ err: error, url }, 'Error extrayendo public_id de URL');
@@ -292,9 +288,10 @@ export class CloudinaryService {
       const pattern = new RegExp(
         `https://res\\.cloudinary\\.com/${cloudinaryDomain}/image/upload/`
       );
-      
+
       return pattern.test(url);
     } catch (error) {
+      logger.error({ err: error, url }, 'Error validando si una URL es de Cloudinary');
       return false;
     }
   }
@@ -312,7 +309,7 @@ export class CloudinaryService {
 
     try {
       const result = await cloudinary.api.usage();
-      
+
       return {
         totalImages: result.used_resources || 0,
         totalStorage: result.used_storage || 0,

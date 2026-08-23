@@ -1,14 +1,14 @@
-import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../config/database";
-import { UserRole } from "../types";
+import { DataTypes, Model, Optional } from 'sequelize';
+import sequelize from '../config/database';
+import { UserRole } from '../types';
 
 // Estados de permiso
 export enum EstadoPermiso {
-  VIGENTE = "vigente",
-  POR_VENCER = "por_vencer",
-  VENCIDO = "vencido",
-  SUSPENDIDO = "suspendido",
-  PENDIENTE = "pendiente", // Permiso sin fecha de vencimiento asignada
+  VIGENTE = 'vigente',
+  POR_VENCER = 'por_vencer',
+  VENCIDO = 'vencido',
+  SUSPENDIDO = 'suspendido',
+  PENDIENTE = 'pendiente', // Permiso sin fecha de vencimiento asignada
 }
 
 // Atributos requeridos para crear un usuario
@@ -18,7 +18,7 @@ interface UserAttributes {
   email: string;
   password: string;
   telefono?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   rol: UserRole;
   activo: boolean;
   // Campos de vigencia de permisos
@@ -33,32 +33,28 @@ interface UserAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface UserCreationAttributes
-  extends Optional<
-    UserAttributes,
-    | "id"
-    | "telefono"
-    | "avatar_url"
-    | "activo"
-    | "fechaVencimientoPermiso"
-    | "estadoPermiso"
-    | "diasNotificacion"
-    | "ultimaNotificacion"
-    | "motivoSuspension"
-    | "passwordResetToken"
-    | "passwordResetExpires"
-  > {}
+interface UserCreationAttributes extends Optional<
+  UserAttributes,
+  | 'id'
+  | 'telefono'
+  | 'avatar_url'
+  | 'activo'
+  | 'fechaVencimientoPermiso'
+  | 'estadoPermiso'
+  | 'diasNotificacion'
+  | 'ultimaNotificacion'
+  | 'motivoSuspension'
+  | 'passwordResetToken'
+  | 'passwordResetExpires'
+> {}
 
-class User
-  extends Model<UserAttributes, UserCreationAttributes>
-  implements UserAttributes
-{
+class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
   public nombre!: string;
   public email!: string;
   public password!: string;
   public telefono?: string;
-  public avatar_url?: string;
+  public avatar_url?: string | null;
   public rol!: UserRole;
   public activo!: boolean;
   // Campos de vigencia de permisos
@@ -76,7 +72,7 @@ class User
   // Métodos de instancia
   public override toJSON() {
     const values = Object.assign({}, this.get());
-    if ("password" in values) {
+    if ('password' in values) {
       delete (values as any).password; // No incluir password en JSON
     }
     return values;
@@ -85,18 +81,18 @@ class User
   // Método para verificar si el permiso está próximo a vencer
   public isPermisoPorVencer(): boolean {
     if (!this.fechaVencimientoPermiso) return false;
-    const hoy = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     const fechaVenc =
-      typeof this.fechaVencimientoPermiso === "string"
+      typeof this.fechaVencimientoPermiso === 'string'
         ? this.fechaVencimientoPermiso
-        : (this.fechaVencimientoPermiso as Date).toISOString().split("T")[0];
+        : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
 
     // Comparar strings YYYY-MM-DD (son comparables lexicográficamente)
     if (hoy && fechaVenc && fechaVenc <= hoy) return false; // Ya venció o vence hoy
 
     // Calcular días restantes
-    const fechaVencDate = new Date(fechaVenc + "T12:00:00");
-    const hoyDate = new Date(hoy + "T12:00:00");
+    const fechaVencDate = new Date(fechaVenc + 'T12:00:00');
+    const hoyDate = new Date(hoy + 'T12:00:00');
     const diasRestantes = Math.ceil(
       (fechaVencDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -107,29 +103,27 @@ class User
   // Método para verificar si el permiso está vencido
   public isPermisoVencido(): boolean {
     if (!this.fechaVencimientoPermiso) return false;
-    const hoy = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     const fechaVenc =
-      typeof this.fechaVencimientoPermiso === "string"
+      typeof this.fechaVencimientoPermiso === 'string'
         ? this.fechaVencimientoPermiso
-        : (this.fechaVencimientoPermiso as Date).toISOString().split("T")[0];
+        : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
     return !!(hoy && fechaVenc && fechaVenc < hoy); // Comparación de strings
   }
 
   // Método para obtener días restantes del permiso
   public getDiasRestantesPermiso(): number | null {
     if (!this.fechaVencimientoPermiso) return null;
-    const hoy = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const hoy = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     const fechaVenc =
-      typeof this.fechaVencimientoPermiso === "string"
+      typeof this.fechaVencimientoPermiso === 'string'
         ? this.fechaVencimientoPermiso
-        : (this.fechaVencimientoPermiso as Date).toISOString().split("T")[0];
+        : (this.fechaVencimientoPermiso as Date).toISOString().split('T')[0];
 
     // Calcular diferencia usando Date objects para precisión
-    const fechaVencDate = new Date(fechaVenc + "T12:00:00");
-    const hoyDate = new Date(hoy + "T12:00:00");
-    return Math.ceil(
-      (fechaVencDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const fechaVencDate = new Date(fechaVenc + 'T12:00:00');
+    const hoyDate = new Date(hoy + 'T12:00:00');
+    return Math.ceil((fechaVencDate.getTime() - hoyDate.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   // Método para actualizar estado del permiso
@@ -210,14 +204,14 @@ User.init(
       allowNull: true,
       validate: {
         isUrl: {
-          msg: "La URL del avatar debe ser una URL válida",
+          msg: 'La URL del avatar debe ser una URL válida',
         },
         len: {
           args: [0, 500],
-          msg: "La URL del avatar no puede exceder 500 caracteres",
+          msg: 'La URL del avatar no puede exceder 500 caracteres',
         },
       },
-      comment: "URL de la imagen de perfil del usuario",
+      comment: 'URL de la imagen de perfil del usuario',
     },
     rol: {
       type: DataTypes.ENUM(...Object.values(UserRole)),
@@ -234,22 +228,22 @@ User.init(
       type: DataTypes.DATEONLY,
       allowNull: true,
       get() {
-        const value = this.getDataValue("fechaVencimientoPermiso");
+        const value = this.getDataValue('fechaVencimientoPermiso');
         if (!value) return null;
-        if (typeof value === "string") return value.split("T")[0];
+        if (typeof value === 'string') return value.split('T')[0];
         const dateValue = value as Date;
-        if (dateValue && typeof dateValue.toISOString === "function") {
-          return dateValue.toISOString().split("T")[0];
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
         }
-        return String(value).split("T")[0];
+        return String(value).split('T')[0];
       },
-      comment: "Fecha de vencimiento del permiso de operación (YYYY-MM-DD)",
+      comment: 'Fecha de vencimiento del permiso de operación (YYYY-MM-DD)',
     },
     estadoPermiso: {
       type: DataTypes.ENUM(...Object.values(EstadoPermiso)),
       allowNull: false,
       defaultValue: EstadoPermiso.PENDIENTE,
-      comment: "Estado actual del permiso",
+      comment: 'Estado actual del permiso',
     },
     diasNotificacion: {
       type: DataTypes.INTEGER,
@@ -259,51 +253,50 @@ User.init(
         min: 1,
         max: 365,
       },
-      comment: "Días antes del vencimiento para enviar notificaciones",
+      comment: 'Días antes del vencimiento para enviar notificaciones',
     },
     ultimaNotificacion: {
       type: DataTypes.DATEONLY,
       allowNull: true,
       get() {
-        const value = this.getDataValue("ultimaNotificacion");
+        const value = this.getDataValue('ultimaNotificacion');
         if (!value) return null;
-        if (typeof value === "string") return value.split("T")[0];
+        if (typeof value === 'string') return value.split('T')[0];
         const dateValue = value as Date;
-        if (dateValue && typeof dateValue.toISOString === "function") {
-          return dateValue.toISOString().split("T")[0];
+        if (dateValue && typeof dateValue.toISOString === 'function') {
+          return dateValue.toISOString().split('T')[0];
         }
-        return String(value).split("T")[0];
+        return String(value).split('T')[0];
       },
-      comment:
-        "Última fecha en que se envió notificación de vencimiento (YYYY-MM-DD)",
+      comment: 'Última fecha en que se envió notificación de vencimiento (YYYY-MM-DD)',
     },
     motivoSuspension: {
       type: DataTypes.TEXT,
       allowNull: true,
-      comment: "Motivo de suspensión del permiso",
+      comment: 'Motivo de suspensión del permiso',
     },
     // Campos de recuperación de contraseña
     passwordResetToken: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      comment: "Token temporal para recuperación de contraseña",
+      comment: 'Token temporal para recuperación de contraseña',
     },
     passwordResetExpires: {
       type: DataTypes.DATE,
       allowNull: true,
-      comment: "Fecha de expiración del token de recuperación",
+      comment: 'Fecha de expiración del token de recuperación',
     },
   },
   {
     sequelize,
-    modelName: "User",
-    tableName: "users",
+    modelName: 'User',
+    tableName: 'users',
     timestamps: true,
     underscored: true,
     indexes: [
       {
         unique: true,
-        fields: ["email"],
+        fields: ['email'],
       },
     ],
   }
