@@ -154,7 +154,7 @@ export interface UserResponse extends Omit<User, 'fechaVencimientoPermiso' | 'ul
 // Tipos para respuestas de la API
 export interface ApiResponse<T = unknown> {
   status: 'success' | 'error';
-  message: string;
+  message?: string;
   data?: T;
   error?: string;
 }
@@ -274,7 +274,7 @@ export interface Brazalete {
   fecha_creacion: Date;
   fecha_asignacion?: string; // YYYY-MM-DD
   fecha_uso?: string; // YYYY-MM-DD
-  prestador_id?: string;
+  prestador_id?: string | null;
   salida_id?: string;
   turista_nacionalidad?: string;
   turista_edad?: number;
@@ -324,6 +324,7 @@ export interface CrearLoteRequest {
   precio_venta: number;
   proveedor?: string;
   observaciones?: string;
+  cantidad_disponibles?: number;
 }
 
 export interface VenderBrazaletesRequest {
@@ -331,6 +332,10 @@ export interface VenderBrazaletesRequest {
   cantidad: number;
   tipo?: TipoBrazalete;
   metodo_pago?: string;
+  primer_numero?: number;
+  ultimo_numero?: number;
+  año?: number;
+  lote_id?: string;
 }
 
 export interface UsarBrazaleteRequest {
