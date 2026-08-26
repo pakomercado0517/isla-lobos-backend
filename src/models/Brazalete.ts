@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from "sequelize";
+import { DataTypes, Model, Optional, Transaction } from "sequelize";
 import sequelize from "../config/database";
 
 // Interfaces para el modelo Brazalete
@@ -11,7 +11,7 @@ interface BrazaleteAttributes {
   fecha_creacion: Date; // Mantener Date para timestamp de auditoría
   fecha_asignacion?: string;
   fecha_uso?: string;
-  prestador_id?: string | undefined;
+  prestador_id?: string | null;
   salida_id?: string | undefined;
   turista_nacionalidad?: string | undefined;
   turista_edad?: number | undefined;
@@ -20,21 +20,20 @@ interface BrazaleteAttributes {
   updated_at: Date;
 }
 
-interface BrazaleteCreationAttributes
-  extends Optional<
-    BrazaleteAttributes,
-    | "id"
-    | "estado"
-    | "fecha_creacion"
-    | "fecha_asignacion"
-    | "fecha_uso"
-    | "prestador_id"
-    | "salida_id"
-    | "turista_nacionalidad"
-    | "turista_edad"
-    | "created_at"
-    | "updated_at"
-  > {}
+type BrazaleteCreationAttributes = Optional<
+  BrazaleteAttributes,
+  | "id"
+  | "estado"
+  | "fecha_creacion"
+  | "fecha_asignacion"
+  | "fecha_uso"
+  | "prestador_id"
+  | "salida_id"
+  | "turista_nacionalidad"
+  | "turista_edad"
+  | "created_at"
+  | "updated_at"
+>;
 
 class Brazalete
   extends Model<BrazaleteAttributes, BrazaleteCreationAttributes>
@@ -48,7 +47,7 @@ class Brazalete
   public fecha_creacion!: Date;
   public fecha_asignacion?: string;
   public fecha_uso?: string;
-  public prestador_id?: string | undefined;
+  public prestador_id?: string | null;
   public salida_id?: string | undefined;
   public turista_nacionalidad?: string | undefined;
   public turista_edad?: number | undefined;
@@ -106,7 +105,8 @@ class Brazalete
     salidaId: string,
     turistaNacionalidad?: string,
     turistaEdad?: number,
-    fechaUso?: string
+    fechaUso?: string,
+    transaction?: Transaction
   ): Promise<void> {
     if (!this.puedeSerUtilizado()) {
       throw new Error(
@@ -114,9 +114,8 @@ class Brazalete
       );
     }
 
-    const fechaUsoStr = fechaUso || new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const fechaUsoStr = fechaUso || new Date().toISOString().split('T')[0];
 
-    // Validar que la fecha de uso sea posterior a la fecha de asignación
     if (this.fecha_asignacion && fechaUsoStr && fechaUsoStr < this.fecha_asignacion) {
       throw new Error(
         "La fecha de uso debe ser posterior a la fecha de asignación"
@@ -128,8 +127,8 @@ class Brazalete
     this.fecha_uso = fechaUsoStr as string;
     this.turista_nacionalidad = turistaNacionalidad;
     this.turista_edad = turistaEdad;
-    await this.save();
-    await this.reload(); // Recargar el objeto desde la base de datos
+    await this.save(transaction ? { transaction } : {});
+    await this.reload(transaction ? { transaction } : {});
   }
 
   // Método para marcar como perdido

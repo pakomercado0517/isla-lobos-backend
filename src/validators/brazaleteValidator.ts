@@ -1,4 +1,32 @@
-import { body, param, query, ValidationChain } from "express-validator";
+import { body, param, query, ValidationChain } from 'express-validator';
+import { getTodayMexico } from '../utils/dateUtils';
+
+const DATE_YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+
+const isValidYmd = (value: string): boolean => {
+  const [year, month, day] = value.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) return false;
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
+};
+
+const shiftYmd = (ymd: string, days: number): string => {
+  const [year, month, day] = ymd.split('-').map(Number) as [number, number, number];
+  const date = new Date(year, month - 1, day + days);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const assertFechaUso = (value: string) => {
+  if (!isValidYmd(value)) throw new Error('Fecha inválida');
+  const hoy = getTodayMexico();
+  if (value > hoy) throw new Error('La fecha de uso no puede ser futura');
+  if (value < shiftYmd(hoy, -365)) {
+    throw new Error('La fecha de uso no puede ser anterior a un año');
+  }
+};
 
 export class BrazaleteValidator {
   // ============================================================================
@@ -69,25 +97,13 @@ export class BrazaleteValidator {
       .withMessage("El tipo debe ser 'universal'")
       .default("universal"),
 
-    body("fecha_compra")
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de compra debe tener formato YYYY-MM-DD")
+    body('fecha_compra')
+      .matches(DATE_YYYY_MM_DD)
+      .withMessage('La fecha de compra debe tener formato YYYY-MM-DD')
       .custom((value) => {
-        // Validar que sea una fecha válida
-        const [year, month, day] = value.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (
-          date.getFullYear() !== year ||
-          date.getMonth() + 1 !== month ||
-          date.getDate() !== day
-        ) {
-          throw new Error("Fecha inválida");
-        }
-        
-        // Comparar con hoy (como string YYYY-MM-DD)
-        const hoy = new Date().toISOString().split('T')[0];
-        if (hoy && value > hoy) {
-          throw new Error("La fecha de compra no puede ser futura");
+        if (!isValidYmd(value)) throw new Error('Fecha inválida');
+        if (value > getTodayMexico()) {
+          throw new Error('La fecha de compra no puede ser futura');
         }
         return true;
       }),
@@ -105,23 +121,10 @@ export class BrazaleteValidator {
           return true;
         }
 
-        // Si hay valor, validar formato YYYY-MM-DD
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-          throw new Error(
-            "La fecha de vencimiento debe tener formato YYYY-MM-DD"
-          );
+        if (!DATE_YYYY_MM_DD.test(value)) {
+          throw new Error('La fecha de vencimiento debe tener formato YYYY-MM-DD');
         }
-
-        // Validar que sea una fecha válida
-        const [year, month, day] = value.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (
-          date.getFullYear() !== year ||
-          date.getMonth() + 1 !== month ||
-          date.getDate() !== day
-        ) {
-          throw new Error("Fecha inválida");
-        }
+        if (!isValidYmd(value)) throw new Error('Fecha inválida');
 
         // Validar que la fecha de vencimiento sea posterior a la fecha de compra
         const fechaCompra = req.body.fecha_compra;
@@ -179,12 +182,14 @@ export class BrazaleteValidator {
     query("page")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("La página debe ser un número entero mayor a 0"),
+      .withMessage("La página debe ser un número entero mayor a 0")
+      .toInt(),
 
     query("limit")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("El límite debe ser un número entero mayor a 0"),
+      .withMessage("El límite debe ser un número entero mayor a 0")
+      .toInt(),
   ];
 
   // ============================================================================
@@ -305,42 +310,17 @@ export class BrazaleteValidator {
     body("fecha_asignacion")
       .notEmpty()
       .withMessage("La fecha de asignación es obligatoria")
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .matches(DATE_YYYY_MM_DD)
       .withMessage("La fecha de asignación debe tener formato YYYY-MM-DD")
       .custom((value) => {
-        // Validar que sea una fecha válida
-        const [year, month, day] = value.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (
-          date.getFullYear() !== year ||
-          date.getMonth() + 1 !== month ||
-          date.getDate() !== day
-        ) {
-          throw new Error("Fecha inválida");
+        if (!isValidYmd(value)) throw new Error("Fecha inválida");
+        const hoy = getTodayMexico();
+        if (value < shiftYmd(hoy, -30)) {
+          throw new Error("La fecha de asignación no puede ser anterior a 30 días");
         }
-
-        // Permitir fechas anteriores pero con límite de 30 días
-        const fechaMinima = new Date();
-        fechaMinima.setDate(fechaMinima.getDate() - 30);
-        const fechaMinimaStr = fechaMinima.toISOString().split('T')[0];
-
-        if (fechaMinimaStr && value < fechaMinimaStr) {
-          throw new Error(
-            "La fecha de asignación no puede ser anterior a 30 días"
-          );
+        if (value > shiftYmd(hoy, 7)) {
+          throw new Error("La fecha de asignación no puede ser más de 7 días en el futuro");
         }
-
-        // Verificar que no sea más de 7 días en el futuro
-        const maxFecha = new Date();
-        maxFecha.setDate(maxFecha.getDate() + 7);
-        const maxFechaStr = maxFecha.toISOString().split('T')[0];
-        
-        if (maxFechaStr && value > maxFechaStr) {
-          throw new Error(
-            "La fecha de asignación no puede ser más de 7 días en el futuro"
-          );
-        }
-
         return true;
       }),
   ];
@@ -380,36 +360,10 @@ export class BrazaleteValidator {
 
     body("brazaletes.*.fecha_uso")
       .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .matches(DATE_YYYY_MM_DD)
       .withMessage("La fecha de uso debe tener formato YYYY-MM-DD")
       .custom((value) => {
-        if (value) {
-          // Validar que sea una fecha válida
-          const [year, month, day] = value.split('-').map(Number);
-          const date = new Date(year, month - 1, day);
-          if (
-            date.getFullYear() !== year ||
-            date.getMonth() + 1 !== month ||
-            date.getDate() !== day
-          ) {
-            throw new Error("Fecha inválida");
-          }
-
-          const hoy = new Date().toISOString().split('T')[0];
-
-          if (hoy && value > hoy) {
-            throw new Error("La fecha de uso no puede ser futura");
-          }
-
-          // Verificar que no sea muy antigua (más de 1 año)
-          const unAnoAtras = new Date();
-          unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
-          const unAnoAtrasStr = unAnoAtras.toISOString().split('T')[0];
-
-          if (unAnoAtrasStr && value < unAnoAtrasStr) {
-            throw new Error("La fecha de uso no puede ser anterior a un año");
-          }
-        }
+        if (value) assertFechaUso(value);
         return true;
       }),
   ];
@@ -430,36 +384,10 @@ export class BrazaleteValidator {
     body("fecha_uso")
       .notEmpty()
       .withMessage("La fecha de uso es obligatoria")
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
+      .matches(DATE_YYYY_MM_DD)
       .withMessage("La fecha de uso debe tener formato YYYY-MM-DD")
       .custom((value) => {
-        if (value) {
-          // Validar que sea una fecha válida
-          const [year, month, day] = value.split('-').map(Number);
-          const date = new Date(year, month - 1, day);
-          if (
-            date.getFullYear() !== year ||
-            date.getMonth() + 1 !== month ||
-            date.getDate() !== day
-          ) {
-            throw new Error("Fecha inválida");
-          }
-
-          const hoy = new Date().toISOString().split('T')[0];
-
-          if (hoy && value > hoy) {
-            throw new Error("La fecha de uso no puede ser futura");
-          }
-
-          // Verificar que no sea muy antigua (más de 1 año)
-          const unAnoAtras = new Date();
-          unAnoAtras.setFullYear(unAnoAtras.getFullYear() - 1);
-          const unAnoAtrasStr = unAnoAtras.toISOString().split('T')[0];
-
-          if (unAnoAtrasStr && value < unAnoAtrasStr) {
-            throw new Error("La fecha de uso no puede ser anterior a un año");
-          }
-        }
+        assertFechaUso(value);
         return true;
       }),
 
@@ -570,12 +498,14 @@ export class BrazaleteValidator {
     query("page")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("La página debe ser un número entero mayor a 0"),
+      .withMessage("La página debe ser un número entero mayor a 0")
+      .toInt(),
 
     query("limit")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("El límite debe ser un número entero mayor a 0"),
+      .withMessage("El límite debe ser un número entero mayor a 0")
+      .toInt(),
   ];
 
   // ============================================================================
@@ -707,12 +637,14 @@ export class BrazaleteValidator {
     query("page")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("La página debe ser un número entero mayor a 0"),
+      .withMessage("La página debe ser un número entero mayor a 0")
+      .toInt(),
 
     query("limit")
       .optional()
       .isInt({ min: 1 })
-      .withMessage("El límite debe ser un número entero mayor a 0"),
+      .withMessage("El límite debe ser un número entero mayor a 0")
+      .toInt(),
   ];
 }
 

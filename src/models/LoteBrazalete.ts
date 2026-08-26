@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from "sequelize";
+import { DataTypes, Model, Optional, Transaction } from "sequelize";
 import sequelize from "../config/database";
 
 // Interfaces para el modelo LoteBrazalete
@@ -103,7 +103,10 @@ class LoteBrazalete
   }
 
   // Método para actualizar cantidades después de una venta
-  public async actualizarDespuesVenta(cantidad: number): Promise<void> {
+  public async actualizarDespuesVenta(
+    cantidad: number,
+    transaction?: Transaction
+  ): Promise<void> {
     this.cantidad_disponibles -= cantidad;
     this.cantidad_vendidos += cantidad;
 
@@ -111,13 +114,15 @@ class LoteBrazalete
       this.estado = "agotado";
     }
 
-    await this.save();
+    await this.save(transaction ? { transaction } : {});
   }
 
-  // Método para actualizar cantidades después del uso de brazaletes
-  public async actualizarDespuesUso(cantidad: number): Promise<void> {
+  public async actualizarDespuesUso(
+    cantidad: number,
+    transaction?: Transaction
+  ): Promise<void> {
     this.cantidad_utilizados += cantidad;
-    await this.save();
+    await this.save(transaction ? { transaction } : {});
   }
 }
 

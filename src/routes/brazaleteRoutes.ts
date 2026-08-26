@@ -1,8 +1,8 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import BrazaleteController from '../controllers/brazaleteController';
+import BrazaleteController from '../controllers/brazalete.controller';
 import EstadisticasBrazaleteController from '../controllers/estadisticasBrazaleteController';
 import BrazaleteValidator from '../validators/brazaleteValidator';
-import { validationMiddleware } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/validation';
 import { authMiddleware, requireRole } from '../middleware/auth.middleware';
 
 const router: ExpressRouter = Router();
@@ -28,7 +28,7 @@ router.post(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.crearLote,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.crearLote
 );
 
@@ -42,7 +42,7 @@ router.get(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.listarLotes,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.listarLotes
 );
 
@@ -60,7 +60,7 @@ router.post(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.venderBrazaletes,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.venderBrazaletes
 );
 
@@ -73,7 +73,7 @@ router.get(
   '/prestador/:id',
   authMiddleware,
   BrazaleteValidator.obtenerBrazaletesPrestador,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.obtenerBrazaletesPrestador
 );
 
@@ -82,11 +82,12 @@ router.get(
  * Obtener brazaletes del prestador autenticado
  * Acceso: Solo Prestadores
  */
-router.get('/mis-brazaletes', authMiddleware, requireRole('prestador'), (req, res) => {
-  // Redirigir a la ruta con el ID del prestador autenticado
-  req.params['id'] = req.user!.id;
-  BrazaleteController.obtenerBrazaletesPrestador(req, res);
-});
+router.get(
+  '/mis-brazaletes',
+  authMiddleware,
+  requireRole('prestador'),
+  BrazaleteController.obtenerMisBrazaletes
+);
 
 // ============================================================================
 // RUTAS PARA USO EN SALIDAS
@@ -101,7 +102,7 @@ router.post(
   '/asignar',
   authMiddleware,
   BrazaleteValidator.asignarBrazaletes,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.asignarBrazaletes
 );
 
@@ -114,7 +115,7 @@ router.post(
   '/uso',
   authMiddleware,
   BrazaleteValidator.registrarUso,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.registrarUso
 );
 
@@ -127,7 +128,7 @@ router.get(
   '/uso/salida/:id',
   authMiddleware,
   BrazaleteValidator.obtenerBrazaletesSalida,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.obtenerBrazaletesSalida
 );
 
@@ -140,7 +141,7 @@ router.put(
   '/uso/actualizar',
   authMiddleware,
   BrazaleteValidator.actualizarUso,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.actualizarUso
 );
 
@@ -158,7 +159,7 @@ router.get(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.estadisticas,
-  validationMiddleware,
+  handleValidationErrors,
   EstadisticasBrazaleteController.obtenerEstadisticas
 );
 
@@ -184,7 +185,7 @@ router.get(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.reporteVentas,
-  validationMiddleware,
+  handleValidationErrors,
   EstadisticasBrazaleteController.reporteVentas
 );
 
@@ -198,7 +199,7 @@ router.get(
   authMiddleware,
   requireRole('conanp'),
   BrazaleteValidator.reporteUtilizacion,
-  validationMiddleware,
+  handleValidationErrors,
   EstadisticasBrazaleteController.reporteUtilizacion
 );
 
@@ -211,17 +212,7 @@ router.get(
  * Datos para dashboard de CONANP
  * Acceso: Solo CONANP
  */
-router.get('/dashboard', authMiddleware, requireRole('conanp'), async (req, res) => {
-  try {
-    // Redirigir a inventario por ahora
-    await BrazaleteController.obtenerInventario(req, res);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener datos del dashboard',
-    });
-  }
-});
+router.get('/dashboard', authMiddleware, requireRole('conanp'), BrazaleteController.obtenerInventario);
 
 /**
  * GET /api/brazaletes/search
@@ -232,7 +223,7 @@ router.get(
   '/search',
   authMiddleware,
   BrazaleteValidator.buscarBrazaletes,
-  validationMiddleware,
+  handleValidationErrors,
   BrazaleteController.buscarBrazaletes
 );
 
