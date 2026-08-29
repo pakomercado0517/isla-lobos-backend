@@ -123,8 +123,8 @@ export interface CondicionMeteorologica {
   estado_puerto: EstadoPuerto;
   prediccion_5_dias: string;
   fuente: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export enum EstadoPuerto {
