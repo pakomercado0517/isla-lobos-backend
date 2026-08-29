@@ -1,213 +1,196 @@
-import { body, param, query } from "express-validator";
+import { body, param, query } from 'express-validator';
+import { EstadoPuerto } from '../types';
+import { getCurrentMexicoTime } from '../utils/dateUtils';
 
-/**
- * Validadores para ClimaController
- *
- * Incluye validaciones para:
- * - Condiciones meteorológicas
- * - Predicciones y alertas
- * - Estado del puerto
- * - Filtros de consulta
- */
+const DATE_YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+const VISIBILIDAD = ['Excelente', 'Buena', 'Regular', 'Mala', 'Muy Mala'];
+const VIENTO_DIRECCION = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const FUENTES = ['CONAGUA', 'NOAA', 'Capitanía de Puerto', 'Manual'];
+const ESTADO_PUERTO = Object.values(EstadoPuerto);
 
-// Validaciones para obtener todas las condiciones meteorológicas
+const assertFechaHoraVentana = (value: string) => {
+  const fecha = new Date(value);
+  if (Number.isNaN(fecha.getTime())) throw new Error('Fecha inválida');
+  const ahora = getCurrentMexicoTime();
+  const unDiaAtras = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+  if (fecha > ahora) throw new Error('La fecha no puede ser en el futuro');
+  if (fecha < unDiaAtras) throw new Error('La fecha no puede ser más de 24 horas en el pasado');
+};
+
 export const getAllCondicionesValidation = [
-  query("page")
+  query('page')
     .optional()
     .isInt({ min: 1 })
-    .withMessage("La página debe ser un número entero mayor a 0"),
+    .withMessage('La página debe ser un número entero mayor a 0')
+    .toInt()
+    .default(1),
 
-  query("limit")
+  query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage("El límite debe ser un número entre 1 y 100"),
+    .withMessage('El límite debe ser un número entre 1 y 100')
+    .toInt()
+    .default(10),
 
-  query("fecha_inicio")
+  query('fecha_inicio')
     .optional()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de inicio debe tener formato YYYY-MM-DD'),
 
-  query("fecha_fin")
+  query('fecha_fin')
     .optional()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de fin debe tener formato YYYY-MM-DD'),
 
-  query("estado_puerto")
+  query('estado_puerto')
     .optional()
-    .isIn(["abierto", "restricciones", "cerrado", "emergencia"])
-    .withMessage(
-      "El estado del puerto debe ser uno de: abierto, restricciones, cerrado, emergencia"
-    ),
+    .isIn(ESTADO_PUERTO)
+    .withMessage(`El estado del puerto debe ser uno de: ${ESTADO_PUERTO.join(', ')}`),
 
-  query("fuente")
+  query('fuente')
     .optional()
-    .isLength({ min: 2, max: 50 })
-    .withMessage("La fuente debe tener entre 2 y 50 caracteres")
-    .trim(),
+    .isIn(FUENTES)
+    .withMessage(`La fuente debe ser una de: ${FUENTES.join(', ')}`),
 ];
 
-// Validaciones para obtener condición por ID
 export const getCondicionByIdValidation = [
-  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+  param('id').isUUID().withMessage('El ID debe ser un UUID válido'),
 ];
 
-// Validaciones para crear condición meteorológica
 export const createCondicionValidation = [
-  body("fecha_hora")
+  body('fecha_hora')
     .isISO8601()
-    .withMessage("La fecha y hora deben estar en formato ISO 8601")
+    .withMessage('La fecha y hora deben estar en formato ISO 8601')
     .custom((value) => {
-      const fecha = new Date(value);
-      const ahora = new Date();
-      const unDiaAtras = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
-
-      if (fecha > ahora) {
-        throw new Error("La fecha no puede ser en el futuro");
-      }
-      if (fecha < unDiaAtras) {
-        throw new Error("La fecha no puede ser más de 24 horas en el pasado");
-      }
+      assertFechaHoraVentana(value);
       return true;
     }),
 
-  body("oleaje")
+  body('oleaje')
     .isFloat({ min: 0, max: 10 })
-    .withMessage("El oleaje debe ser un número entre 0 y 10 metros"),
+    .withMessage('El oleaje debe ser un número entre 0 y 10 metros'),
 
-  body("viento_velocidad")
+  body('viento_velocidad')
     .isFloat({ min: 0, max: 100 })
-    .withMessage(
-      "La velocidad del viento debe ser un número entre 0 y 100 km/h"
-    ),
+    .withMessage('La velocidad del viento debe ser un número entre 0 y 100 km/h'),
 
-  body("viento_direccion")
-    .isLength({ min: 2, max: 20 })
-    .withMessage("La dirección del viento debe tener entre 2 y 20 caracteres")
-    .matches(/^[A-Za-z\s]+$/)
-    .withMessage(
-      "La dirección del viento solo puede contener letras y espacios"
-    )
-    .trim(),
+  body('viento_direccion')
+    .isIn(VIENTO_DIRECCION)
+    .withMessage(`La dirección del viento debe ser una de: ${VIENTO_DIRECCION.join(', ')}`),
 
-  body("visibilidad")
-    .isIn(["excelente", "buena", "regular", "baja"])
-    .withMessage(
-      "La visibilidad debe ser uno de: excelente, buena, regular, baja"
-    ),
+  body('visibilidad')
+    .isIn(VISIBILIDAD)
+    .withMessage(`La visibilidad debe ser una de: ${VISIBILIDAD.join(', ')}`),
 
-  body("estado_puerto")
-    .isIn(["abierto", "restricciones", "cerrado", "emergencia"])
-    .withMessage(
-      "El estado del puerto debe ser uno de: abierto, restricciones, cerrado, emergencia"
-    ),
+  body('estado_puerto')
+    .isIn(ESTADO_PUERTO)
+    .withMessage(`El estado del puerto debe ser uno de: ${ESTADO_PUERTO.join(', ')}`),
 
-  body("prediccion_5_dias")
-    .optional()
+  body('prediccion_5_dias')
+    .notEmpty()
+    .withMessage('La predicción a 5 días es obligatoria')
     .isLength({ max: 1000 })
-    .withMessage("La predicción no puede exceder 1000 caracteres")
+    .withMessage('La predicción no puede exceder 1000 caracteres')
     .trim(),
 
-  body("fuente")
-    .isLength({ min: 2, max: 50 })
-    .withMessage("La fuente debe tener entre 2 y 50 caracteres")
-    .trim(),
+  body('fuente')
+    .isIn(FUENTES)
+    .withMessage(`La fuente debe ser una de: ${FUENTES.join(', ')}`),
 ];
 
-// Validaciones para actualizar condición meteorológica
 export const updateCondicionValidation = [
-  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+  param('id').isUUID().withMessage('El ID debe ser un UUID válido'),
 
-  body("fecha_hora")
+  body('fecha_hora')
     .optional()
     .isISO8601()
-    .withMessage("La fecha y hora deben estar en formato ISO 8601")
+    .withMessage('La fecha y hora deben estar en formato ISO 8601')
     .custom((value) => {
-      if (value) {
-        const fecha = new Date(value);
-        const ahora = new Date();
-        const unDiaAtras = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
-
-        if (fecha > ahora) {
-          throw new Error("La fecha no puede ser en el futuro");
-        }
-        if (fecha < unDiaAtras) {
-          throw new Error("La fecha no puede ser más de 24 horas en el pasado");
-        }
-      }
+      if (value) assertFechaHoraVentana(value);
       return true;
     }),
 
-  body("oleaje")
+  body('oleaje')
     .optional()
     .isFloat({ min: 0, max: 10 })
-    .withMessage("El oleaje debe ser un número entre 0 y 10 metros"),
+    .withMessage('El oleaje debe ser un número entre 0 y 10 metros'),
 
-  body("viento_velocidad")
+  body('viento_velocidad')
     .optional()
     .isFloat({ min: 0, max: 100 })
-    .withMessage(
-      "La velocidad del viento debe ser un número entre 0 y 100 km/h"
-    ),
+    .withMessage('La velocidad del viento debe ser un número entre 0 y 100 km/h'),
 
-  body("viento_direccion")
+  body('viento_direccion')
     .optional()
-    .isLength({ min: 2, max: 20 })
-    .withMessage("La dirección del viento debe tener entre 2 y 20 caracteres")
-    .matches(/^[A-Za-z\s]+$/)
-    .withMessage(
-      "La dirección del viento solo puede contener letras y espacios"
-    )
-    .trim(),
+    .isIn(VIENTO_DIRECCION)
+    .withMessage(`La dirección del viento debe ser una de: ${VIENTO_DIRECCION.join(', ')}`),
 
-  body("visibilidad")
+  body('visibilidad')
     .optional()
-    .isIn(["excelente", "buena", "regular", "baja"])
-    .withMessage(
-      "La visibilidad debe ser uno de: excelente, buena, regular, baja"
-    ),
+    .isIn(VISIBILIDAD)
+    .withMessage(`La visibilidad debe ser una de: ${VISIBILIDAD.join(', ')}`),
 
-  body("estado_puerto")
+  body('estado_puerto')
     .optional()
-    .isIn(["abierto", "restricciones", "cerrado", "emergencia"])
-    .withMessage(
-      "El estado del puerto debe ser uno de: abierto, restricciones, cerrado, emergencia"
-    ),
+    .isIn(ESTADO_PUERTO)
+    .withMessage(`El estado del puerto debe ser uno de: ${ESTADO_PUERTO.join(', ')}`),
 
-  body("prediccion_5_dias")
+  body('prediccion_5_dias')
     .optional()
     .isLength({ max: 1000 })
-    .withMessage("La predicción no puede exceder 1000 caracteres")
+    .withMessage('La predicción no puede exceder 1000 caracteres')
     .trim(),
 
-  body("fuente")
+  body('fuente')
     .optional()
-    .isLength({ min: 2, max: 50 })
-    .withMessage("La fuente debe tener entre 2 y 50 caracteres")
-    .trim(),
+    .isIn(FUENTES)
+    .withMessage(`La fuente debe ser una de: ${FUENTES.join(', ')}`),
 ];
 
-// Validaciones para eliminar condición meteorológica
 export const deleteCondicionValidation = [
-  param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
+  param('id').isUUID().withMessage('El ID debe ser un UUID válido'),
 ];
 
-// Validaciones para predicción meteorológica
 export const getPrediccionValidation = [
-  query("dias")
+  query('dias')
     .optional()
     .isInt({ min: 1, max: 30 })
-    .withMessage("El número de días debe ser un número entre 1 y 30"),
+    .withMessage('El número de días debe ser un número entre 1 y 30')
+    .toInt()
+    .default(5),
 ];
 
-// Validaciones para estadísticas meteorológicas
 export const getEstadisticasValidation = [
-  query("fecha_inicio")
+  query('fecha_inicio')
     .optional()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de inicio debe tener formato YYYY-MM-DD'),
 
-  query("fecha_fin")
+  query('fecha_fin')
     .optional()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de fin debe tener formato YYYY-MM-DD"),
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de fin debe tener formato YYYY-MM-DD')
+    .custom((value, { req }) => {
+      const fechaInicio = req.query?.['fecha_inicio'];
+      if (fechaInicio && value && String(value) < String(fechaInicio)) {
+        throw new Error('La fecha de fin debe ser posterior o igual a la fecha de inicio');
+      }
+      return true;
+    }),
+];
+
+export const sincronizarSMNValidation = [
+  body('horas_limite')
+    .optional()
+    .isInt({ min: 1, max: 48 })
+    .withMessage('El límite de horas debe ser un número entero entre 1 y 48')
+    .toInt()
+    .default(24),
+
+  body('solo_isla_lobos')
+    .optional()
+    .isBoolean()
+    .withMessage('solo_isla_lobos debe ser un valor booleano')
+    .toBoolean()
+    .default(true),
 ];

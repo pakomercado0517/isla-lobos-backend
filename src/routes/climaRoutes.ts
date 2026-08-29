@@ -1,26 +1,22 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import ClimaController from '../controllers/climaController';
+import ClimaController from '../controllers/clima.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
-import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
+import { handleValidationErrors } from '../middleware/validation';
 import {
+  createCondicionValidation,
+  deleteCondicionValidation,
   getAllCondicionesValidation,
   getCondicionByIdValidation,
-  createCondicionValidation,
-  updateCondicionValidation,
-  deleteCondicionValidation,
-  getPrediccionValidation,
   getEstadisticasValidation,
+  getPrediccionValidation,
+  sincronizarSMNValidation,
+  updateCondicionValidation,
 } from '../validators/climaValidators';
 
 const router: ExpressRouter = Router();
 
-// Middleware global para sanitizar entrada
-router.use(sanitizeInput);
-
-// Rutas protegidas (requieren autenticación)
 router.use(authenticateToken);
 
-// Rutas para gestión de condiciones meteorológicas
 router.get(
   '/',
   getAllCondicionesValidation,
@@ -47,8 +43,13 @@ router.get(
   ClimaController.getEstadisticas
 );
 
-// Ruta para sincronizar datos del SMN (Servicio Meteorológico Nacional)
-router.post('/sincronizar-smn', requireCONANP, ClimaController.sincronizarSMN);
+router.post(
+  '/sincronizar-smn',
+  requireCONANP,
+  sincronizarSMNValidation,
+  handleValidationErrors,
+  ClimaController.sincronizarSMN
+);
 
 router.get(
   '/:id',
