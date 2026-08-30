@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import DashboardController from '../controllers/dashboardController';
+import DashboardController from '../controllers/dashboard.controller';
 import DashboardNotificationController from '../controllers/dashboardNotificationController';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
