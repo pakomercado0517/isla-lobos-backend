@@ -14,18 +14,21 @@ import { query } from "express-validator";
 
 // Validaciones para obtener ocupación por día
 export const getOcupacionValidation = [
-  query("dias")
+  query('dias')
     .optional()
     .isInt({ min: 1, max: 30 })
-    .withMessage("El número de días debe ser un número entre 1 y 30"),
+    .withMessage('El número de días debe ser un número entre 1 y 30')
+    .toInt()
+    .default(7),
 ];
 
-// Validaciones para obtener resumen meteorológico
 export const getResumenClimaValidation = [
-  query("dias")
+  query('dias')
     .optional()
     .isInt({ min: 1, max: 30 })
-    .withMessage("El número de días debe ser un número entre 1 y 30"),
+    .withMessage('El número de días debe ser un número entre 1 y 30')
+    .toInt()
+    .default(7),
 ];
 
 // No se requieren validaciones para los otros endpoints del dashboard
