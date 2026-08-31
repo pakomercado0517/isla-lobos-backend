@@ -3,7 +3,7 @@ import Embarcacion from '../models/Embarcacion';
 import User from '../models/User';
 import { Op } from 'sequelize';
 import { createLogger } from '../utils/logger';
-import dashboardNotificationService from '../services/dashboardNotificationService';
+import { crearNotificacionService } from '../services/dashboard-notification.service';
 import {
   TipoNotificacionDashboard,
   PrioridadNotificacionDashboard,
@@ -226,7 +226,7 @@ class EmbarcacionController {
       // Crear notificación para usuarios CONANP si la embarcación está pendiente de autorización
       if (nuevaEmbarcacion.estado === EstadoEmbarcacion.PENDIENTE_AUTORIZACION) {
         try {
-          await dashboardNotificationService.crearNotificacion({
+          await crearNotificacionService({
             tipo: TipoNotificacionDashboard.NUEVA_EMBARCACION,
             titulo: 'Nueva embarcación pendiente de autorización',
             mensaje: `El prestador ${prestador.nombre} ha registrado una nueva embarcación: ${nombre} (${matricula}) con capacidad para ${capacidad} pasajeros.`,
