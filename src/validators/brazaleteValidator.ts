@@ -28,6 +28,28 @@ const assertFechaUso = (value: string) => {
   }
 };
 
+const rangoFechaQuery = (): ValidationChain[] => [
+  query('fecha_inicio')
+    .optional()
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de inicio debe tener formato YYYY-MM-DD'),
+
+  query('fecha_fin')
+    .optional()
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de fin debe tener formato YYYY-MM-DD')
+    .custom((value, { req }) => {
+      if (value && req.query?.['fecha_inicio']) {
+        const fechaInicio = String(req.query['fecha_inicio']).split('T')[0];
+        const fechaFin = String(value).split('T')[0];
+        if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
+          throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
+        }
+      }
+      return true;
+    }),
+];
+
 export class BrazaleteValidator {
   // ============================================================================
   // VALIDADORES PARA LOTES
@@ -401,89 +423,19 @@ export class BrazaleteValidator {
   // VALIDADORES PARA ESTADÍSTICAS
   // ============================================================================
 
-  static estadisticas: ValidationChain[] = [
-    query("fecha_inicio")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
-
-    query("fecha_fin")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
-      .custom((value, { req }) => {
-        if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
-          const fechaFin = String(value).split('T')[0];
-          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
-          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-            throw new Error(
-              "La fecha de fin debe ser posterior a la fecha de inicio"
-            );
-          }
-        }
-        return true;
-      }),
-  ];
+  static estadisticas: ValidationChain[] = [...rangoFechaQuery()];
 
   static reporteVentas: ValidationChain[] = [
-    query("fecha_inicio")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
-
-    query("fecha_fin")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
-      .custom((value, { req }) => {
-        if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
-          const fechaFin = String(value).split('T')[0];
-          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
-          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-            throw new Error(
-              "La fecha de fin debe ser posterior a la fecha de inicio"
-            );
-          }
-        }
-        return true;
-      }),
-
-    query("prestador_id")
+    ...rangoFechaQuery(),
+    query('prestador_id')
       .optional()
       .isUUID()
-      .withMessage("El ID del prestador debe ser un UUID válido"),
+      .withMessage('El ID del prestador debe ser un UUID válido'),
   ];
 
   static reporteUtilizacion: ValidationChain[] = [
-    query("fecha_inicio")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de inicio debe tener formato YYYY-MM-DD"),
-
-    query("fecha_fin")
-      .optional()
-      .matches(/^\d{4}-\d{2}-\d{2}$/)
-      .withMessage("La fecha de fin debe tener formato YYYY-MM-DD")
-      .custom((value, { req }) => {
-        if (value && req.query?.["fecha_inicio"]) {
-          const fechaInicio = String(req.query["fecha_inicio"]).split('T')[0];
-          const fechaFin = String(value).split('T')[0];
-          // Comparar strings YYYY-MM-DD directamente (son comparables lexicográficamente)
-          if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-            throw new Error(
-              "La fecha de fin debe ser posterior a la fecha de inicio"
-            );
-          }
-        }
-        return true;
-      }),
-
-    query("tipo")
-      .optional()
-      .isIn(["universal"])
-      .withMessage("El tipo debe ser 'universal'"),
+    ...rangoFechaQuery(),
+    query('tipo').optional().isIn(['universal']).withMessage("El tipo debe ser 'universal'"),
   ];
 
   // ============================================================================
