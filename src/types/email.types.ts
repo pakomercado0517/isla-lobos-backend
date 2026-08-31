@@ -66,3 +66,8 @@ export interface GetPlantillasEmailResponse {
   plantillas: PlantillaEmail[];
   total: number;
 }
+
+export interface EmailHtmlPayload {
+  asunto: string;
+  html: string;
+}

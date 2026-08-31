@@ -8,19 +8,27 @@ import {
   AvatarUploadResponse,
   CloudinaryStatsResponse,
 } from '../types/avatar.types';
-import logger from '../utils/logger';
-import CloudinaryService from './cloudinaryService';
+import { createLogger } from '../utils/logger';
+import {
+  deleteAvatar,
+  generateDefaultAvatar,
+  getUsageStats,
+  isValidCloudinaryUrl,
+  uploadAvatar,
+} from './cloudinary.service';
+
+const logger = createLogger('AvatarService');
 
 const removePreviousCloudinaryAvatar = async (user: User): Promise<void> => {
-  if (!user.avatar_url || !CloudinaryService.isValidCloudinaryUrl(user.avatar_url)) {
+  if (!user.avatar_url || !isValidCloudinaryUrl(user.avatar_url)) {
     return;
   }
 
-  try {
-    await CloudinaryService.deleteAvatar(user.avatar_url);
+  const deleted = await deleteAvatar(user.avatar_url);
+  if (deleted) {
     logger.info({ userId: user.id }, 'Avatar anterior eliminado de Cloudinary');
-  } catch (error) {
-    logger.warn({ err: error, userId: user.id }, 'No se pudo eliminar avatar anterior');
+  } else {
+    logger.warn({ userId: user.id }, 'No se pudo eliminar avatar anterior');
   }
 };
 
@@ -38,7 +46,7 @@ export const uploadAvatarService = async (
     'Iniciando upload de avatar'
   );
 
-  const avatarUrl = await CloudinaryService.uploadAvatar(file.buffer, user.id, file.originalname);
+  const avatarUrl = await uploadAvatar(file.buffer, user.id, file.originalname);
 
   user.avatar_url = avatarUrl;
   await user.save();
@@ -65,8 +73,8 @@ export const deleteAvatarService = async (
   if (!user.avatar_url) throw new AppError('El usuario no tiene avatar para eliminar', 400);
 
   let deletedFromCloudinary = false;
-  if (CloudinaryService.isValidCloudinaryUrl(user.avatar_url)) {
-    deletedFromCloudinary = await CloudinaryService.deleteAvatar(user.avatar_url);
+  if (isValidCloudinaryUrl(user.avatar_url)) {
+    deletedFromCloudinary = await deleteAvatar(user.avatar_url);
     if (deletedFromCloudinary) {
       logger.info(
         { userId: user.id, avatarUrl: user.avatar_url },
@@ -108,10 +116,10 @@ export const generateDefaultAvatarService = async (
 
   await removePreviousCloudinaryAvatar(user);
 
-  const avatarUrl = CloudinaryService.generateDefaultAvatar(
+  const avatarUrl = generateDefaultAvatar(
     user.nombre,
-    backgroundColor,
-    textColor
+    backgroundColor ?? '4f46e5',
+    textColor ?? 'ffffff'
   );
 
   user.avatar_url = avatarUrl;
@@ -145,7 +153,7 @@ export const getAvatarInfoService = async (
       has_avatar: !!user.avatar_url,
       avatar_url: user.avatar_url ?? null,
       is_cloudinary: user.avatar_url
-        ? CloudinaryService.isValidCloudinaryUrl(user.avatar_url)
+        ? isValidCloudinaryUrl(user.avatar_url)
         : false,
       user: {
         id: user.id,
@@ -157,7 +165,7 @@ export const getAvatarInfoService = async (
 };
 
 export const getCloudinaryStatsService = async (): Promise<ApiResponse<CloudinaryStatsResponse>> => {
-  const stats = await CloudinaryService.getUsageStats();
+  const stats = await getUsageStats();
   if (!stats) {
     throw new AppError('No se pudieron obtener las estadísticas de Cloudinary', 500);
   }

@@ -7,6 +7,7 @@ import {
   EstadoPuerto,
   UserRole,
 } from '../types';
+import { EmailHtmlPayload } from '../types/email.types';
 
 const estadoEmoji: Record<EstadoPuerto, string> = {
   [EstadoPuerto.ABIERTO]: '🟢',
@@ -23,12 +24,12 @@ const urgenciaPermiso = (
   return { colorAlerta: '#ff9800', urgencia: 'IMPORTANTE' };
 };
 
-const rolTexto = (rol: UserRole | string): string =>
-  rol === UserRole.CONANP || rol === 'conanp' ? 'Administrador CONANP' : 'Prestador de Servicios';
+const rolTexto = (rol: UserRole): string =>
+  rol === UserRole.CONANP ? 'Administrador CONANP' : 'Prestador de Servicios';
 
 export const buildAlertaClimaEmail = (
   datos: EmailAlertaClimaData
-): { asunto: string; html: string } => {
+): EmailHtmlPayload => {
   const emoji = estadoEmoji[datos.estado_puerto];
   return {
     asunto: `${emoji} Alerta Meteorológica - Isla de Lobos`,
@@ -94,7 +95,7 @@ export const buildAlertaPermisoEmail = (
   nombre: string,
   fechaVencimiento: string | undefined,
   diasRestantes: number
-): { asunto: string; html: string } => {
+): EmailHtmlPayload => {
   const { colorAlerta, urgencia } = urgenciaPermiso(diasRestantes);
   return {
     asunto: `⚠️ ${urgencia}: Tu permiso vence en ${diasRestantes} días`,
@@ -145,7 +146,7 @@ export const buildAlertaPermisoEmail = (
 
 export const buildConfirmacionSalidaEmail = (
   datos: EmailSalidaData
-): { asunto: string; html: string } => {
+): EmailHtmlPayload => {
   const horario = datos.bloque_nombre
     ? `<strong>Bloque:</strong> ${datos.bloque_nombre}`
     : `<strong>Hora:</strong> ${datos.hora}`;
@@ -208,7 +209,7 @@ export const buildConfirmacionSalidaEmail = (
 
 export const buildRecuperacionPasswordEmail = (
   datos: EmailRecuperacionPasswordData
-): { asunto: string; html: string } => ({
+): EmailHtmlPayload => ({
   asunto: '🔐 Recuperación de Contraseña - Isla de Lobos',
   html: `
       <!DOCTYPE html>
@@ -260,7 +261,7 @@ export const buildRecuperacionPasswordEmail = (
 
 export const buildInvitacionEmail = (
   datos: EmailInvitacionData
-): { asunto: string; html: string } => {
+): EmailHtmlPayload => {
   const textoRol = rolTexto(datos.rol);
   const urlManual = `${process.env['FRONTEND_URL']}/registro`;
 
@@ -349,7 +350,7 @@ export const buildInvitacionEmail = (
 
 export const buildBienvenidaEmail = (
   datos: EmailBienvenidaData
-): { asunto: string; html: string } => {
+): EmailHtmlPayload => {
   const textoRol = rolTexto(datos.rol);
   return {
     asunto: '🏝️ Bienvenido a Isla de Lobos - CONANP',
@@ -405,7 +406,7 @@ export const buildBienvenidaEmail = (
   };
 };
 
-export const buildPruebaEmail = (): { asunto: string; html: string } => ({
+export const buildPruebaEmail = (): EmailHtmlPayload => ({
   asunto: '🧪 Prueba - Sistema de Emails Isla de Lobos',
   html: `
         <!DOCTYPE html>
