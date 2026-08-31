@@ -1,32 +1,24 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import UserController from '../controllers/userController';
-import {
-  authenticateToken,
-  requireCONANP,
-  requireRole as _requireRole,
-} from '../middleware/auth.middleware';
+import UserController from '../controllers/user.controller';
+import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
+  activateUserValidation,
+  createUserValidation,
+  deleteUserValidation,
   getAllUsersValidation,
   getUserByIdValidation,
-  createUserValidation,
-  updateUserValidation,
-  deleteUserValidation,
-  activateUserValidation,
-  updateProfileValidation,
   getUserStatsValidation,
   hardDeleteUserValidation,
+  updateProfileValidation,
+  updateUserValidation,
 } from '../validators/userValidators';
 
 const router: ExpressRouter = Router();
 
-// Middleware global para sanitizar entrada
 router.use(sanitizeInput);
-
-// Rutas protegidas (requieren autenticación)
 router.use(authenticateToken);
 
-// Rutas para gestión de usuarios (solo CONANP)
 router.get(
   '/',
   requireCONANP,
@@ -41,6 +33,13 @@ router.get(
   getUserStatsValidation,
   handleValidationErrors,
   UserController.getUserStats
+);
+
+router.put(
+  '/profile/update',
+  updateProfileValidation,
+  handleValidationErrors,
+  UserController.updateProfile
 );
 
 router.get(
@@ -89,14 +88,6 @@ router.delete(
   hardDeleteUserValidation,
   handleValidationErrors,
   UserController.hardDeleteUser
-);
-
-// Rutas para perfil personal (todos los usuarios autenticados)
-router.put(
-  '/profile/update',
-  updateProfileValidation,
-  handleValidationErrors,
-  UserController.updateProfile
 );
 
 export default router;
