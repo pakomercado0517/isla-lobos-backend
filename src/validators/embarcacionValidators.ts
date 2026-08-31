@@ -11,17 +11,20 @@ import { EstadoEmbarcacion, TipoEmbarcacion } from "../types";
  * - Parámetros de ruta
  */
 
-// Validaciones para obtener todas las embarcaciones
 export const getAllEmbarcacionesValidation = [
   query("page")
     .optional()
     .isInt({ min: 1 })
-    .withMessage("La página debe ser un número entero mayor a 0"),
+    .withMessage("La página debe ser un número entero mayor a 0")
+    .toInt()
+    .default(1),
 
   query("limit")
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage("El límite debe ser un número entre 1 y 100"),
+    .withMessage("El límite debe ser un número entre 1 y 100")
+    .toInt()
+    .default(10),
 
   query("estado")
     .optional()
@@ -43,19 +46,12 @@ export const getAllEmbarcacionesValidation = [
     .optional()
     .isUUID()
     .withMessage("El ID del prestador debe ser un UUID válido"),
-
-  query("activo")
-    .optional()
-    .isBoolean()
-    .withMessage("El campo activo debe ser un valor booleano"),
 ];
 
-// Validaciones para obtener embarcación por ID
 export const getEmbarcacionByIdValidation = [
   param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
 ];
 
-// Validaciones para crear embarcación
 export const createEmbarcacionValidation = [
   body("nombre")
     .trim()
@@ -81,7 +77,8 @@ export const createEmbarcacionValidation = [
 
   body("capacidad")
     .isInt({ min: 1, max: 1000 })
-    .withMessage("La capacidad debe ser un número entre 1 y 1000"),
+    .withMessage("La capacidad debe ser un número entre 1 y 1000")
+    .toInt(),
 
   body("tipo")
     .isIn(Object.values(TipoEmbarcacion))
@@ -103,7 +100,6 @@ export const createEmbarcacionValidation = [
     .withMessage("El ID del prestador debe ser un UUID válido"),
 ];
 
-// Validaciones para actualizar embarcación
 export const updateEmbarcacionValidation = [
   param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
 
@@ -134,7 +130,8 @@ export const updateEmbarcacionValidation = [
   body("capacidad")
     .optional()
     .isInt({ min: 1, max: 1000 })
-    .withMessage("La capacidad debe ser un número entre 1 y 1000"),
+    .withMessage("La capacidad debe ser un número entre 1 y 1000")
+    .toInt(),
 
   body("tipo")
     .optional()
@@ -156,29 +153,26 @@ export const updateEmbarcacionValidation = [
     .optional()
     .isUUID()
     .withMessage("El ID del prestador debe ser un UUID válido"),
-
-  body("activo")
-    .optional()
-    .isBoolean()
-    .withMessage("El campo activo debe ser un valor booleano"),
 ];
 
-// Validaciones para eliminar embarcación
 export const deleteEmbarcacionValidation = [
   param("id").isUUID().withMessage("El ID debe ser un UUID válido"),
 ];
 
-// Validaciones para obtener mis embarcaciones
 export const getMisEmbarcacionesValidation = [
   query("page")
     .optional()
     .isInt({ min: 1 })
-    .withMessage("La página debe ser un número entero mayor a 0"),
+    .withMessage("La página debe ser un número entero mayor a 0")
+    .toInt()
+    .default(1),
 
   query("limit")
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage("El límite debe ser un número entre 1 y 100"),
+    .withMessage("El límite debe ser un número entre 1 y 100")
+    .toInt()
+    .default(10),
 
   query("estado")
     .optional()
@@ -195,14 +189,8 @@ export const getMisEmbarcacionesValidation = [
     .withMessage(
       `El tipo debe ser uno de: ${Object.values(TipoEmbarcacion).join(", ")}`
     ),
-
-  query("activo")
-    .optional()
-    .isBoolean()
-    .withMessage("El campo activo debe ser un valor booleano"),
 ];
 
-// Validaciones para estadísticas de embarcaciones
 export const getEmbarcacionStatsValidation = [
   query("prestador_id")
     .optional()

@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import EmbarcacionController from '../controllers/embarcacionController';
+import EmbarcacionController from '../controllers/embarcacion.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
