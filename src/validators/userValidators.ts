@@ -1,178 +1,150 @@
-import { body, param, query } from "express-validator";
+import { body, param, query } from 'express-validator';
+import { UserRole } from '../types';
 
-/**
- * Validaciones para el UserController
- */
+const ROL_VALUES = Object.values(UserRole);
+const DATE_YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+const TELEFONO_MX = /^(\+52\s?)?[0-9]{10}$/;
+const NOMBRE_LETRAS = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+const PASSWORD_FUERTE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
 
-// Validación para obtener todos los usuarios
+const userIdParam = () =>
+  param('userId').isUUID().withMessage('El ID del usuario debe ser un UUID válido');
+
+const nombreBody = (optional = false) => {
+  const chain = optional ? body('nombre').optional() : body('nombre');
+  return chain
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('El nombre debe tener entre 2 y 100 caracteres')
+    .matches(NOMBRE_LETRAS)
+    .withMessage('El nombre solo puede contener letras y espacios');
+};
+
+const emailBody = (optional = false) => {
+  const chain = optional ? body('email').optional() : body('email');
+  return chain
+    .isEmail()
+    .withMessage('Debe ser un email válido')
+    .normalizeEmail()
+    .isLength({ max: 255 })
+    .withMessage('El email no puede exceder 255 caracteres');
+};
+
+const telefonoBody = () =>
+  body('telefono')
+    .optional()
+    .trim()
+    .matches(TELEFONO_MX)
+    .withMessage('El teléfono debe ser un número mexicano válido (10 dígitos)');
+
+const rolBody = (optional = false) => {
+  const chain = optional ? body('rol').optional() : body('rol');
+  return chain.isIn(ROL_VALUES).withMessage(`El rol debe ser uno de: ${ROL_VALUES.join(', ')}`);
+};
+
+const activoBody = () =>
+  body('activo')
+    .optional()
+    .isBoolean()
+    .withMessage('El campo activo debe ser true o false')
+    .toBoolean();
+
+const fechaVencimientoBody = () =>
+  body('fechaVencimientoPermiso')
+    .optional()
+    .isString()
+    .matches(DATE_YYYY_MM_DD)
+    .withMessage('La fecha de vencimiento debe tener el formato YYYY-MM-DD');
+
+const diasNotificacionBody = (withDefault = false) => {
+  const chain = body('diasNotificacion')
+    .optional()
+    .isInt({ min: 1, max: 365 })
+    .withMessage('Los días de notificación deben ser un número entre 1 y 365')
+    .toInt();
+  return withDefault ? chain.default(30) : chain;
+};
+
 export const getAllUsersValidation = [
-  query("page")
+  query('page')
     .optional()
     .isInt({ min: 1 })
-    .withMessage("La página debe ser un número entero mayor a 0"),
-  query("limit")
+    .withMessage('La página debe ser un número entero mayor a 0')
+    .toInt()
+    .default(1),
+  query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage("El límite debe ser un número entre 1 y 100"),
-  query("rol")
+    .withMessage('El límite debe ser un número entre 1 y 100')
+    .toInt()
+    .default(10),
+  query('rol')
     .optional()
-    .isIn(["conanp", "prestador"])
-    .withMessage("El rol debe ser 'conanp' o 'prestador'"),
-  query("activo")
+    .isIn(ROL_VALUES)
+    .withMessage(`El rol debe ser uno de: ${ROL_VALUES.join(', ')}`),
+  query('activo')
     .optional()
     .isBoolean()
-    .withMessage("El campo activo debe ser true o false"),
+    .withMessage('El campo activo debe ser true o false')
+    .toBoolean(),
 ];
 
-// Validación para obtener usuario por ID
-export const getUserByIdValidation = [
-  param("userId")
-    .isUUID()
-    .withMessage("El ID del usuario debe ser un UUID válido"),
-];
+export const getUserByIdValidation = [userIdParam()];
 
-// Validación para crear usuario
 export const createUserValidation = [
-  body("nombre")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("El nombre debe tener entre 2 y 100 caracteres")
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .withMessage("El nombre solo puede contener letras y espacios"),
-  body("email")
-    .isEmail()
-    .withMessage("Debe ser un email válido")
-    .normalizeEmail()
-    .isLength({ max: 255 })
-    .withMessage("El email no puede exceder 255 caracteres"),
-  body("telefono")
-    .optional()
-    .trim()
-    .matches(/^(\+52\s?)?[0-9]{10}$/)
-    .withMessage("El teléfono debe ser un número mexicano válido (10 dígitos)"),
-  body("password")
+  nombreBody(),
+  emailBody(),
+  telefonoBody(),
+  body('password')
     .isLength({ min: 8, max: 128 })
-    .withMessage("La contraseña debe tener entre 8 y 128 caracteres")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('La contraseña debe tener entre 8 y 128 caracteres')
+    .matches(PASSWORD_FUERTE)
     .withMessage(
-      "La contraseña debe contener al menos una minúscula, una mayúscula, un número y un carácter especial"
+      'La contraseña debe contener al menos una minúscula, una mayúscula, un número y un carácter especial'
     ),
-  body("rol")
-    .isIn(["conanp", "prestador"])
-    .withMessage("El rol debe ser 'conanp' o 'prestador'"),
-  body("activo")
-    .optional()
-    .isBoolean()
-    .withMessage("El campo activo debe ser true o false"),
-  body("fechaVencimientoPermiso")
-    .optional()
-    .isString()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de vencimiento debe tener el formato YYYY-MM-DD"),
-  body("diasNotificacion")
-    .optional()
-    .isInt({ min: 1, max: 365 })
-    .withMessage("Los días de notificación deben ser un número entre 1 y 365"),
+  rolBody(),
+  activoBody(),
+  fechaVencimientoBody(),
+  diasNotificacionBody(true),
 ];
 
-// Validación para actualizar usuario
 export const updateUserValidation = [
-  param("userId")
-    .isUUID()
-    .withMessage("El ID del usuario debe ser un UUID válido"),
-  body("nombre")
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("El nombre debe tener entre 2 y 100 caracteres")
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .withMessage("El nombre solo puede contener letras y espacios"),
-  body("email")
-    .optional()
-    .isEmail()
-    .withMessage("Debe ser un email válido")
-    .normalizeEmail()
-    .isLength({ max: 255 })
-    .withMessage("El email no puede exceder 255 caracteres"),
-  body("telefono")
-    .optional()
-    .trim()
-    .matches(/^(\+52\s?)?[0-9]{10}$/)
-    .withMessage("El teléfono debe ser un número mexicano válido (10 dígitos)"),
-  body("rol")
-    .optional()
-    .isIn(["conanp", "prestador"])
-    .withMessage("El rol debe ser 'conanp' o 'prestador'"),
-  body("activo")
-    .optional()
-    .isBoolean()
-    .withMessage("El campo activo debe ser true o false"),
-  body("fechaVencimientoPermiso")
-    .optional()
-    .isString()
-    .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage("La fecha de vencimiento debe tener el formato YYYY-MM-DD"),
-  body("diasNotificacion")
-    .optional()
-    .isInt({ min: 1, max: 365 })
-    .withMessage("Los días de notificación deben ser un número entre 1 y 365"),
+  userIdParam(),
+  nombreBody(true),
+  emailBody(true),
+  telefonoBody(),
+  rolBody(true),
+  activoBody(),
+  fechaVencimientoBody(),
+  diasNotificacionBody(),
 ];
 
-// Validación para eliminar usuario
-export const deleteUserValidation = [
-  param("userId")
-    .isUUID()
-    .withMessage("El ID del usuario debe ser un UUID válido"),
-];
+export const deleteUserValidation = [userIdParam()];
 
-// Validación para activar usuario
-export const activateUserValidation = [
-  param("userId")
-    .isUUID()
-    .withMessage("El ID del usuario debe ser un UUID válido"),
-];
+export const activateUserValidation = [userIdParam()];
 
-// Validación para actualizar perfil
 export const updateProfileValidation = [
-  body("nombre")
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("El nombre debe tener entre 2 y 100 caracteres")
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .withMessage("El nombre solo puede contener letras y espacios"),
-  body("telefono")
-    .optional()
-    .trim()
-    .matches(/^(\+52\s?)?[0-9]{10}$/)
-    .withMessage("El teléfono debe ser un número mexicano válido (10 dígitos)"),
-  body("avatar_url")
+  nombreBody(true),
+  telefonoBody(),
+  body('avatar_url')
     .optional()
     .isURL({
-      protocols: ["http", "https"],
+      protocols: ['http', 'https'],
       require_protocol: true,
     })
-    .withMessage(
-      "La URL del avatar debe ser una URL válida con protocolo http o https"
-    )
+    .withMessage('La URL del avatar debe ser una URL válida con protocolo http o https')
     .isLength({ max: 500 })
-    .withMessage("La URL del avatar no puede exceder 500 caracteres"),
+    .withMessage('La URL del avatar no puede exceder 500 caracteres'),
 ];
 
-// Validación para obtener estadísticas
-export const getUserStatsValidation = [
-  // No se requieren validaciones específicas para estadísticas
-];
+export const getUserStatsValidation: [] = [];
 
-// Validación para eliminación permanente de usuario
 export const hardDeleteUserValidation = [
-  param("userId")
-    .isUUID()
-    .withMessage("El ID del usuario debe ser un UUID válido"),
-  body("confirmacion")
+  userIdParam(),
+  body('confirmacion')
     .notEmpty()
-    .withMessage("El campo confirmacion es requerido")
-    .equals("ELIMINAR PERMANENTEMENTE")
+    .withMessage('El campo confirmacion es requerido')
+    .equals('ELIMINAR PERMANENTEMENTE')
     .withMessage(
       "Debe confirmar la eliminación permanente escribiendo 'ELIMINAR PERMANENTEMENTE'"
     ),
