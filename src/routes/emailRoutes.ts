@@ -1,99 +1,47 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import EmailController from '../controllers/emailController';
+import EmailController from '../controllers/email.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors } from '../middleware/validation';
 import {
-  enviarEmailValidation,
-  enviarEmailMasivoValidation,
   enviarAlertaClimaValidation,
   enviarAlertaPermisosValidation,
+  enviarEmailMasivoValidation,
+  enviarEmailValidation,
   enviarPruebaValidation,
 } from '../validators/emailValidators';
 
 const router: ExpressRouter = Router();
 
-/**
- * @route   GET /api/emails/estado
- * @desc    Verificar estado del servicio de Email
- * @access  Privado (CONANP)
- */
-router.get('/estado', authenticateToken, requireCONANP, EmailController.verificarEstado);
+router.use(authenticateToken);
+router.use(requireCONANP);
 
-/**
- * @route   POST /api/emails/enviar
- * @desc    Enviar email individual
- * @access  Privado (CONANP)
- */
-router.post(
-  '/enviar',
-  authenticateToken,
-  requireCONANP,
-  enviarEmailValidation,
-  handleValidationErrors,
-  EmailController.enviarEmail
-);
+router.get('/estado', EmailController.verificarEstado);
 
-/**
- * @route   POST /api/emails/enviar-masivo
- * @desc    Enviar emails masivos a múltiples usuarios
- * @access  Privado (CONANP)
- */
+router.post('/enviar', enviarEmailValidation, handleValidationErrors, EmailController.enviarEmail);
+
 router.post(
   '/enviar-masivo',
-  authenticateToken,
-  requireCONANP,
   enviarEmailMasivoValidation,
   handleValidationErrors,
   EmailController.enviarEmailMasivo
 );
 
-/**
- * @route   POST /api/emails/alerta-clima
- * @desc    Enviar alerta de clima a todos los prestadores activos
- * @access  Privado (CONANP)
- */
 router.post(
   '/alerta-clima',
-  authenticateToken,
-  requireCONANP,
   enviarAlertaClimaValidation,
   handleValidationErrors,
   EmailController.enviarAlertaClima
 );
 
-/**
- * @route   POST /api/emails/alerta-permisos
- * @desc    Enviar alertas de permisos próximos a vencer
- * @access  Privado (CONANP)
- */
 router.post(
   '/alerta-permisos',
-  authenticateToken,
-  requireCONANP,
   enviarAlertaPermisosValidation,
   handleValidationErrors,
   EmailController.enviarAlertaPermisos
 );
 
-/**
- * @route   GET /api/emails/plantillas
- * @desc    Obtener plantillas de emails disponibles
- * @access  Privado (CONANP)
- */
-router.get('/plantillas', authenticateToken, requireCONANP, EmailController.obtenerPlantillas);
+router.get('/plantillas', EmailController.obtenerPlantillas);
 
-/**
- * @route   POST /api/emails/test
- * @desc    Enviar email de prueba (solo en desarrollo)
- * @access  Privado (CONANP)
- */
-router.post(
-  '/test',
-  authenticateToken,
-  requireCONANP,
-  enviarPruebaValidation,
-  handleValidationErrors,
-  EmailController.enviarPrueba
-);
+router.post('/test', enviarPruebaValidation, handleValidationErrors, EmailController.enviarPrueba);
 
 export default router;

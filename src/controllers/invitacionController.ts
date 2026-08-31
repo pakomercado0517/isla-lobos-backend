@@ -3,7 +3,7 @@ import Invitacion from "../models/Invitacion";
 import User from "../models/User";
 import { Op } from "sequelize";
 import { createLogger } from "../utils/logger";
-import emailService from "../services/emailService";
+import { enviarInvitacion } from "../services/email.service";
 import { EmailInvitacionData, UserRole } from "../types";
 
 const logger = createLogger("InvitacionController");
@@ -260,7 +260,7 @@ class InvitacionController {
             expiracion_dias: diasExpiracion,
           };
 
-          const resultadoEmail = await emailService.enviarInvitacion(
+          const resultadoEmail = await enviarInvitacion(
             datosInvitacion
           );
           emailEnviado = resultadoEmail.success;

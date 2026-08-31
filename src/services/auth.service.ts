@@ -14,7 +14,7 @@ import RefreshToken from '../models/RefreshToken';
 import { Op } from 'sequelize';
 import sequelize from '../config/database';
 import { comparePassword, hashPassword } from '../utils/password.utils';
-import emailService from './emailService';
+import { enviarRecuperacionPassword } from './email.service';
 import logger from '../utils/logger';
 
 export const loginService = async (
@@ -228,7 +228,7 @@ export const forgotPasswordService = async (email: string): Promise<ApiResponse>
     expiracion_minutos: 15,
   };
 
-  const emailResult = await emailService.enviarRecuperacionPassword(user.email, emailData);
+  const emailResult = await enviarRecuperacionPassword(user.email, emailData);
 
   if (!emailResult.success) {
     logger.error(
