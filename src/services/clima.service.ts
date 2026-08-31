@@ -5,6 +5,7 @@ import { ApiResponse, EstadoPuerto } from '../types';
 import {
   AlertaMeteorologicaDTO,
   CondicionMeteorologicaResponse,
+  CondicionSMNPayload,
   CreateCondicionDTO,
   GetAlertasResponse,
   GetAllCondicionesQuery,
@@ -22,9 +23,11 @@ import {
 } from '../types/clima.types';
 import { getCurrentMexicoTime } from '../utils/dateUtils';
 import logger from '../utils/logger';
-import SMNService from './smnService';
-
-type CondicionSMNPayload = ReturnType<typeof SMNService.convertirACondicionMeteorologica>;
+import {
+  convertirACondicionMeteorologica,
+  filtrarPorIslaLobos,
+  getPronosticoHorario,
+} from './smn.service';
 
 interface EstadoPuertoAgregado {
   estado_puerto: EstadoPuerto;
@@ -39,6 +42,17 @@ const hourBucketMs = (fecha: Date): number => {
 
 const toCondicionResponse = (condicion: CondicionMeteorologica): CondicionMeteorologicaResponse =>
   condicion.toJSON() as CondicionMeteorologicaResponse;
+
+const toCondicionModelo = (data: CondicionSMNPayload) => ({
+  fecha_hora: data.fecha_hora,
+  oleaje: data.oleaje,
+  viento_velocidad: data.viento_velocidad,
+  viento_direccion: data.viento_direccion,
+  visibilidad: data.visibilidad,
+  estado_puerto: data.estado_puerto as EstadoPuerto,
+  prediccion_5_dias: data.prediccion_5_dias,
+  fuente: data.fuente,
+});
 
 const generarRecomendacion = (oleaje: number, viento: number): string => {
   if (oleaje > 2.5 || viento > 30) {
@@ -489,11 +503,11 @@ export const sincronizarSMNService = async (
 
   logger.info('🔄 Iniciando sincronización con SMN...');
 
-  const datosHorarios = await SMNService.getPronosticoHorario();
+  const datosHorarios = await getPronosticoHorario();
 
   let datosFiltrados = datosHorarios;
   if (solo_isla_lobos) {
-    datosFiltrados = SMNService.filtrarPorIslaLobos(datosHorarios);
+    datosFiltrados = filtrarPorIslaLobos(datosHorarios);
     logger.info(`📍 Filtrado para Isla de Lobos: ${datosFiltrados.length} registros`);
   }
 
@@ -502,14 +516,16 @@ export const sincronizarSMNService = async (
 
   const datosAProcesar = datosFiltrados.slice(0, horas_limite);
 
-  logger.info(`⚙️ Procesando ${datosAProcesar.length} registros (límite: ${horas_limite} horas)...`);
+  logger.info(
+    `⚙️ Procesando ${datosAProcesar.length} registros (límite: ${horas_limite} horas)...`
+  );
 
   const errores: string[] = [];
   const convertidos: CondicionSMNPayload[] = [];
 
   for (const dato of datosAProcesar) {
     try {
-      convertidos.push(SMNService.convertirACondicionMeteorologica(dato));
+      convertidos.push(convertirACondicionMeteorologica(dato));
     } catch (error) {
       const errorMsg = errorDeDatoSMN(dato, error);
       logger.error({ err: error }, `❌ ${errorMsg}`);
@@ -558,12 +574,15 @@ export const sincronizarSMNService = async (
 
       const creadas =
         paraCrear.length > 0
-          ? await CondicionMeteorologica.bulkCreate(paraCrear, { transaction, returning: true })
+          ? await CondicionMeteorologica.bulkCreate(paraCrear.map(toCondicionModelo), {
+              transaction,
+              returning: true,
+            })
           : [];
 
       const actualizadas: CondicionMeteorologica[] = [];
       for (const { row, data } of paraActualizar) {
-        await row.update(data, { transaction });
+        await row.update(toCondicionModelo(data), { transaction });
         actualizadas.push(row);
       }
 

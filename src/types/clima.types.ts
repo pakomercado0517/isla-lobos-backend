@@ -28,6 +28,17 @@ export interface CreateCondicionDTO {
   fuente: FuenteClimaValue;
 }
 
+export interface CondicionSMNPayload {
+  fecha_hora: Date;
+  oleaje: number;
+  viento_velocidad: number;
+  viento_direccion: VientoDireccionValue;
+  visibilidad: VisibilidadValue;
+  estado_puerto: EstadoPuertoValue;
+  prediccion_5_dias: string;
+  fuente: FuenteClimaValue;
+}
+
 export type UpdateCondicionDTO = Partial<CreateCondicionDTO>;
 
 export interface GetAllCondicionesQuery {
