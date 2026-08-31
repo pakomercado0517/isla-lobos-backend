@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import InvitacionController from '../controllers/invitacionController';
+import InvitacionController from '../controllers/invitacion.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
@@ -9,6 +9,7 @@ import {
   updateInvitacionValidation,
   deleteInvitacionValidation,
   validarCodigoValidation,
+  validarCodigoPorGetValidation,
   usarInvitacionValidation,
 } from '../validators/invitacionValidators';
 
@@ -25,7 +26,12 @@ router.post(
   InvitacionController.validarCodigo
 );
 
-router.get('/validar/:codigo', InvitacionController.validarCodigoPorGet);
+router.get(
+  '/validar/:codigo',
+  validarCodigoPorGetValidation,
+  handleValidationErrors,
+  InvitacionController.validarCodigoPorGet
+);
 
 // Rutas protegidas (requieren autenticación)
 router.use(authenticateToken);
