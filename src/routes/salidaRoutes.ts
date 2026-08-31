@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import SalidaController from '../controllers/salidaController';
+import SalidaController from '../controllers/salida.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
