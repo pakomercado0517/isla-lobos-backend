@@ -1,8 +1,8 @@
 import pino from "pino";
-import pinoHttp from "pino-http";
+import pinoHttp, { startTime } from "pino-http";
 import { logger } from "./logger";
 import { randomUUID } from "crypto";
-import { IncomingMessage } from "http";
+import { IncomingMessage, ServerResponse } from "http";
 
 /**
  * Middleware HTTP Logger con formato Morgan Dev
@@ -34,15 +34,13 @@ export const httpLogger = pinoHttp({
       return {
         method: req.method,
         url: req.url,
-        id: (req as any).id,
+        id: req.id,
       };
     },
-    res(res: any) {
-      // El res aquí puede ser un objeto plano o ServerResponse
+    res(res: ServerResponse) {
       return {
         statusCode: res.statusCode,
-        contentLength:
-          res.contentLength || res.getHeader?.("content-length") || "-",
+        contentLength: res.getHeader("content-length") || "-",
       };
     },
     err: pino.stdSerializers.err,
@@ -62,12 +60,11 @@ export const httpLogger = pinoHttp({
   },
 
   // Mensaje estilo Morgan Dev: METHOD /path STATUS TIME - SIZE
-  customSuccessMessage: (req, res) => {
+  customSuccessMessage: (req, res, responseTime) => {
     const method = req.method || "GET";
     const url = req.url || "/";
     const status = res.statusCode || 200;
     const contentLength = res.getHeader("content-length") || "-";
-    const responseTime = (res as any).responseTime || 0;
     return `${method} ${url} ${status} ${responseTime.toFixed(
       1
     )} ms - ${contentLength}`;
@@ -78,7 +75,9 @@ export const httpLogger = pinoHttp({
     const url = req.url || "/";
     const status = res.statusCode || 500;
     const contentLength = res.getHeader("content-length") || "-";
-    const responseTime = (res as any).responseTime || 0;
+    const responseTime = res[startTime]
+      ? Date.now() - res[startTime]
+      : 0;
     return `${method} ${url} ${status} ${responseTime.toFixed(
       1
     )} ms - ${contentLength} - ${err.message}`;

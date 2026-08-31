@@ -33,7 +33,7 @@ interface UserAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface UserCreationAttributes extends Optional<
+type UserCreationAttributes = Optional<
   UserAttributes,
   | 'id'
   | 'telefono'
@@ -46,7 +46,7 @@ interface UserCreationAttributes extends Optional<
   | 'motivoSuspension'
   | 'passwordResetToken'
   | 'passwordResetExpires'
-> {}
+>;
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
@@ -71,11 +71,8 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
 
   // Métodos de instancia
   public override toJSON() {
-    const values = Object.assign({}, this.get());
-    if ('password' in values) {
-      delete (values as any).password; // No incluir password en JSON
-    }
-    return values;
+    const { password: _, ...rest } = Object.assign({}, this.get());
+    return rest;
   }
 
   // Método para verificar si el permiso está próximo a vencer
@@ -196,7 +193,7 @@ User.init(
       type: DataTypes.STRING(20),
       allowNull: true,
       validate: {
-        is: /^[\+]?[1-9][\d]{0,15}$/,
+        is: /^[+]?[1-9][\d]{0,15}$/,
       },
     },
     avatar_url: {

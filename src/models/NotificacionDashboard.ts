@@ -20,16 +20,15 @@ interface NotificacionDashboardAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface NotificacionDashboardCreationAttributes
-  extends Optional<
-    NotificacionDashboardAttributes,
-    | "id"
-    | "usuario_id"
-    | "enlace"
-    | "leida"
-    | "metadata"
-    | "read_at"
-  > {}
+type NotificacionDashboardCreationAttributes = Optional<
+  NotificacionDashboardAttributes,
+  | "id"
+  | "usuario_id"
+  | "enlace"
+  | "leida"
+  | "metadata"
+  | "read_at"
+>;
 
 class NotificacionDashboard
   extends Model<

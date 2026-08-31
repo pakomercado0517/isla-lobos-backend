@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import { EstadoBloque } from "../types";
+import type PlantillaBloque from "./PlantillaBloque";
 import {
   isTodayMexico,
   isTomorrowMexico,
@@ -23,11 +24,10 @@ interface BloqueAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface BloqueCreationAttributes
-  extends Optional<
-    BloqueAttributes,
-    "id" | "capacidad_registrada" | "estado" | "fecha" | "es_plantilla"
-  > {}
+type BloqueCreationAttributes = Optional<
+  BloqueAttributes,
+  "id" | "capacidad_registrada" | "estado" | "fecha" | "es_plantilla"
+>;
 
 class Bloque
   extends Model<BloqueAttributes, BloqueCreationAttributes>
@@ -48,7 +48,7 @@ class Bloque
   public readonly updated_at!: Date;
 
   // Asociaciones
-  public PlantillaBloque?: any; // Relación con PlantillaBloque
+  public PlantillaBloque?: PlantillaBloque; // Relación con PlantillaBloque
 
   // Métodos de instancia
   public get capacidad_disponible(): number {

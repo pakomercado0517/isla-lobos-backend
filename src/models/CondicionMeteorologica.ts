@@ -21,8 +21,10 @@ interface CondicionMeteorologicaAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface CondicionMeteorologicaCreationAttributes
-  extends Optional<CondicionMeteorologicaAttributes, "id"> {}
+type CondicionMeteorologicaCreationAttributes = Optional<
+  CondicionMeteorologicaAttributes,
+  "id"
+>;
 
 class CondicionMeteorologica
   extends Model<

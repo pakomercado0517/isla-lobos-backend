@@ -21,19 +21,18 @@ interface LoteBrazaleteAttributes {
   updated_at: Date;
 }
 
-interface LoteBrazaleteCreationAttributes
-  extends Optional<
-    LoteBrazaleteAttributes,
-    | "id"
-    | "cantidad_vendidos"
-    | "cantidad_utilizados"
-    | "fecha_vencimiento"
-    | "proveedor"
-    | "estado"
-    | "observaciones"
-    | "created_at"
-    | "updated_at"
-  > {}
+type LoteBrazaleteCreationAttributes = Optional<
+  LoteBrazaleteAttributes,
+  | "id"
+  | "cantidad_vendidos"
+  | "cantidad_utilizados"
+  | "fecha_vencimiento"
+  | "proveedor"
+  | "estado"
+  | "observaciones"
+  | "created_at"
+  | "updated_at"
+>;
 
 class LoteBrazalete
   extends Model<LoteBrazaleteAttributes, LoteBrazaleteCreationAttributes>
