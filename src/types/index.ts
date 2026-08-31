@@ -137,7 +137,7 @@ export enum EstadoPuerto {
 export interface Invitacion {
   id: string;
   codigo: string;
-  email: string;
+  email: string | null;
   rol: UserRole;
   expira_en: string; // YYYY-MM-DD
   usada: boolean;

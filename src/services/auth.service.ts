@@ -1,6 +1,6 @@
 import { AppError } from '../lib/AppError';
 import { generateAccessToken, generateRefreshToken } from '../lib/authTokens';
-import { Invitacion, User } from '../models';
+import { User } from '../models';
 import { AuthResponse, RegisterUserDTO } from '../types/auth.types';
 import {
   ApiResponse,
@@ -15,6 +15,10 @@ import { Op } from 'sequelize';
 import sequelize from '../config/database';
 import { comparePassword, hashPassword } from '../utils/password.utils';
 import { enviarRecuperacionPassword } from './email.service';
+import {
+  marcarInvitacionUsada,
+  obtenerInvitacionValidaPorCodigo,
+} from './invitacion.service';
 import logger from '../utils/logger';
 
 export const loginService = async (
@@ -63,15 +67,9 @@ export const registerService = async (
     let rol = UserRole.PRESTADOR;
 
     if (codigo_invitacion) {
-      const invitacion = await Invitacion.findOne({
-        where: { codigo: codigo_invitacion },
-        transaction,
-      });
-      if (!invitacion) throw new AppError('Código de invitación inválido', 400);
-      if (invitacion.usada) throw new AppError('Código de invitación ya utilizado', 400);
-      if (invitacion.esta_expirada) throw new AppError('Código de invitación expirado', 400);
+      const invitacion = await obtenerInvitacionValidaPorCodigo(codigo_invitacion, transaction);
       rol = invitacion.rol;
-      await invitacion.update({ usada: true }, { transaction });
+      await marcarInvitacionUsada(invitacion, { transaction });
     }
 
     const userData: RegisterUserDTO = {
