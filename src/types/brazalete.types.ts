@@ -257,3 +257,131 @@ export interface ActualizarUsoBrazaletesResponse {
   errores?: ActualizarUsoErrorItem[] | undefined;
   motivo: string | null;
 }
+
+export interface EstadisticasQuery {
+  fecha_inicio?: string | undefined;
+  fecha_fin?: string | undefined;
+}
+
+export interface ReporteVentasQuery {
+  fecha_inicio?: string | undefined;
+  fecha_fin?: string | undefined;
+  prestador_id?: string | undefined;
+}
+
+export interface ReporteUtilizacionQuery {
+  fecha_inicio?: string | undefined;
+  fecha_fin?: string | undefined;
+  tipo?: TipoBrazalete | undefined;
+}
+
+export interface PeriodoFechasDTO {
+  fecha_inicio: string | null | undefined;
+  fecha_fin: string | null | undefined;
+}
+
+export interface IngresoPorMesDTO {
+  mes: string;
+  cantidad: number;
+  monto: number;
+}
+
+export interface EstadisticasBrazaletesResponse {
+  periodo: PeriodoFechasDTO;
+  inventario: {
+    total_comprados: number;
+    total_disponibles: number;
+    total_vendidos: number;
+    total_utilizados: number;
+  };
+  ingresos: {
+    ventas_totales: number;
+    por_mes: IngresoPorMesDTO[];
+  };
+  utilizacion: {
+    por_tipo: {
+      universal: number;
+    };
+    por_nacionalidad: {
+      locales: number;
+      nacionales: number;
+      internacionales: number;
+    };
+  };
+}
+
+export type AlertaBrazaleteTipo =
+  | 'stock_bajo'
+  | 'lote_por_vencer'
+  | 'prestador_sin_stock'
+  | 'lotes_vencidos';
+
+export type AlertaBrazaleteSeveridad = 'alta' | 'media' | 'baja';
+
+export interface AlertaBrazaleteDTO {
+  tipo: AlertaBrazaleteTipo;
+  severidad: AlertaBrazaleteSeveridad;
+  mensaje: string;
+  fecha: Date;
+}
+
+export interface AlertasBrazaletesResponse {
+  alertas: AlertaBrazaleteDTO[];
+}
+
+export interface PrestadorVentaResumenDTO {
+  nombre?: string | undefined;
+  email?: string | undefined;
+  telefono?: string | undefined;
+}
+
+export interface VentasPorPrestadorDTO {
+  prestador: PrestadorVentaResumenDTO | undefined;
+  total_ventas: number;
+  total_brazaletes: number;
+  total_ingresos: number;
+}
+
+export interface VentaBrazaleteConRelaciones extends VentaBrazalete {
+  prestador?: PrestadorVentaResumenDTO | undefined;
+  lote?: {
+    numero_lote?: string | undefined;
+    tipo?: TipoBrazalete | undefined;
+  };
+}
+
+export interface ReporteVentasResponse {
+  periodo: PeriodoFechasDTO;
+  resumen: {
+    total_ventas: number;
+    total_brazaletes: number;
+    total_ingresos: number;
+  };
+  ventas_detalle: VentaBrazaleteConRelaciones[];
+  ventas_por_prestador: VentasPorPrestadorDTO[];
+}
+
+export interface EstadisticasEdadDTO {
+  promedio: number;
+  minima: number;
+  maxima: number;
+  total_con_edad: number;
+}
+
+export interface ReporteUtilizacionResponse {
+  periodo: PeriodoFechasDTO;
+  resumen: {
+    total_utilizados: number;
+    por_nacionalidad: {
+      locales: number;
+      nacionales: number;
+      internacionales: number;
+      sin_especificar: number;
+    };
+    por_tipo: {
+      universal: number;
+    };
+    estadisticas_edad: EstadisticasEdadDTO | null;
+  };
+  utilizacion_detalle: Brazalete[];
+}

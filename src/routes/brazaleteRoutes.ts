@@ -1,6 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import BrazaleteController from '../controllers/brazalete.controller';
-import EstadisticasBrazaleteController from '../controllers/estadisticasBrazaleteController';
+import EstadisticasBrazaleteController from '../controllers/estadisticas-brazaletes.controller';
 import BrazaleteValidator from '../validators/brazaleteValidator';
 import { handleValidationErrors } from '../middleware/validation';
 import { authMiddleware, requireRole } from '../middleware/auth.middleware';
@@ -212,7 +212,12 @@ router.get(
  * Datos para dashboard de CONANP
  * Acceso: Solo CONANP
  */
-router.get('/dashboard', authMiddleware, requireRole('conanp'), BrazaleteController.obtenerInventario);
+router.get(
+  '/dashboard',
+  authMiddleware,
+  requireRole('conanp'),
+  BrazaleteController.obtenerInventario
+);
 
 /**
  * GET /api/brazaletes/search
