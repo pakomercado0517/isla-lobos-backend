@@ -15,8 +15,10 @@ export interface PlantillaBloqueAttributes {
 }
 
 // Definir atributos opcionales para creación
-interface PlantillaBloqueCreationAttributes
-  extends Optional<PlantillaBloqueAttributes, "id" | "created_at" | "updated_at"> {}
+type PlantillaBloqueCreationAttributes = Optional<
+  PlantillaBloqueAttributes,
+  "id" | "created_at" | "updated_at"
+>;
 
 // Definir clase del modelo
 class PlantillaBloque

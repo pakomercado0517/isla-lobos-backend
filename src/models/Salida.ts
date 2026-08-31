@@ -23,16 +23,15 @@ interface SalidaAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface SalidaCreationAttributes
-  extends Optional<
-    SalidaAttributes,
-    | "id"
-    | "bloque_id"
-    | "hora"
-    | "observaciones"
-    | "estado"
-    | "motivo_cancelacion"
-  > {}
+type SalidaCreationAttributes = Optional<
+  SalidaAttributes,
+  | "id"
+  | "bloque_id"
+  | "hora"
+  | "observaciones"
+  | "estado"
+  | "motivo_cancelacion"
+>;
 
 class Salida
   extends Model<SalidaAttributes, SalidaCreationAttributes>

@@ -14,8 +14,10 @@ interface InvitacionAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface InvitacionCreationAttributes
-  extends Optional<InvitacionAttributes, "id" | "usada" | "email"> {}
+type InvitacionCreationAttributes = Optional<
+  InvitacionAttributes,
+  "id" | "usada" | "email"
+>;
 
 class Invitacion
   extends Model<InvitacionAttributes, InvitacionCreationAttributes>

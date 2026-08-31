@@ -14,8 +14,10 @@ interface EmbarcacionAttributes {
 }
 
 // Atributos opcionales (para actualizaciones)
-interface EmbarcacionCreationAttributes
-  extends Optional<EmbarcacionAttributes, "id" | "estado"> {}
+type EmbarcacionCreationAttributes = Optional<
+  EmbarcacionAttributes,
+  "id" | "estado"
+>;
 
 class Embarcacion
   extends Model<EmbarcacionAttributes, EmbarcacionCreationAttributes>

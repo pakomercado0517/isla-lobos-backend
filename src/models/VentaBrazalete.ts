@@ -16,16 +16,15 @@ interface VentaBrazaleteAttributes {
   created_at: Date;
 }
 
-interface VentaBrazaleteCreationAttributes
-  extends Optional<
-    VentaBrazaleteAttributes,
-    | "id"
-    | "fecha_venta"
-    | "metodo_pago"
-    | "estado_pago"
-    | "observaciones"
-    | "created_at"
-  > {}
+type VentaBrazaleteCreationAttributes = Optional<
+  VentaBrazaleteAttributes,
+  | "id"
+  | "fecha_venta"
+  | "metodo_pago"
+  | "estado_pago"
+  | "observaciones"
+  | "created_at"
+>;
 
 class VentaBrazalete
   extends Model<VentaBrazaleteAttributes, VentaBrazaleteCreationAttributes>
