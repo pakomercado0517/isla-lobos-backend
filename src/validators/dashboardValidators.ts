@@ -1,4 +1,4 @@
-import { query } from "express-validator";
+import { param, query } from "express-validator";
 
 /**
  * Validadores para DashboardController
@@ -31,6 +31,7 @@ export const getResumenClimaValidation = [
     .default(7),
 ];
 
-// No se requieren validaciones para los otros endpoints del dashboard
-// ya que no reciben parámetros de entrada
+export const marcarNotificacionLeidaValidation = [
+  param('id').isUUID().withMessage('El ID debe ser un UUID válido'),
+];
 

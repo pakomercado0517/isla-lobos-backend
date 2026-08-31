@@ -3,7 +3,7 @@ import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 import { createLogger } from "../utils/logger";
 import { UserRole } from "../types";
-import dashboardNotificationService from "../services/dashboardNotificationService";
+import { setDashboardNotificationSocketIO } from "../services/dashboard-notification.service";
 import { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from "../types/socketIO.types";
 
 const logger = createLogger("SocketIO");
@@ -120,7 +120,7 @@ export const initializeSocketIO = (httpServer: HttpServer): SocketIOServer => {
   });
 
   // Configurar el servicio de notificaciones con la instancia de Socket.IO
-  dashboardNotificationService.setSocketIO(io);
+  setDashboardNotificationSocketIO(io);
 
   logger.info("Socket.IO inicializado correctamente");
 

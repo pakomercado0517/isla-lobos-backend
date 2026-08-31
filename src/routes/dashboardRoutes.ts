@@ -1,11 +1,12 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import DashboardController from '../controllers/dashboard.controller';
-import DashboardNotificationController from '../controllers/dashboardNotificationController';
+import DashboardNotificationController from '../controllers/dashboard-notification.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors, sanitizeInput } from '../middleware/validation';
 import {
   getOcupacionValidation,
   getResumenClimaValidation,
+  marcarNotificacionLeidaValidation,
 } from '../validators/dashboardValidators';
 
 const router: ExpressRouter = Router();
@@ -47,6 +48,11 @@ router.get('/notificaciones', DashboardNotificationController.obtenerNotificacio
 
 router.get('/notificaciones/contador', DashboardNotificationController.obtenerContador);
 
-router.put('/notificaciones/:id/leer', DashboardNotificationController.marcarComoLeida);
+router.put(
+  '/notificaciones/:id/leer',
+  marcarNotificacionLeidaValidation,
+  handleValidationErrors,
+  DashboardNotificationController.marcarComoLeida
+);
 
 export default router;
