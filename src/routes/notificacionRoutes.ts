@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import NotificacionController from '../controllers/notificacionController';
+import NotificacionController from '../controllers/notificacion.controller';
 import { authenticateToken, requireCONANP } from '../middleware/auth.middleware';
 import { handleValidationErrors } from '../middleware/validation';
 import {

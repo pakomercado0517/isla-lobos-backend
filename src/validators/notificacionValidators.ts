@@ -165,19 +165,19 @@ export const enviarAlertaClimaValidation = [
     .isIn(Object.values(EstadoPuerto))
     .withMessage("Estado del puerto inválido"),
 
-  body("oleaje")
+  body('oleaje')
     .notEmpty()
-    .withMessage("El oleaje es requerido")
+    .withMessage('El oleaje es requerido')
     .isFloat({ min: 0, max: 10 })
-    .withMessage("El oleaje debe ser un número entre 0 y 10 metros"),
+    .withMessage('El oleaje debe ser un número entre 0 y 10 metros')
+    .toFloat(),
 
-  body("viento_velocidad")
+  body('viento_velocidad')
     .notEmpty()
-    .withMessage("La velocidad del viento es requerida")
+    .withMessage('La velocidad del viento es requerida')
     .isFloat({ min: 0, max: 200 })
-    .withMessage(
-      "La velocidad del viento debe ser un número entre 0 y 200 km/h"
-    ),
+    .withMessage('La velocidad del viento debe ser un número entre 0 y 200 km/h')
+    .toFloat(),
 
   body("mensaje_adicional")
     .optional()
@@ -190,10 +190,12 @@ export const enviarAlertaClimaValidation = [
 
 // Validación para enviar alerta de permisos
 export const enviarAlertaPermisosValidation = [
-  body("dias_anticipacion")
+  body('dias_anticipacion')
     .optional()
     .isInt({ min: 1, max: 90 })
-    .withMessage("Los días de anticipación deben estar entre 1 y 90"),
+    .withMessage('Los días de anticipación deben estar entre 1 y 90')
+    .toInt()
+    .default(30),
 ];
 
 // Validación para verificar estado de mensaje
