@@ -40,7 +40,8 @@ export const enviarEmailValidation = [
   body("html")
     .optional()
     .isBoolean()
-    .withMessage("El campo html debe ser un booleano"),
+    .withMessage("El campo html debe ser un booleano")
+    .toBoolean(),
 
   body("datos_adicionales")
     .optional()
@@ -86,7 +87,8 @@ export const enviarEmailMasivoValidation = [
   body("html")
     .optional()
     .isBoolean()
-    .withMessage("El campo html debe ser un booleano"),
+    .withMessage("El campo html debe ser un booleano")
+    .toBoolean(),
 ];
 
 // Validación para enviar alerta de clima por email
@@ -101,7 +103,8 @@ export const enviarAlertaClimaValidation = [
     .notEmpty()
     .withMessage("El oleaje es requerido")
     .isFloat({ min: 0, max: 10 })
-    .withMessage("El oleaje debe ser un número entre 0 y 10 metros"),
+    .withMessage("El oleaje debe ser un número entre 0 y 10 metros")
+    .toFloat(),
 
   body("viento_velocidad")
     .notEmpty()
@@ -109,7 +112,8 @@ export const enviarAlertaClimaValidation = [
     .isFloat({ min: 0, max: 200 })
     .withMessage(
       "La velocidad del viento debe ser un número entre 0 y 200 km/h"
-    ),
+    )
+    .toFloat(),
 
   body("fecha")
     .notEmpty()
@@ -133,7 +137,9 @@ export const enviarAlertaPermisosValidation = [
   body("dias_anticipacion")
     .optional()
     .isInt({ min: 1, max: 90 })
-    .withMessage("Los días de anticipación deben estar entre 1 y 90"),
+    .withMessage("Los días de anticipación deben estar entre 1 y 90")
+    .toInt()
+    .default(30),
 ];
 
 // Validación para enviar email de prueba
